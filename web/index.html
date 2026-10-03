@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>个人本体治理 · 本地控制台</title>
+  <link rel="stylesheet" href="/assets/app.css?v=20261002d">
+  <script src="/assets/i18n.js?v=20261002d"></script>
+  <script src="/assets/app.js?v=20261002d" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#dashboard" aria-label="个人本体治理首页">
+        <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5 27 9.8v12.4L16 28.5 5 22.2V9.8z"/><path d="m10 12 6-3.5 6 3.5v8l-6 3.5-6-3.5z"/><path d="M16 8.5v15M10 12l12 8m0-8-12 8"/></svg></span>
+        <span><strong>本体治理</strong><small>PERSONAL ONTOLOGY</small></span>
+      </a>
+      <div class="workspace-label">工作区 <span class="local-badge"><i></i> 本机</span></div>
+      <nav class="nav" aria-label="主导航">
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon">◫</span>总览</button>
+        <div class="nav-caption">本体管理</div>
+        <button class="nav-item" data-page="principals"><span class="nav-icon">◎</span>主体<span class="nav-count" data-count="principals">—</span></button>
+        <button class="nav-item" data-page="scenario-slices"><span class="nav-icon">✧</span>场景切片<span class="nav-count" data-count="scenario-slices">—</span></button>
+        <button class="nav-item" data-page="scenario-instances"><span class="nav-icon">▤</span>场景实例<span class="nav-count" data-count="scenario-instances">—</span></button>
+        <button class="nav-item" data-page="scenario-preview"><span class="nav-icon">▷</span>场景预演</button>
+        <div class="nav-caption">审计</div>
+        <button class="nav-item" data-page="decisions"><span class="nav-icon">◷</span>判定记录<span class="nav-count" data-count="decisions">—</span></button>
+        <div class="nav-caption">配置与监控</div>
+        <button class="nav-item" data-page="model-service"><span class="nav-icon">⚙</span>模型服务</button>
+        <button class="nav-item" data-page="agent-integration"><span class="nav-icon">⇄</span>智能体接入</button>
+        <button class="nav-item" data-page="service-monitor"><span class="nav-icon">◉</span>服务监控</button>
+        <button class="nav-item" data-page="agent-access"><span class="nav-icon">⚿</span>智能体授权</button>
+        <button class="nav-item" data-page="display-settings"><span class="nav-icon">◐</span>显示与语言</button>
+        <button class="nav-item" data-page="account-security"><span class="nav-icon">⌘</span>登录与安全</button>
+        <button class="nav-item" data-page="feedback"><span class="nav-icon">✉</span>需求反馈</button>
+      </nav>
+      <div class="sidebar-footer"><div class="avatar">PO</div><div class="profile"><strong>本地空间</strong><small>数据仅保存在此设备</small></div><span class="lock-icon">⌑</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>工作区</span><b>/</b><strong id="crumb">总览</strong></div>
+        <div class="top-actions"><span class="service-state"><i id="state-dot"></i><span id="state-label">检查服务</span></span><button class="icon-button" id="refresh" title="刷新数据" aria-label="刷新数据">↻</button><button class="user-chip" id="token-button" title="登录与安全"><span class="user-avatar">A</span><span>管理员</span><span class="chevron">⌄</span></button></div>
+      </header>
+      <section id="view" class="view" aria-live="polite"></section>
+      <footer class="footer"><span>PERSONAL ONTOLOGY GOVERNANCE</span><span>版本 3.1 <b>·</b> 本机运行</span></footer>
+    </main>
+  </div>
+
+  <dialog id="record-dialog" class="modal"><form method="dialog" class="modal-dismiss"><button aria-label="关闭">×</button></form><div id="dialog-content"></div></dialog>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+</body>
+</html>

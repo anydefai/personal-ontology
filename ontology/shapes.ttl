@@ -1,0 +1,152 @@
+@prefix po:   <urn:personalontology:ontology#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+po:PrincipalShape a sh:NodeShape ; sh:targetClass po:Principal ;
+  sh:property [ sh:path po:principalId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:principalType ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ("person"^^xsd:string "agent"^^xsd:string "group"^^xsd:string "role"^^xsd:string "org"^^xsd:string) ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:hasParent ; sh:maxCount 1 ; sh:class po:Principal ] .
+
+po:ResourceTypeDescriptorShape a sh:NodeShape ; sh:targetClass po:ResourceTypeDescriptor ;
+  sh:property [ sh:path po:typeName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:usesMatcher ; sh:minCount 1 ; sh:maxCount 1 ; sh:class po:Matcher ] ;
+  sh:property [ sh:path po:supportsAction ; sh:class po:Action ] ;
+  sh:property [ sh:path po:hasParam ; sh:class po:ParamDefinition ] ;
+  sh:property [ sh:path po:defaultPriority ; sh:minCount 1 ; sh:datatype xsd:integer ] ;
+  sh:property [ sh:path po:isBuiltin ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] .
+
+po:ParamDefinitionShape a sh:NodeShape ; sh:targetClass po:ParamDefinition ;
+  sh:property [ sh:path po:paramName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:paramType ; sh:minCount 1 ; sh:in ("string"^^xsd:string "number"^^xsd:string "bool"^^xsd:string "date"^^xsd:string) ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:paramRequired ; sh:minCount 1 ; sh:datatype xsd:boolean ] .
+
+po:ActionShape a sh:NodeShape ; sh:targetClass po:Action ;
+  sh:property [ sh:path po:actionId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:actionResourceType ; sh:minCount 1 ; sh:class po:ResourceTypeDescriptor ] ;
+  sh:property [ sh:path po:riskLevel ; sh:minCount 1 ; sh:in ("low"^^xsd:string "medium"^^xsd:string "high"^^xsd:string "critical"^^xsd:string) ] .
+
+po:AuthorizationShape a sh:NodeShape ; sh:targetClass po:Authorization ;
+  sh:property [ sh:path po:authorizationId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:grantor ; sh:minCount 1 ; sh:maxCount 1 ; sh:class po:Principal ] ;
+  sh:property [ sh:path po:grantee ; sh:minCount 1 ; sh:maxCount 1 ; sh:class po:Principal ] ;
+  sh:property [ sh:path po:appliesToResource ; sh:minCount 1 ; sh:maxCount 1 ; sh:class po:ResourceTypeDescriptor ] ;
+  sh:property [ sh:path po:resourcePattern ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:patternType ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:allowsAction ; sh:minCount 1 ; sh:class po:Action ] ;
+  sh:property [ sh:path po:hasEffect ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (po:Allow po:Deny po:Ask) ] ;
+  sh:property [ sh:path po:priority ; sh:minCount 1 ; sh:datatype xsd:integer ] ;
+  sh:property [ sh:path po:source ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:term ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:revoked ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path po:policyStatus ; sh:maxCount 1 ; sh:in ("draft"^^xsd:string "active"^^xsd:string "suspended"^^xsd:string) ] ;
+  sh:property [ sh:path po:createdAt ; sh:minCount 1 ; sh:datatype xsd:dateTime ] ;
+  sh:property [ sh:path po:hasConstraint ; sh:class po:Constraint ] ;
+  sh:property [ sh:path po:hasRedline ; sh:class po:Redline ] .
+
+po:ConstraintShape a sh:NodeShape ; sh:targetClass po:Constraint ;
+  sh:property [ sh:path po:constraintType ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:constraintValue ; sh:minCount 1 ] .
+
+po:RedlineShape a sh:NodeShape ; sh:targetClass po:Redline ;
+  sh:property [ sh:path po:redlineId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:descriptionZh ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:descriptionEn ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:redlinePattern ; sh:minCount 1 ; sh:datatype xsd:string ] .
+
+po:DecisionResultShape a sh:NodeShape ; sh:targetClass po:DecisionResult ;
+  sh:property [ sh:path po:resultId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:severity ; sh:minCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 10 ; sh:datatype xsd:integer ] ;
+  sh:property [ sh:path po:nextAction ; sh:minCount 1 ; sh:in ("execute"^^xsd:string "pause"^^xsd:string "refuse"^^xsd:string) ] .
+
+po:DecisionShape a sh:NodeShape ; sh:targetClass po:Decision ;
+  sh:property [ sh:path po:decisionId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:phase ; sh:minCount 1 ; sh:in ("pre_planning"^^xsd:string "pre_execution"^^xsd:string) ] ;
+  sh:property [ sh:path po:hasResult ; sh:minCount 1 ; sh:maxCount 1 ; sh:class po:DecisionResult ] ;
+  sh:property [ sh:path po:reasonKey ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:inputParams ; sh:minCount 1 ; sh:datatype rdf:JSON ] ;
+  sh:property [ sh:path po:timestamp ; sh:minCount 1 ; sh:datatype xsd:dateTime ] ;
+  sh:property [ sh:path po:citesEvidence ; sh:class po:Evidence ] .
+
+po:TaxonomyShape a sh:NodeShape ; sh:targetClass po:Taxonomy ;
+  sh:property [ sh:path po:taxonomyId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:hasTaxonomyItem ; sh:minCount 1 ; sh:class po:TaxonomyItem ] ;
+  sh:property [ sh:path po:extensible ; sh:datatype xsd:boolean ; sh:maxCount 1 ] .
+
+po:TaxonomyItemShape a sh:NodeShape ; sh:targetClass po:TaxonomyItem ;
+  sh:property [ sh:path po:itemId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:parentTaxonomyItem ; sh:maxCount 1 ; sh:class po:TaxonomyItem ] .
+
+po:ContextShape a sh:NodeShape ; sh:targetClass po:Context ;
+  sh:property [ sh:path po:contextId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:timestamp ; sh:minCount 1 ; sh:datatype xsd:dateTime ] ;
+  sh:property [ sh:path po:userStatus ; sh:minCount 1 ; sh:class po:TaxonomyItem ] ;
+  sh:property [ sh:path po:taskType ; sh:class po:TaxonomyItem ] ;
+  sh:property [ sh:path po:sourceTrust ; sh:minCount 1 ; sh:in ("high"^^xsd:string "medium"^^xsd:string "low"^^xsd:string) ] .
+
+po:InteractionShape a sh:NodeShape ; sh:targetClass po:Interaction ;
+  sh:property [ sh:path po:interactionId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:sessionId ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:userInput ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:status ; sh:minCount 1 ; sh:in ("in_progress"^^xsd:string "completed"^^xsd:string "interrupted"^^xsd:string) ] ;
+  sh:property [ sh:path po:startedAt ; sh:minCount 1 ; sh:datatype xsd:dateTime ] ;
+  sh:property [ sh:path po:endedAt ; sh:maxCount 1 ; sh:datatype xsd:dateTime ] .
+
+po:ExecutionShape a sh:NodeShape ; sh:targetClass po:Execution ;
+  sh:property [ sh:path po:executionId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:interaction ; sh:minCount 1 ; sh:class po:Interaction ] ;
+  sh:property [ sh:path po:executedAs ; sh:minCount 1 ; sh:class po:Decision ] ;
+  sh:property [ sh:path po:action ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:executionResult ; sh:minCount 1 ; sh:in ("success"^^xsd:string "failure"^^xsd:string "exception"^^xsd:string) ] ;
+  sh:property [ sh:path po:executedAt ; sh:minCount 1 ; sh:datatype xsd:dateTime ] .
+
+po:ContactPointShape a sh:NodeShape ; sh:targetClass po:ContactPoint ;
+  sh:property [ sh:path po:contactId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:contactType ; sh:minCount 1 ; sh:in ("phone"^^xsd:string "email"^^xsd:string "address"^^xsd:string) ] ;
+  sh:property [ sh:path po:value ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:label ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:verified ; sh:minCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path po:disclosure ; sh:minCount 1 ; sh:in ("self_only"^^xsd:string "internal"^^xsd:string "external"^^xsd:string) ] ;
+  sh:property [ sh:path po:createdAt ; sh:minCount 1 ; sh:datatype xsd:dateTime ] .
+
+po:MatcherShape a sh:NodeShape ; sh:targetClass po:Matcher ;
+  sh:property [ sh:path po:patternType ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] .
+
+po:NotifierShape a sh:NodeShape ; sh:targetClass po:Notifier ;
+  sh:property [ sh:path po:channelId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:displayNameEn ; sh:minCount 1 ] ;
+  sh:property [ sh:path po:enabled ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] .
+
+po:CryptoProviderShape a sh:NodeShape ; sh:targetClass po:CryptoProvider ;
+  sh:property [ sh:path po:cryptoName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:keySize ; sh:minCount 1 ; sh:minInclusive 16 ; sh:datatype xsd:integer ] .
+
+po:TriggerShape a sh:NodeShape ; sh:targetClass po:Trigger ;
+  sh:property [ sh:path po:triggerId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:eventType ; sh:minCount 1 ; sh:in ("time_expired"^^xsd:string "person_left"^^xsd:string "context_changed"^^xsd:string "risk_event"^^xsd:string) ] ;
+  sh:property [ sh:path po:condition ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:triggerAction ; sh:minCount 1 ; sh:in ("revoke"^^xsd:string "escalate"^^xsd:string "notify"^^xsd:string) ] .
+
+po:ScenarioSliceShape a sh:NodeShape ; sh:targetClass po:ScenarioSlice ;
+  sh:property [ sh:path po:scenarioId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:originalText ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path po:scenarioStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ("draft"^^xsd:string "analyzed"^^xsd:string "confirmed"^^xsd:string) ] ;
+  sh:property [ sh:path po:analysis ; sh:datatype rdf:JSON ; sh:maxCount 1 ] ;
+  sh:property [ sh:path po:updatedAt ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:dateTime ] .

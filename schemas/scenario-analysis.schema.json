@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://personal-ontology.local/schemas/scenario-analysis.schema.json",
+  "title": "场景分析结果（analysis）",
+  "description": "大模型输出与后端编译之间的契约。对应 docs/09-scenario-analysis-schema.md。",
+  "type": "object",
+  "required": ["title", "resource_types", "actions", "required_inputs", "facts", "policies"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1, "maxLength": 160},
+    "scope": {
+      "type": "object",
+      "properties": {
+        "mode": {"enum": ["global", "segmented"]},
+        "dimension": {"type": ["string", "null"]},
+        "label": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "resource_types": {
+      "type": "array", "minItems": 1, "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1, "maxLength": 160},
+          "description": {"type": "string"},
+          "existing_id": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "actions": {
+      "type": "array", "minItems": 1, "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1, "maxLength": 160},
+          "description": {"type": "string"},
+          "risk": {"enum": ["low", "medium", "high", "critical"]},
+          "existing_id": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "required_inputs": {"type": "array", "maxItems": 80, "items": {"$ref": "#/$defs/field"}},
+    "facts": {"type": "array", "maxItems": 80, "items": {"$ref": "#/$defs/field"}},
+    "questions": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "type": "object", "required": ["question"],
+        "properties": {"question": {"type": "string"}, "field": {"type": ["string", "null"]}, "reason": {"type": "string"}},
+        "additionalProperties": true
+      }
+    },
+    "policies": {
+      "type": "array", "maxItems": 60,
+      "items": {
+        "type": "object",
+        "required": ["effect"],
+        "properties": {
+          "subject": {"type": "string"},
+          "resource": {"type": "string"},
+          "effect": {"enum": ["allow", "deny", "ask"]},
+          "actions": {
+            "type": "array", "minItems": 1,
+            "items": {"type": "string"},
+            "description": "必须是本场景 actions 里出现过的名称。缺失时后端回退到全部动作（契约违规，会记入 contract_notes）。"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "object", "required": ["field", "operator"],
+              "properties": {
+                "field": {"type": "string"},
+                "operator": {"enum": ["equals", "lte", "gte", "exists", "contains", "in"]},
+                "value": {"type": ["string", "number", "boolean", "null"]},
+                "label": {"type": "string"}
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "segmentation": {"$ref": "#/$defs/segmentation"},
+    "generated": {
+      "type": "object",
+      "description": "后端写入，模型不应输出。",
+      "properties": {
+        "resource_type_id": {"type": "string"},
+        "resource_type_ids": {"type": "array", "items": {"type": "string"}},
+        "created_resource_type": {"type": "boolean"},
+        "created_resource_type_ids": {"type": "array", "items": {"type": "string"}},
+        "action_ids": {"type": "array", "items": {"type": "string"}},
+        "created_action_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "demoted_fields": {"type": "array"},
+    "contract_notes": {"type": "array", "description": "后端写入：契约违规说明。"}
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "field": {
+      "type": "object",
+      "required": ["name", "label"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 160},
+        "type": {"type": "string"},
+        "value": {"type": ["string", "number", "boolean", "null"]},
+        "required": {"type": "boolean"},
+        "help": {"type": "string"},
+        "source": {"enum": ["user", "model", "system", "suggestion"]},
+        "role": {"enum": ["required", "preference", "both"], "description": "三档分类，见 docs/09 §2。"},
+        "role_reason": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "segmentation": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["global", "segmented"]},
+        "segmentation_schema_version": {"const": 1},
+        "dimensions": {"type": "array"},
+        "global_preferences": {"type": "array", "items": {"$ref": "#/$defs/preference"}},
+        "variants": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "preference": {
+      "type": "object",
+      "required": ["field", "label", "value"],
+      "properties": {
+        "field": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$"},
+        "label": {"type": "string", "minLength": 1},
+        "type": {"type": "string"},
+        "value": {"type": ["string", "number", "boolean"]},
+        "operator": {"enum": ["equals", "lte", "gte", "exists"]},
+        "strength": {"enum": ["must", "should"]}
+      },
+      "additionalProperties": true
+    }
+  }
+}

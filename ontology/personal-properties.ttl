@@ -1,0 +1,121 @@
+@prefix po:   <urn:personalontology:ontology#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Supplementary property declarations for the v3.0 metamodel.
+# This module completes the declarations referenced by docs/02-validation-and-runtime.md.
+# Generic properties intentionally omit rdfs:domain where they apply to multiple classes;
+# adding several rdfs:domain triples would mean intersection in OWL, not union.
+
+# Principal and hierarchy
+po:principalId a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:principalType a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:hasParent a owl:ObjectProperty ; rdfs:domain po:Principal ; rdfs:range po:Principal .
+po:parentTaxonomyItem a owl:ObjectProperty ; rdfs:domain po:TaxonomyItem ; rdfs:range po:TaxonomyItem .
+
+# Shared labels and descriptions
+po:displayNameZh a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:displayNameEn a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:descriptionZh a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:descriptionEn a owl:DatatypeProperty ; rdfs:range xsd:string .
+
+# Resource descriptors and parameter definitions
+po:typeName a owl:DatatypeProperty ; rdfs:domain po:ResourceTypeDescriptor ; rdfs:range xsd:string .
+po:usesMatcher a owl:ObjectProperty ; rdfs:domain po:ResourceTypeDescriptor ; rdfs:range po:Matcher .
+po:hasParam a owl:ObjectProperty ; rdfs:domain po:ResourceTypeDescriptor ; rdfs:range po:ParamDefinition .
+po:supportsAction a owl:ObjectProperty ; rdfs:domain po:ResourceTypeDescriptor ; rdfs:range po:Action .
+po:defaultPriority a owl:DatatypeProperty ; rdfs:domain po:ResourceTypeDescriptor ; rdfs:range xsd:integer .
+po:isBuiltin a owl:DatatypeProperty ; rdfs:domain po:ResourceTypeDescriptor ; rdfs:range xsd:boolean .
+po:paramName a owl:DatatypeProperty ; rdfs:domain po:ParamDefinition ; rdfs:range xsd:string .
+po:paramId a owl:DatatypeProperty ; rdfs:domain po:ParamDefinition ; rdfs:range xsd:string .
+po:paramType a owl:DatatypeProperty ; rdfs:domain po:ParamDefinition ; rdfs:range xsd:string .
+po:paramRequired a owl:DatatypeProperty ; rdfs:domain po:ParamDefinition ; rdfs:range xsd:boolean .
+
+# Action and authorization
+po:actionId a owl:DatatypeProperty ; rdfs:domain po:Action ; rdfs:range xsd:string .
+po:appliesToResource a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:ResourceTypeDescriptor .
+po:actionResourceType a owl:ObjectProperty ; rdfs:domain po:Action ; rdfs:range po:ResourceTypeDescriptor .
+po:allowsAction a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:Action .
+po:patternType a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:riskLevel a owl:DatatypeProperty ; rdfs:domain po:Action ; rdfs:range xsd:string .
+po:authorizationId a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:string .
+po:grantor a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:Principal .
+po:grantee a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:Principal .
+po:resourcePattern a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:string .
+po:hasEffect a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:AuthorizationEffect .
+po:priority a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:integer .
+po:source a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:string .
+po:term a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:string .
+po:revoked a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:boolean .
+po:policyStatus a owl:DatatypeProperty ; rdfs:domain po:Authorization ; rdfs:range xsd:string .
+po:hasConstraint a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:Constraint .
+po:hasRedline a owl:ObjectProperty ; rdfs:domain po:Authorization ; rdfs:range po:Redline .
+po:constraintType a owl:DatatypeProperty ; rdfs:domain po:Constraint ; rdfs:range xsd:string .
+po:constraintValue a owl:DatatypeProperty ; rdfs:domain po:Constraint .
+po:redlineId a owl:DatatypeProperty ; rdfs:domain po:Redline ; rdfs:range xsd:string .
+po:redlinePattern a owl:DatatypeProperty ; rdfs:domain po:Redline ; rdfs:range xsd:string .
+
+# Decision and evidence
+po:resultId a owl:DatatypeProperty ; rdfs:domain po:DecisionResult ; rdfs:range xsd:string .
+po:severity a owl:DatatypeProperty ; rdfs:domain po:DecisionResult ; rdfs:range xsd:integer .
+po:nextAction a owl:DatatypeProperty ; rdfs:domain po:DecisionResult ; rdfs:range xsd:string .
+po:decisionId a owl:DatatypeProperty ; rdfs:domain po:Decision ; rdfs:range xsd:string .
+po:phase a owl:DatatypeProperty ; rdfs:domain po:Decision ; rdfs:range xsd:string .
+po:hasResult a owl:ObjectProperty ; rdfs:domain po:Decision ; rdfs:range po:DecisionResult .
+po:reasonKey a owl:DatatypeProperty ; rdfs:domain po:Decision ; rdfs:range xsd:string .
+po:inputParams a owl:DatatypeProperty ; rdfs:domain po:Decision ; rdfs:range rdf:JSON .
+po:citesEvidence a owl:ObjectProperty ; rdfs:domain po:Decision ; rdfs:range po:Evidence .
+po:timestamp a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
+
+# Taxonomy and context
+po:taxonomyId a owl:DatatypeProperty ; rdfs:domain po:Taxonomy ; rdfs:range xsd:string .
+po:hasTaxonomyItem a owl:ObjectProperty ; rdfs:domain po:Taxonomy ; rdfs:range po:TaxonomyItem .
+po:extensible a owl:DatatypeProperty ; rdfs:domain po:Taxonomy ; rdfs:range xsd:boolean .
+po:itemId a owl:DatatypeProperty ; rdfs:domain po:TaxonomyItem ; rdfs:range xsd:string .
+po:contextId a owl:DatatypeProperty ; rdfs:domain po:Context ; rdfs:range xsd:string .
+po:userStatus a owl:ObjectProperty ; rdfs:domain po:Context ; rdfs:range po:TaxonomyItem .
+po:taskType a owl:ObjectProperty ; rdfs:domain po:Context ; rdfs:range po:TaxonomyItem .
+po:sourceTrust a owl:DatatypeProperty ; rdfs:domain po:Context ; rdfs:range xsd:string .
+
+# Interaction and execution
+po:interactionId a owl:DatatypeProperty ; rdfs:domain po:Interaction ; rdfs:range xsd:string .
+po:sessionId a owl:DatatypeProperty ; rdfs:domain po:Interaction ; rdfs:range xsd:string .
+po:userInput a owl:DatatypeProperty ; rdfs:domain po:Interaction ; rdfs:range xsd:string .
+po:status a owl:DatatypeProperty ; rdfs:domain po:Interaction ; rdfs:range xsd:string .
+po:startedAt a owl:DatatypeProperty ; rdfs:domain po:Interaction ; rdfs:range xsd:dateTime .
+po:endedAt a owl:DatatypeProperty ; rdfs:domain po:Interaction ; rdfs:range xsd:dateTime .
+po:executionId a owl:DatatypeProperty ; rdfs:domain po:Execution ; rdfs:range xsd:string .
+po:interaction a owl:ObjectProperty ; rdfs:domain po:Execution ; rdfs:range po:Interaction .
+po:executedAs a owl:ObjectProperty ; rdfs:domain po:Execution ; rdfs:range po:Decision .
+po:action a owl:DatatypeProperty ; rdfs:domain po:Execution ; rdfs:range xsd:string .
+po:executionResult a owl:DatatypeProperty ; rdfs:domain po:Execution ; rdfs:range xsd:string .
+po:executedAt a owl:DatatypeProperty ; rdfs:domain po:Execution ; rdfs:range xsd:dateTime .
+
+# Contact points
+po:contactId a owl:DatatypeProperty ; rdfs:domain po:ContactPoint ; rdfs:range xsd:string .
+po:contactType a owl:DatatypeProperty ; rdfs:domain po:ContactPoint ; rdfs:range xsd:string .
+po:value a owl:DatatypeProperty ; rdfs:domain po:ContactPoint ; rdfs:range xsd:string .
+po:label a owl:DatatypeProperty ; rdfs:domain po:ContactPoint ; rdfs:range xsd:string .
+po:verified a owl:DatatypeProperty ; rdfs:domain po:ContactPoint ; rdfs:range xsd:boolean .
+po:disclosure a owl:DatatypeProperty ; rdfs:domain po:ContactPoint ; rdfs:range xsd:string .
+po:createdAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
+
+# Matcher, notifier, cryptography, and triggers
+po:channelId a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:enabled a owl:DatatypeProperty ; rdfs:domain po:Notifier ; rdfs:range xsd:boolean .
+po:cryptoName a owl:DatatypeProperty ; rdfs:domain po:CryptoProvider ; rdfs:range xsd:string .
+po:keySize a owl:DatatypeProperty ; rdfs:domain po:CryptoProvider ; rdfs:range xsd:integer .
+po:triggerId a owl:DatatypeProperty ; rdfs:domain po:Trigger ; rdfs:range xsd:string .
+po:eventType a owl:DatatypeProperty ; rdfs:domain po:Trigger ; rdfs:range xsd:string .
+po:condition a owl:DatatypeProperty ; rdfs:domain po:Trigger ; rdfs:range xsd:string .
+po:triggerAction a owl:DatatypeProperty ; rdfs:domain po:Trigger ; rdfs:range xsd:string .
+
+# Scene-first natural-language drafts; analysis is stored as structured RDF JSON.
+po:ScenarioSlice a owl:Class .
+po:scenarioId a owl:DatatypeProperty ; rdfs:domain po:ScenarioSlice ; rdfs:range xsd:string .
+po:originalText a owl:DatatypeProperty ; rdfs:domain po:ScenarioSlice ; rdfs:range xsd:string .
+po:scenarioStatus a owl:DatatypeProperty ; rdfs:domain po:ScenarioSlice ; rdfs:range xsd:string .
+po:analysis a owl:DatatypeProperty ; rdfs:domain po:ScenarioSlice ; rdfs:range rdf:JSON .
+po:updatedAt a owl:DatatypeProperty ; rdfs:domain po:ScenarioSlice ; rdfs:range xsd:dateTime .

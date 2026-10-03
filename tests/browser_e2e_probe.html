@@ -1,0 +1,66 @@
+<!--
+  浏览器端到端测试探针（不参与运行时代码）。
+
+  用法：临时复制到 web/ 目录，通过一个独立数据目录启动后端，再用无头 Chrome 打开
+    cp web/../tests/browser_e2e_probe.html web/__e2e_probe.html
+    PERSONAL_ONTOLOGY_DATA=/tmp/x python -m uvicorn backend.api:app --port 8899
+    chrome --headless --screenshot=out.png http://127.0.0.1:8899/assets/__e2e_probe.html
+  它加载真实 index.html 的 DOM 与真实 app.js，走完"设置密码 → 迁移 → 总览渲染 → 登录与安全页"，
+  并在页面上打印结果。用完请从 web/ 删除。
+-->
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>e2e</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><pre id="e2e-out" style="position:fixed;inset:0;z-index:99999;background:#fff;font:13px/1.5 monospace;padding:14px;margin:0;overflow:auto;white-space:pre-wrap">运行中…</pre>
+<script>
+const out=document.getElementById('e2e-out');const log=m=>{out.textContent+="\n"+m};
+window.addEventListener("error",e=>log("⚠ 页面错误: "+(e.message||"")+" @ "+(e.filename||"")+":"+(e.lineno||"")+"\n"+(e.error&&e.error.stack?String(e.error.stack).split("\n").slice(0,4).join("\n"):"")));
+window.addEventListener("unhandledrejection",e=>log("⚠ Promise 拒绝: "+(e.reason&&e.reason.message||e.reason)));
+async function boot(){
+  // 用真实 index.html 的 DOM 结构，再加载真实 app.js
+  const html=await (await fetch('/assets/index.html')).text();
+  const parsed=new DOMParser().parseFromString(html,'text/html');
+  document.body.appendChild(parsed.querySelector('.shell'));
+  document.body.appendChild(parsed.getElementById('record-dialog'));
+  const toast=document.createElement('div');toast.id='toast-region';document.body.appendChild(toast);
+  await new Promise(res=>{const s=document.createElement('script');s.src='/assets/app.js';s.onload=res;document.body.appendChild(s)});
+  log("app.js 已加载");log("  #view 存在: "+!!document.querySelector("#view")+" | #token-button: "+!!document.querySelector("#token-button"));
+  try{const h=await (await fetch("/health")).json();log("  /health → initialized="+h.initialized+" locked="+h.locked)}catch(e){log("  /health 失败: "+e.message)}
+  for(let i=0;i<50&&!document.querySelector('#auth-form');i++)await new Promise(r=>setTimeout(r,100));
+  const title=document.querySelector('.token-required h2');
+  log("首屏标题: "+(title?title.textContent:"（未出现认证界面）"));
+  const pw=document.querySelector('#auth-password');
+  if(!pw){log("✗ 未找到密码输入框");return finish(false)}
+  pw.value="Browser-E2E-84!";
+  const pw2=document.querySelector('#auth-password2');
+  if(pw2)pw2.value="Browser-E2E-84!";
+  const ack=document.querySelector('#auth-ack');if(ack)ack.checked=true;
+  log(pw2?"模式: 设置密码（含二次确认）":"模式: 登录");
+  document.querySelector('#auth-form').dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+  for(let i=0;i<80;i++){await new Promise(r=>setTimeout(r,150));
+    const v=document.querySelector('#view');
+    if(v&&v.textContent.includes('本体治理总览')){log("✔ 已进入总览页");break}
+    const err=document.querySelector('#auth-error');if(err&&err.textContent){log("✗ 认证错误: "+err.textContent);return finish(false)}
+  }
+  const view=document.querySelector('#view').textContent;
+  const okDash=view.includes('本体治理总览');
+  const okScene=view.includes('预订酒店');
+  const okStat=view.includes('已发布场景')&&view.includes('生效中的规则');
+  // 迁移后模型服务配置必须仍可用（含 API Key）
+  try{
+    const st=sessionStorage.getItem("po.session");
+    const ms=await (await fetch("/v1/settings/model-service",{headers:{Authorization:"Bearer "+st}})).json();
+    log("模型服务: configured="+ms.configured+" model="+ms.model+" has_api_key="+ms.has_api_key);
+    if(!(ms.configured&&ms.has_api_key&&ms.model)){log("✗ 迁移后模型配置丢失");return finish(false)}
+  }catch(e){log("✗ 模型配置检查失败: "+e.message);return finish(false)}
+  const nav=document.querySelector('[data-page="account-security"]');
+  log("总览渲染: "+okDash+" | 场景出现: "+okScene+" | 状态卡: "+okStat+" | 登录与安全入口: "+!!nav);
+  if(okDash&&okScene&&okStat){
+    nav.click();await new Promise(r=>setTimeout(r,600));
+    const sec=document.querySelector('#view').textContent;
+    log("登录与安全页: "+(sec.includes('修改登录密码')&&sec.includes('加密容器')));
+    log(sec.includes('pbkdf2-hmac-sha256')?"✔ 显示 KDF 信息":"（未显示 KDF）");
+  }
+  finish(okDash&&okScene&&okStat);
+}
+function finish(ok){document.title=ok?"E2E-PASS":"E2E-FAIL";log(ok?"\n===== 浏览器端到端：通过 =====":"\n===== 浏览器端到端：失败 =====")}
+boot().catch(e=>{log("异常: "+e.message);finish(false)});
+</script></body></html>

@@ -1,0 +1,29 @@
+# —— 用户数据与凭据（绝不能提交）——
+data/
+*.po.json
+*.key
+session-token
+agent-clients.json
+settings.json
+*.log
+backup/
+
+# —— 明文本体（元模型 ontology/*.ttl 应提交，此处只挡根目录的明文图导出）——
+/ontology.ttl
+/ontology-*.ttl
+
+# —— Python ——
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# —— macOS ——
+.DS_Store
+._*
+
+# —— 编辑器 ——
+.vscode/
+.idea/
