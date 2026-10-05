@@ -602,3 +602,31 @@ conventions call `messages.detail(...)`, producing a `NameError` — the same cl
 All **22 suites green**; asset version → **20261004d**.
 
 ### Deploy and tests
+
+### Fix: professional mode "seemed absent" (no switch on the preview page, and mode reset on reload)
+
+The user reported that the preview page looked unchanged. Investigation found **two design defects**, not
+caching:
+
+1. **The daily preview page had no mode switch.** The switch only appeared on the scenario-slice and
+   instance pages, while the preview page carried it only **in professional mode** — so from the daily
+   preview there was no way to switch over at all, a self-contradictory entry point.
+2. **`professionalMode` lived only in memory**, so a reload dropped back to daily mode and the
+   professional features appeared not to exist.
+
+Fix: the mode is persisted in `localStorage` (key `po.professionalMode`) and survives reloads and page
+changes, and both render branches of the daily preview page (empty state and populated) now carry the
+switch, so all five pages can switch.
+
+**Recorded from the process**: the first attempt at this patch failed. My replacement anchored on
+`"SCENARIO PREVIEW"` while the actual text is `"SAFE DRY RUN"`, and I had **not asserted each
+replacement**, so the script aborted mid-way and saved nothing (fortunately without corruption). The redo
+asserts every replacement and verifies the counts before writing (2 in the preview page, 7 in total).
+**Lesson: batch text replacements must assert each edit and check the total before writing.**
+
+`test_professional_ui` gained two assertions (**24/24**): the mode choice is remembered, and the preview
+page carries a switch too.
+
+All **22 suites green**; asset version → **20261004e**.
+
+### Deploy and tests

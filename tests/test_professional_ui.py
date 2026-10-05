@@ -21,6 +21,8 @@ check("切片页有「专业技能场景」入口", 'data-pro-mode="professional
 # ② 专业模式走独立函数，日常路径保持原样
 check("专业模式在切片页提前分流", re.search(r"if\(professionalMode\)\{return renderProfessionalSlices", app) is not None)
 check("专业模式在实例页提前分流", re.search(r"if\(professionalMode\)\{return renderProfessionalInstances", app) is not None)
+check("模式选择会被记住（刷新/切页不丢）", "po.professionalMode" in app and "localStorage.setItem(\"po.professionalMode\"" in app.replace(" ", ""))
+check("日常预演页也有模式切换（否则切不过去）", app.count("proModeButtons()") >= 5, str(app.count("proModeButtons()")))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
