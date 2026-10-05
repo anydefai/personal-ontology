@@ -521,3 +521,46 @@ incidentally makes it a genuine "has the deployment been synced?" check.
 Asset version → **20261004c**; all **20 suites green**; bilingual uncovered **55 (baseline 60)**.
 
 ### Deploy and tests
+
+### Skill-framework executor R3': making professional judgment actually computable
+
+After the user pasted the full logic (Lawyer Zhang's M&A valuation judgment), the agreed priority was
+**make it truly compute** (option A).
+
+New `backend/skill_framework.py` (234 lines) turns a professional judgment framework into a
+**declarative, executable** structure covering all five parts of the user's design:
+
+| Framework part | Role |
+|---|---|
+| `inputs` | input field definitions (name/type/enum values) |
+| `industry_map` + `industry_weights` | step 1: industry → category → weight set |
+| `thresholds` | step 2: base threshold plus conditional adjustments (**arithmetic**) |
+| `signals` | named boolean signals that may declaratively reference the dynamic threshold |
+| `combination_rules` | step 3: several signals ANDed → conclusion plus severity |
+| `exception_rules` | step 4: conditions → overrides (reduce a weight / adjust the threshold / force a conclusion) |
+| `signal_priority` | step 5: signal priority, used to order matched combination rules |
+
+**The decision package** carries the conclusion, severity, confidence (passed through), a **six-step
+reasoning path**, evidence (including the dynamic threshold), matched rules, which signals fired and why
+the others did not, and the framework version it cited.
+
+**Safety follows the project's existing discipline**: conditions use only **registered operators**
+(`eq/neq/gt/gte/lt/lte/in/not_in/contains`) and an unknown operator **never allows**, with a stated
+reason; derivations are **declarative references** (for example "compare against the dynamic threshold")
+and **no arbitrary formula or code is executed**; a missing field or a type mismatch simply fails to match
+and says why, rather than passing silently.
+
+**`tests/test_skill_framework.py` (18/18) encodes the user's framework and case verbatim** and asserts —
+successfully — the same decision package they wrote: **conclusion 估值偏高, severity 高, dynamic
+threshold 1.45, P/E 45 > 30×1.45=43.5, six reasoning steps, no exception triggered because the technology
+is only partly patented, and evidence listing 43.5.** It also covers the failure paths: regulation
+tightening plus a financial-sector target forces the conclusion through an exception override, and both
+an unregistered operator and a missing field refuse to match.
+
+**Stated plainly**: the executor is **not yet wired to the API or the UI** — that is the next step
+(having the professional preview page call it). What this round proves is that the framework **can express
+your logic**, and it can.
+
+All **21 suites green**.
+
+### Deploy and tests
