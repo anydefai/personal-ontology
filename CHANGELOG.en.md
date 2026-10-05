@@ -319,3 +319,38 @@ correctly stay in Chinese per the exceptions.
 at runtime — so **a rendered screenshot is a valid end-to-end check**.
 
 ### Deploy and tests
+
+### Professional-judgment track, R1: the data model stands up
+
+Three new layers for professional-skill scenarios — **all purely additive; the daily-life track is
+untouched**:
+
+| Collection | Purpose | Key fields |
+|---|---|---|
+| `domain-packs` | Domain packs: industry vocabulary and follow-up templates | bilingual display names, version, lifecycle, **the four-slot structure**, field vocabulary, follow-up templates |
+| `scenario-definitions` | Scenario definitions: reusable professional task skeletons | bilingual display names, **may reference several domain packs** (cross-domain), **premise-field skeleton**, version |
+| `knowledge-entries` | Judgment entries | points at a slice, **premise / conclusion / exception / basis**, authority level, applicability, review state and reviewer |
+
+`scenario-slices` gained only two fields: `scenario_definition_id` (relation) and `scenario_profile`
+(JSON). **Leaving them empty preserves the previous behaviour**, so **no existing data was migrated**.
+
+Built-in data (seeded idempotently on unlock): **one legal domain pack `legal.cn`** plus **three scenario
+skeletons** (acquisition assessment / employment compliance / contract review), each with bilingual
+labels, premise fields and four-slot naming.
+
+**New test `tests/test_professional_model.py`: 23/23 passing.** It covers the built-in data and its
+idempotence, multi-valued relations reading back as arrays, bilingual slots, **existing slices behaving
+exactly as before when no profile is set**, a professional slice attaching to a scenario definition, and
+entry relations and JSON round-tripping.
+
+**A real trap found and fixed along the way**: a new collection **must not reuse an existing
+predicate**. `po:isBuiltin` carries `rdfs:domain ResourceTypeDescriptor` and `po:updatedAt` carries
+`rdfs:domain ScenarioSlice`; with RDFS inference enabled during validation the new nodes were **inferred
+into the wrong classes**, producing twelve confusing SHACL violations. Unique predicates
+(`packIsBuiltin` / `definitionIsBuiltin` / `definitionUpdatedAt` / `entryUpdatedAt`) fixed it.
+**Lesson**: `rdfs:domain` declarations make predicate reuse **not free** — check domain and range before
+adding a collection.
+
+Full regression: the 18 existing suites are green; the bilingual gap is 0.
+
+### Deploy and tests

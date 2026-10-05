@@ -19,6 +19,10 @@ CLASSES = {
     "crypto-providers": "CryptoProvider", "triggers": "Trigger", "notifications": "Notification",
     "evidence": "Evidence",
     "scenario-slices": "ScenarioSlice",
+    # 专业判断侧（日常生活侧不使用这三个集合，新增是纯增量）
+    "domain-packs": "DomainPack",
+    "scenario-definitions": "ScenarioDefinition",
+    "knowledge-entries": "KnowledgeEntry",
 }
 
 FIELDS: dict[str, dict[str, tuple[str, str]]] = {
@@ -43,11 +47,33 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
     "triggers": {"event_type": ("eventType", "lit"), "condition": ("condition", "lit"), "action": ("triggerAction", "lit")},
     "notifications": {"channel_id": ("channelId", "lit"), "created_at": ("createdAt", "lit")},
     "evidence": {"evidence_type": ("evidenceType", "lit"), "created_at": ("createdAt", "lit"), "digest": ("digest", "lit")},
-    "scenario-slices": {"original_text": ("originalText", "lit"), "status": ("scenarioStatus", "lit"), "analysis": ("analysis", "json"), "updated_at": ("updatedAt", "lit")},
+    "scenario-slices": {"original_text": ("originalText", "lit"), "status": ("scenarioStatus", "lit"), "analysis": ("analysis", "json"), "updated_at": ("updatedAt", "lit"),
+                        # 专业判断侧新增（生活侧留空即保持原状，存量数据零迁移）
+                        "scenario_definition_id": ("usesScenarioDefinition", "scenario-definitions"),
+                        "scenario_profile": ("scenarioProfile", "json")},
+    "domain-packs": {"display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"),
+                     "description_zh": ("descriptionZh", "lit"), "description_en": ("descriptionEn", "lit"),
+                     "version": ("packVersion", "lit"), "lifecycle_state": ("lifecycleState", "lit"),
+                     "entry_slots": ("entrySlots", "json"), "fields": ("packFields", "json"),
+                     "followups": ("followups", "json"), "extends": ("extendsPack", "domain-packs"),
+                     "operators_required": ("operatorsRequired", "json"), "is_builtin": ("packIsBuiltin", "lit")},
+    "scenario-definitions": {"display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"),
+                             "description_zh": ("descriptionZh", "lit"), "description_en": ("descriptionEn", "lit"),
+                             "domain_pack_ids": ("usesDomainPack", "domain-packs"),
+                             "premise_fields": ("premiseFields", "json"), "entry_slots": ("entrySlots", "json"),
+                             "version": ("definitionVersion", "lit"), "lifecycle_state": ("lifecycleState", "lit"),
+                             "is_builtin": ("definitionIsBuiltin", "lit"), "updated_at": ("definitionUpdatedAt", "lit")},
+    "knowledge-entries": {"slice_id": ("entryOfSlice", "scenario-slices"),
+                          "premise": ("premise", "json"), "conclusion": ("conclusion", "lit"),
+                          "exception": ("exceptionText", "lit"), "basis": ("basis", "lit"),
+                          "authority": ("authorityLevel", "lit"), "applies_to": ("appliesTo", "json"),
+                          "review_state": ("reviewState", "lit"), "reviewed_by": ("reviewedBy", "lit"),
+                          "reviewed_at": ("reviewedAt", "lit"), "version": ("entryVersion", "lit"),
+                          "tags": ("entryTags", "json"), "updated_at": ("entryUpdatedAt", "lit")},
 }
 
-ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId"}
-INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id", "executions":"execution_id", "contacts":"contact_id", "triggers":"trigger_id", "notifications":"notification_id", "evidence":"evidence_id", "taxonomies":"taxonomy_id", "taxonomy-items":"item_id", "resource-types":"type_name", "actions":"action_id", "matchers":"pattern_type", "notifiers":"channel_id", "crypto-providers":"name", "principals":"principal_id", "params":"param_id", "redlines":"redline_id", "decision-results":"result_id", "contexts":"context_id", "interactions":"interaction_id", "constraints":"constraint_id", "scenario-slices":"scenario_id"}
+ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId", "domain-packs": "packId", "scenario-definitions": "scenarioDefinitionId", "knowledge-entries": "entryId"}
+INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id", "executions":"execution_id", "contacts":"contact_id", "triggers":"trigger_id", "notifications":"notification_id", "evidence":"evidence_id", "taxonomies":"taxonomy_id", "taxonomy-items":"item_id", "resource-types":"type_name", "actions":"action_id", "matchers":"pattern_type", "notifiers":"channel_id", "crypto-providers":"name", "principals":"principal_id", "params":"param_id", "redlines":"redline_id", "decision-results":"result_id", "contexts":"context_id", "interactions":"interaction_id", "constraints":"constraint_id", "scenario-slices":"scenario_id", "domain-packs":"pack_id", "scenario-definitions":"scenario_definition_id", "knowledge-entries":"entry_id"}
 
 def node_uri(collection: str, item_id: str) -> URIRef:
     return URIRef(f"{BASE}{collection}:{item_id}")
@@ -99,6 +125,8 @@ def object_to_graph(graph: Graph, collection: str, item_id: str, record: dict[st
 MULTI_VALUED: dict[str, tuple[str, ...]] = {
     "authorizations": ("actions", "constraints", "redlines"),
     "resource-types": ("actions", "params"),
+    "scenario-definitions": ("domain_pack_ids",),
+    "domain-packs": ("extends",),
 }
 
 

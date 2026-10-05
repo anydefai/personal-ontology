@@ -1185,6 +1185,34 @@ SHACL 校验边界（8 个 shape 的结构约束 + 示意 Turtle）、现有对�
 **教训**：静态扫描源码无法发现这类缺口（拼接顺序在运行时才成型），
 **渲染后的截图是有效的端到端验证手段**。
 
+### 专业判断侧 R1：数据模型立住
+
+为「专业技能场景」新增三层概念（**全部是纯增量，日常生活侧一行未改**）：
+
+| 集合 | 作用 | 字段要点 |
+|---|---|---|
+| `domain-packs` | 领域包：行业词表与追问模板 | 双语显示名 ✓ 版本 ✓ 生命周期 ✓ **四槽结构** ✓ 字段词表 ✓ 追问模板 ✓ |
+| `scenario-definitions` | 场景定义：可复用的专业任务骨架 | 双语显示名 ✓ **可引用多个领域包**（跨领域 ✓）✓ **前提要素骨架** ✓ 版本 ✓ |
+| `knowledge-entries` | 判断条目 | 指向切片 ✓ **前提/结论/例外/依据** ✓ 权威级别 ✓ 适用范围 ✓ 复核状态与复核人 ✓ |
+
+`scenario-slices` 只加两个字段：`scenario_definition_id`（关系 ✓）与 `scenario_profile`（JSON ✓）——
+**留空即保持原状**，因此**存量数据零迁移** ✓
+
+内置数据（随解锁幂等播种）：**1 个法律领域包 `legal.cn`** + **3 个场景骨架**（收购评估 / 劳动合规 / 合同审查 ✓
+均含中英双语标签、前提要素与四槽命名 ✓）
+
+**新增测试 `tests/test_professional_model.py`：23/23 通过** ✓
+覆盖：内置数据到位与幂等 ✓ 多值关系回读为数组 ✓ 四槽双语 ✓ **存量切片不带 profile 时行为完全不变** ✓
+专业切片挂到场景定义 ✓ 条目关系与 JSON 回读 ✓
+
+**过程中发现并修掉一个真陷阱** ⚠️：新增集合**不能随意复用已有谓词** ✗
+`po:isBuiltin` 带 `rdfs:domain ResourceTypeDescriptor` ✗ `po:updatedAt` 带 `rdfs:domain ScenarioSlice` ✗
+校验时启用 RDFS 推理 → 新节点被**推理成别的类** → 触发莫名其妙的 SHACL 违规（12 条 ✗）
+改用唯一谓词（`packIsBuiltin` / `definitionIsBuiltin` / `definitionUpdatedAt` / `entryUpdatedAt` ✓）后通过 ✓
+**教训**：本体的 `rdfs:domain` 声明使谓词复用**不是免费的** ✓ 新增集合时须先查 domain/range ✓
+
+全量回归：存量 **18 套全绿** ✓ 双语缺口 **0** ✓
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并
