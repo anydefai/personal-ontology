@@ -507,6 +507,7 @@ async function renderScenarioInstances(view){
 // ===== Professional track: skill-framework preview (R3'.1) =====
 // The case data comes from the caller and the framework stays local; the page shows only the decision package.
 let proEvalResult = null;
+let proBacktest = null;
 let proEvalDefId = null;
 
 function proInputField(f){
@@ -549,6 +550,23 @@ function proPackageHtml(pkg){
   </section>`;
 }
 
+function proBacktestHtml(rep){
+  if(!rep) return "";
+  const pct=rep.accuracy==null?"—":(rep.accuracy*100).toFixed(1)+"%";
+  return `<div style="margin-top:12px">
+   <div style="display:flex;gap:18px;flex-wrap:wrap">
+    <div><div class="panel-caption" style="margin:0">样本数</div><div style="font-size:18px">${esc(String(rep.total))}</div></div>
+    <div><div class="panel-caption" style="margin:0">一致</div><div style="font-size:18px">${esc(String(rep.matched))}</div></div>
+    <div><div class="panel-caption" style="margin:0">不一致</div><div style="font-size:18px">${esc(String(rep.mismatched))}</div></div>
+    <div><div class="panel-caption" style="margin:0">准确率</div><div style="font-size:18px">${pct}</div></div>
+   </div>
+   ${(rep.mismatch_detail||[]).length?`<div class="panel-caption" style="margin-top:10px">不一致明细（最多 20 条）</div>
+   <div class="table-wrap"><table><thead><tr><th>案例</th><th>实际结果</th><th>框架结论</th><th>严重度</th></tr></thead>
+   <tbody>${rep.mismatch_detail.map(m=>`<tr><td>${esc(m.case_id||"")}</td><td>${esc(String(m.expected??""))}</td>
+     <td>${esc(String(m.actual??""))}</td><td>${esc(String(m.severity??""))}</td></tr>`).join("")}</tbody></table></div>`:""}
+  </div>`;
+}
+
 async function renderProfessionalPreview(view){
   const defs=await load("scenario-definitions");
   if(!proEvalDefId||!defs.some(d=>d.id===proEvalDefId)) proEvalDefId=defs[0]?.id||null;
@@ -578,6 +596,19 @@ async function renderProfessionalPreview(view){
    </div>
    <div style="margin-top:14px"><button class="button primary" id="pe-run">判定</button></div>
   </section>`:""}
+  ${fw?`<section class="panel" style="padding:18px;margin-bottom:16px">
+   <div class="panel-title">置信度与回测</div>
+   <div class="panel-caption">导入历史案例跑一遍框架，看它与实际结果的一致率；保存后判定包会带上置信度。对比口径：结论与实际结果逐字相等。</div>
+   <div style="margin-top:10px">当前置信度：
+    ${def?.confidence==null?`<span class="muted">未验证</span>`:`<strong>${esc(String(def.confidence))}</strong>（${esc(def.confidence_status||"")}）`}
+    ${def?.confidence_basis?` · ${esc(def.confidence_basis)}`:""}</div>
+   <textarea class="input mono" id="pe-cases" rows="6" style="width:100%;margin-top:10px" placeholder='[{"case_id":"CASE-001","inputs":{"字段名":值},"actual_result":"当时实际得出的结论"}]'></textarea>
+   <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+    <button class="button" id="pe-backtest">跑回测</button>
+    <button class="button primary" id="pe-persist">保存为置信度</button>
+   </div>
+   <div id="pe-backtest-result">${proBacktestHtml(proBacktest)}</div>
+  </section>`:""}
   <div id="pe-result">${proPackageHtml(proEvalResult)}</div>`;
   document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";proEvalResult=null;render()});
   const sel=$("#pe-def"); if(sel) sel.onchange=()=>{proEvalDefId=sel.value;proEvalResult=null;render()};
@@ -586,6 +617,17 @@ async function renderProfessionalPreview(view){
     if(typeof parsed!=="object"||!parsed){ alert("框架必须是一个对象。"); return; }
     await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}`,{method:"PATCH",body:JSON.stringify({framework:parsed})});
     cache["scenario-definitions"]=null; render(); };
+  const parseCases=()=>{ try{ return JSON.parse($("#pe-cases").value); }catch(e){ alert("案例 JSON 解析失败："+e.message); return null; } };
+  const bt=$("#pe-backtest"); if(bt) bt.onclick=async()=>{
+    const cases=parseCases(); if(!cases) return;
+    const rep=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases})});
+    if(rep&&rep.total!==undefined){ proBacktest=rep; $("#pe-backtest-result").innerHTML=proBacktestHtml(rep); }
+    else { proBacktest=null; $("#pe-backtest-result").innerHTML=`<div class="panel-caption" style="margin-top:10px">回测未完成：${esc((rep&&(rep.detail||rep.error))||"案例或框架有问题")}</div>`; } };
+  const ps=$("#pe-persist"); if(ps) ps.onclick=async()=>{
+    const cases=parseCases(); if(!cases) return;
+    const rep=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases,persist:true})});
+    if(rep&&rep.persisted){ proBacktest=rep; cache["scenario-definitions"]=null; render(); }
+    else { $("#pe-backtest-result").innerHTML=`<div class="panel-caption" style="margin-top:10px">保存未完成：${esc((rep&&(rep.detail||rep.error))||"案例或框架有问题")}</div>`; } };
   const run=$("#pe-run"); if(run) run.onclick=async()=>{
     const data={};
     document.querySelectorAll("[data-pro-input]").forEach(i=>{

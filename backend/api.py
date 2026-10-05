@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from . import messages, skill_framework
+from . import messages, skill_backtest, skill_framework
 from .origin_policy import origin_allowed
 from .config import (BACKEND_PORT, COMMON_PASSWORDS_FILE, DATA_DIR, HOST, MODEL_CONFIG_FILE, MODEL_KEY_FILE, PORT,
                      MANAGER_PORT, SESSION_TOKEN_FILE, SETTINGS_FILE, SUPPORTED_LANGUAGES, TOKEN_FILE, WEB_DIR,
@@ -1383,6 +1383,40 @@ async def activate_scenario_policies(scenario_id: str, body: dict[str, Any]):
 async def suspend_scenario_policies(scenario_id: str, body: dict[str, Any]):
     """Stop the scene's rules from participating in decisions (active -> suspended)."""
     return await _set_scenario_policy_status(scenario_id, body, "suspended")
+
+@app.post("/v1/scenario-definitions/{definition_id}/backtest", dependencies=[Depends(require_session)])
+async def backtest_scenario_definition(request: Request, definition_id: str, body: dict[str, Any]) -> Any:
+    """用历史案例回测技能框架，返回准确率；persist=true 时把置信度写回场景定义。
+
+    口径：模型结论与案例里的 actual_result **逐字相等**才算一致（不做模糊匹配，结果里会注明）。
+    """
+    item = store.get("scenario-definitions", definition_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=messages.detail("definition_not_found"))
+    framework = item.get("framework")
+    if not isinstance(framework, dict) or not framework:
+        raise HTTPException(status_code=409, detail=messages.detail("framework_not_configured"))
+    cases = (body or {}).get("cases")
+    if not isinstance(cases, list):
+        raise HTTPException(status_code=422, detail=messages.detail("backtest_cases_invalid"))
+    try:
+        report = skill_backtest.run_backtest(framework, cases)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=messages.detail("backtest_case_invalid", reason=str(exc)[:160]))
+    if (body or {}).get("persist") and report["total"]:
+        lang = messages.current_language()
+        basis = messages.msg_for("backtest_basis", lang, total=report["total"], matched=report["matched"],
+                                 accuracy=f"{report['accuracy']:.0%}")
+        updated = dict(item)
+        updated["confidence"] = report["accuracy"]
+        updated["confidence_status"] = "backtested"
+        updated["confidence_basis"] = basis
+        store.put("scenario-definitions", definition_id, updated)
+        report["persisted"] = {"confidence": report["accuracy"], "confidence_status": "backtested",
+                               "confidence_basis": basis}
+    report["definition_id"] = definition_id
+    return report
+
 
 @app.post("/v1/scenario-definitions/{definition_id}/evaluate", dependencies=[Depends(require_session)])
 async def evaluate_scenario_definition(definition_id: str, body: dict[str, Any]) -> Any:

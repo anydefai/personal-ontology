@@ -117,6 +117,9 @@ MESSAGES: dict[str, dict[str, str]] = {
     "framework_not_configured": {"zh": "这个场景还没有技能框架，请先导入或编辑框架。", "en": "This scenario has no skill framework yet; import or edit one first."},
     "invalid_input_data": {"zh": "判定输入必须是一个对象。", "en": "The evaluation input must be an object."},
     "framework_evaluation_failed": {"zh": "技能框架判定失败：{reason}", "en": "Skill-framework evaluation failed: {reason}"},
+    "backtest_cases_invalid": {"zh": "回测案例必须是数组。", "en": "Backtest cases must be an array."},
+    "backtest_case_invalid": {"zh": "回测案例格式有误：{reason}", "en": "A backtest case is malformed: {reason}"},
+    "backtest_basis": {"zh": "基于 {total} 个历史案例回测，一致 {matched} 个，准确率 {accuracy}", "en": "Backtested on {total} historical cases, {matched} matching, accuracy {accuracy}"},
 }
 
 

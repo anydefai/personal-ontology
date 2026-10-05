@@ -630,3 +630,34 @@ page carries a switch too.
 All **22 suites green**; asset version → **20261004e**.
 
 ### Deploy and tests
+
+### R5': confidence and backtesting (the decision package is no longer "unverified")
+
+This is step two of the design: import historical cases, run the framework over them, compare against the
+actual outcomes, and derive a confidence.
+
+**New `backend/skill_backtest.py` (61 lines)**: runs `judge()` per case and compares against the case's
+`actual_result`, with the **comparison rule stated explicitly** — the conclusion must equal
+`actual_result` **exactly**, no fuzzy matching — returning the sample size, matches, mismatches, the
+**accuracy** and up to 20 mismatch details. **Confidence levels** are defined with the first two
+implemented and the rest reserved: `unverified` → `backtested` → `preliminary` (≥10 caller feedbacks, not
+implemented) → `stable` (≥100) → `certified` (third-party). **With no cases the confidence stays
+"unverified"** and the caller decides, matching the design.
+
+**New `POST /v1/scenario-definitions/{id}/backtest`** accepting `{"cases":[…], "persist":true}`; when
+`persist` is set, `confidence`, `confidence_status` and `confidence_basis` are written back to the
+scenario definition. Failure paths are explicit: no framework → 409; malformed cases → 422 naming which
+case is missing what.
+
+**Interface**: the professional preview page gained a "Confidence and backtesting" section showing the
+current confidence, a box to paste cases, a Run-backtest action with agreement rate and mismatch details,
+and a Save-as-confidence action. Once saved, **decision packages carry the confidence** — the loop is
+closed.
+
+**New `tests/test_skill_backtest.py` (16/16)**: builds 50 cases of which 39 agree, yielding an
+**accuracy of 0.78**, the number from the design; it also covers no cases → unverified, explicit errors
+for missing fields, persistence through the API, and that the **decision package can read it back**.
+
+All **23 suites green**; asset version → **20261004f**.
+
+### Deploy and tests
