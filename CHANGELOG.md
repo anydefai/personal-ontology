@@ -1266,6 +1266,36 @@ POST /manager/restart  →  {"ok":true,"message":"治理后端已重启。"}   H
 
 修复后全量 **20 套回归全绿** ✓
 
+### 修复「前端改了不生效」：控制台 HTML 被浏览器缓存
+
+**现象**：专业模式入口修好后，用户点击仍无反应 ✗
+
+**根因**：`manager.py` 返回控制台 HTML 时**没有任何缓存头** ✗
+
+```
+return FileResponse(WEB_DIR / "index.html")
+```
+
+浏览器据此缓存 `index.html` 本身 ✓ 而 `?v=` 资源版本号就写在 HTML 里 ✓
+→ HTML 被缓存 → 页面永远加载**旧的 app.js** → 前端改动怎么改都不生效 ✗
+
+这也解释了本项目此前多次出现的「改了没生效」 ✗ 属于**同一根因** ✓
+
+**修法**：控制台 HTML 响应加 `Cache-Control: no-store, no-cache, must-revalidate` 与 `Pragma: no-cache` ✓
+（`app.js` / `app.css` / `i18n.js` 仍走 `?v=` 长缓存 ✓ 只有 HTML 不缓存 ✓）
+
+**验证**（看服务器实际响应头）：
+
+```
+HTTP/1.1 200 OK
+cache-control: no-store
+pragma: no-cache
+HTML 中的资源版本号: assets/app.js?v=20261004a
+```
+
+`tests/test_manager_endpoints.py` 新增两条断言（**25/25** ✓）：HTML 必须带 `no-store` ✓
+且必须引用当前资源版本号 ✓ —— 把这类问题挡在回归里 ✓
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并

@@ -421,3 +421,35 @@ POST /manager/restart  →  {"ok":true,"message":"治理后端已重启。"}   H
 (previously 500). The full regression is now **20 suites green**.
 
 ### Deploy and tests
+
+### Fixing "frontend changes take no effect": the console HTML was cached by the browser
+
+**Symptom**: after the professional-mode entry was fixed, clicking it still did nothing.
+
+**Root cause**: `manager.py` served the console HTML **without any cache header**:
+
+```
+return FileResponse(WEB_DIR / "index.html")
+```
+
+Browsers therefore cache `index.html` itself — and the `?v=` asset version lives inside that HTML. So
+the page kept loading an **old app.js**, and no frontend change could ever take effect. This is the same
+root cause behind several earlier "my change didn't apply" reports in this project.
+
+**Fix**: the console HTML now returns `Cache-Control: no-store, no-cache, must-revalidate` and
+`Pragma: no-cache`. The versioned assets (`app.js`, `app.css`, `i18n.js`) keep their long cache via
+`?v=`; only the HTML is uncached.
+
+**Verified** against the server's actual response headers:
+
+```
+HTTP/1.1 200 OK
+cache-control: no-store
+pragma: no-cache
+asset version in HTML: assets/app.js?v=20261004a
+```
+
+`tests/test_manager_endpoints.py` gained two assertions (**25/25**): the HTML must carry `no-store` and
+must reference the current asset version — so this class of problem is caught by the regression suite.
+
+### Deploy and tests

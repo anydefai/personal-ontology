@@ -53,12 +53,21 @@ from backend import manager
 check("manager 模块可解析 display_language", "display_language" in vars(manager))
 
 # ③ 在线：管理器的只读端点必须可用（管理器始终运行）
+def head(path):
+    with urllib.request.urlopen(f"http://127.0.0.1:8765{path}", timeout=8) as r:
+        return dict(r.headers), r.read()
+
 def get(path):
     with urllib.request.urlopen(f"http://127.0.0.1:8765{path}", timeout=8) as r:
         return r.status, json.loads(r.read() or b"{}")
 try:
     st, body = get("/manager/health")
     check("GET /manager/health 可用", st == 200 and body.get("status") == "ok", f"{st} {str(body)[:80]}")
+    headers, body = head("/")
+    check("控制台 HTML 带 no-store（改前端立即生效）",
+          "no-store" in headers.get("cache-control", ""), str(headers.get("cache-control")))
+    check("控制台 HTML 引用当前资源版本号",
+          b"assets/app.js?v=20261004a" in body, body[:0] and "" or "未见 ?v=20261004a")
     # 控制端点的存在性用路由表检查（调用它们会真的重启后端，不适合放在测试里）
     paths = {r.path for r in manager.app.routes if hasattr(r, "path")}
     for path in ("/manager/status", "/manager/start", "/manager/restart", "/manager/logs"):

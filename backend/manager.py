@@ -184,7 +184,10 @@ def _agent_configs() -> dict[str, Any]:
 
 @app.get("/")
 async def home():
-    return FileResponse(WEB_DIR / "index.html")
+    # 控制台 HTML 必须每次重新取：它里面的 ?v= 是前端资源版本号，
+    # 若 HTML 被浏览器缓存，改了前端也不会生效（曾为此反复排查）。
+    return FileResponse(WEB_DIR / "index.html",
+                        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"})
 
 
 @app.get("/manager/health")
