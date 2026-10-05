@@ -9,7 +9,7 @@ from rdflib import Graph, RDF, URIRef
 from pyshacl import validate
 
 from .config import CONTAINER_FILE, DATA_DIR, GRAPH_FILE, PROPERTIES_FILE, SHAPES_FILE
-from .model import CLASSES, PO, graph_to_record, node_uri, object_to_graph
+from .model import CLASSES, FIELDS, PO, graph_to_record, node_uri, object_to_graph
 from .vault import Container, ContainerMissing, VaultError, WrongPassword
 
 
@@ -229,8 +229,12 @@ class RDFStore:
                 # 内置记录若与代码不一致（例如已撤掉的内容），按代码重写一次
                 current = graph_to_record(self.graph, collection, item_id)
                 if any(current.get(k) != v for k, v in record.items() if k not in ("is_builtin",)):
+                    # 只清掉「种子声明过的字段」，**保留用户后加的字段**
+                    # （例如用户给内置场景配的 framework / confidence，不能被升级抹掉）
+                    seeded_preds = {PO[FIELDS[collection][k][0]] for k in record if k in FIELDS[collection]}
                     for p_, o_ in list(self.graph.predicate_objects(subject)):
-                        self.graph.remove((subject, p_, o_))
+                        if p_ in seeded_preds:
+                            self.graph.remove((subject, p_, o_))
                     object_to_graph(self.graph, collection, item_id, record)
                     added = True
         return added

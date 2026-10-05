@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from . import messages
+from . import messages, skill_framework
 from .origin_policy import origin_allowed
 from .config import (BACKEND_PORT, COMMON_PASSWORDS_FILE, DATA_DIR, HOST, MODEL_CONFIG_FILE, MODEL_KEY_FILE, PORT,
                      MANAGER_PORT, SESSION_TOKEN_FILE, SETTINGS_FILE, SUPPORTED_LANGUAGES, TOKEN_FILE, WEB_DIR,
@@ -1383,6 +1383,32 @@ async def activate_scenario_policies(scenario_id: str, body: dict[str, Any]):
 async def suspend_scenario_policies(scenario_id: str, body: dict[str, Any]):
     """Stop the scene's rules from participating in decisions (active -> suspended)."""
     return await _set_scenario_policy_status(scenario_id, body, "suspended")
+
+@app.post("/v1/scenario-definitions/{definition_id}/evaluate", dependencies=[Depends(require_session)])
+async def evaluate_scenario_definition(definition_id: str, body: dict[str, Any]) -> Any:
+    """用场景定义里的技能框架判定一组输入，返回判定包（结论/严重度/推理路径/证据）。"""
+    item = store.get("scenario-definitions", definition_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=messages.detail("definition_not_found"))
+    framework = item.get("framework")
+    if not isinstance(framework, dict) or not framework:
+        raise HTTPException(status_code=409, detail=messages.detail("framework_not_configured"))
+    data = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    try:
+        package = skill_framework.judge(
+            framework, data,
+            confidence=item.get("confidence"),
+            confidence_status=item.get("confidence_status") or "unverified",
+            confidence_basis=item.get("confidence_basis") or "",
+        )
+    except Exception as exc:   # 框架结构问题要显式报出，绝不静默给出结论
+        raise HTTPException(status_code=422,
+                            detail=messages.detail("framework_evaluation_failed", reason=str(exc)[:200]))
+    package["definition_id"] = definition_id
+    return package
+
 
 @app.post("/v1/scenario-slices/{scenario_id}/preview", dependencies=[Depends(require_session)])
 async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):

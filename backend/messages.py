@@ -113,6 +113,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "required_in_facts_only": {"zh": "标为「每次必填」，却只出现在偏好清单。", "en": "Marked as required per run, yet it appears only in the preference list."},
     "preference_in_required_only": {"zh": "标为「每次必填」的反面：标为「长期偏好」，却只出现在必填清单。", "en": "Marked as a standing preference, yet it appears only in the required list."},
     "not_an_object": {"zh": "分析结果不是对象。", "en": "The analysis result is not an object."},
+    "definition_not_found": {"zh": "找不到该场景定义。", "en": "No such scenario definition."},
+    "framework_not_configured": {"zh": "这个场景还没有技能框架，请先导入或编辑框架。", "en": "This scenario has no skill framework yet; import or edit one first."},
+    "invalid_input_data": {"zh": "判定输入必须是一个对象。", "en": "The evaluation input must be an object."},
+    "framework_evaluation_failed": {"zh": "技能框架判定失败：{reason}", "en": "Skill-framework evaluation failed: {reason}"},
 }
 
 

@@ -15,7 +15,7 @@ RESULTS = []
 def check(label, ok, detail=""):
     RESULTS.append((bool(ok), label)); print(("  ✔ " if ok else "  ✗ ") + label + (f" — {detail}" if detail and not ok else ""))
 
-WATCHED = {"display_language", "msg_for", "messages", "normalize_language", "MESSAGES"}
+WATCHED = {"display_language", "msg_for", "messages", "normalize_language", "MESSAGES", "detail"}
 
 def missing_names(path: pathlib.Path) -> list[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))

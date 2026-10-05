@@ -30,6 +30,13 @@ check("未新增专业专属后端端点", "/v1/professional" not in app and "/v
 for slot in ("pro-conclusion", "pro-exception", "pro-basis", "pro-authority"):
     check(f"条目编辑器含 {slot}", slot in app)
 check("复核流转（草稿↔启用）存在", 'data-pro-toggle' in app and "转回草稿" in app)
+# R3'.1：专业预演页
+check("专业预演页存在并分流", "async function renderProfessionalPreview" in app
+      and "if(professionalMode){return renderProfessionalPreview" in app)
+check("预演页可导入技能框架", "pe-save-framework" in app and "skillFramework" not in app)
+check("预演页调用判定接口", "/evaluate" in app and "pe-run" in app)
+check("预演页展示判定包（结论/严重度/路径/证据）",
+      all(k in app for k in ("决策" if False else "结论", "严重度", "推理路径", "证据")))
 # ⑤ 资源版本号已升
 v = re.search(r"\?v=(\d{8}[a-z]?)", html)
 check("资源版本号已更新为 2026-10-04 版", v is not None and v.group(1).startswith("20261004"), v.group(1) if v else "无")

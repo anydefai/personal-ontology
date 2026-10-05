@@ -62,7 +62,11 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                              "domain_pack_ids": ("usesDomainPack", "domain-packs"),
                              "premise_fields": ("premiseFields", "json"), "entry_slots": ("entrySlots", "json"),
                              "version": ("definitionVersion", "lit"), "lifecycle_state": ("lifecycleState", "lit"),
-                             "is_builtin": ("definitionIsBuiltin", "lit"), "updated_at": ("definitionUpdatedAt", "lit")},
+                             "is_builtin": ("definitionIsBuiltin", "lit"), "updated_at": ("definitionUpdatedAt", "lit"),
+                             # 专业判断：技能框架与其置信度（R3'）
+                             "framework": ("skillFramework", "json"), "confidence": ("skillConfidence", "lit"),
+                             "confidence_status": ("skillConfidenceStatus", "lit"),
+                             "confidence_basis": ("skillConfidenceBasis", "lit")},
     "knowledge-entries": {"slice_id": ("entryOfSlice", "scenario-slices"),
                           "premise": ("premise", "json"), "conclusion": ("conclusion", "lit"),
                           "exception": ("exceptionText", "lit"), "basis": ("basis", "lit"),

@@ -504,7 +504,101 @@ async function renderScenarioInstances(view){
   if(!segmentation.global_preferences.some(p=>p.field===name))
     segmentation.global_preferences.push({field:name,label,type,value:"",operator:"equals",strength:"must"});}try{const res=await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/instance`,{method:"PATCH",body:JSON.stringify({title:$("#instance-title").value.trim(),segmentation,required_inputs:nextRequired})});cache["scenario-slices"]=rows.map(x=>x.id===selected.id?res.scenario:x);toast("场景实例已保存");activeInstanceId=null;render()}catch(err){error.textContent=err.message}};
 }
+// ===== Professional track: skill-framework preview (R3'.1) =====
+// The case data comes from the caller and the framework stays local; the page shows only the decision package.
+let proEvalResult = null;
+let proEvalDefId = null;
+
+function proInputField(f){
+  const name=esc(f.name||"");
+  if((f.type||"")==="enum"&&Array.isArray(f.values)&&f.values.length)
+    return `<label class="field" style="min-width:160px"><span class="field-label">${name}</span>
+      <select class="select" data-pro-input="${name}">${f.values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select></label>`;
+  if((f.type||"")==="number")
+    return `<label class="field" style="min-width:160px"><span class="field-label">${name}</span>
+      <input class="input" type="number" step="any" data-pro-input="${name}"></label>`;
+  return `<label class="field" style="min-width:160px"><span class="field-label">${name}</span>
+    <input class="input" data-pro-input="${name}"></label>`;
+}
+
+function proPackageHtml(pkg){
+  if(!pkg) return "";
+  const sev=({"低":"低","中":"中","高":"高","极高":"极高"})[pkg.severity]||pkg.severity||"—";
+  const conf=pkg.confidence==null?`<span class="muted">未验证</span>`:`${pkg.confidence}（${esc(pkg.confidence_status||"")}）`;
+  return `<section class="panel" style="padding:18px;margin-bottom:16px">
+   <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline">
+    <div><div class="panel-caption" style="margin:0">结论</div><div style="font-size:20px;font-weight:600">${esc(pkg.decision||"—")}</div></div>
+    <div><div class="panel-caption" style="margin:0">严重度</div><div style="font-size:20px">${esc(sev)}</div></div>
+    <div><div class="panel-caption" style="margin:0">置信度</div><div>${conf}</div></div>
+    ${pkg.confidence_basis?`<div><div class="panel-caption" style="margin:0">来源</div><div>${esc(pkg.confidence_basis)}</div></div>`:""}
+   </div>
+   ${pkg.rule_cited?`<div class="panel-caption" style="margin-top:10px">引用框架：${esc(pkg.rule_cited)}</div>`:""}
+  </section>
+  <section class="panel" style="padding:18px;margin-bottom:16px">
+   <div class="panel-title">推理路径</div>
+   <div style="display:grid;gap:6px;margin-top:10px">
+    ${(pkg.reasoning_path||[]).map(x=>`<div style="display:flex;gap:10px"><span class="muted" style="min-width:22px">${esc(String(x.step))}</span>
+      <span style="min-width:96px"><strong>${esc(x.name)}</strong></span><span>${esc(x.detail)}</span></div>`).join("")}
+   </div>
+  </section>
+  <section class="panel collection-panel">
+   <div class="collection-toolbar"><span class="record-count">证据</span></div>
+   <div class="table-wrap"><table><thead><tr><th>因素</th><th>取值</th><th>基准</th><th>动态阈值</th><th>来源</th></tr></thead>
+   <tbody>${(pkg.evidence||[]).map(e=>`<tr><td>${esc(e.factor||"")}</td><td>${esc(String(e.value ?? "—"))}</td>
+     <td>${esc(e.benchmark||"—")}</td><td>${esc(e.dynamic_threshold||"—")}</td><td>${esc(e.source||"—")}</td></tr>`).join("")}</tbody></table></div>
+  </section>`;
+}
+
+async function renderProfessionalPreview(view){
+  const defs=await load("scenario-definitions");
+  if(!proEvalDefId||!defs.some(d=>d.id===proEvalDefId)) proEvalDefId=defs[0]?.id||null;
+  const def=defs.find(d=>d.id===proEvalDefId)||null;
+  const fw=(def?.framework)||null;
+  const opts=defs.map(d=>`<option value="${esc(d.id)}" ${d.id===proEvalDefId?"selected":""}>${esc(fieldLabel(d,"display_name_zh","display_name_en"))}</option>`).join("");
+  view.innerHTML=`${proModeButtons()}
+  ${titleBlock("SKILL FRAMEWORK","专业预演","用一组标的数据跑一遍你的判断框架：结论、严重度、推理路径与证据都会列出来。预演不写判定记录，也不执行任何操作。")}
+  <section class="panel" style="padding:18px;margin-bottom:16px">
+   <div class="panel-title">第一步 · 选场景与框架</div>
+   <div class="panel-caption">框架留在本机；标的数据只用于这一次判定。</div>
+   <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+    <select class="select" id="pe-def" style="max-width:320px">${opts||'<option value="">暂无专业场景</option>'}</select>
+    ${fw?`<span class="badge">框架已配置 · ${esc(fw.framework_version||fw.skill_id||"")}</span>`:`<span class="badge">尚未配置框架</span>`}
+   </div>
+   ${fw?"":`<div style="margin-top:12px">
+     <div class="panel-caption">把技能框架的 JSON 粘贴进来（导入后即可判定；框架只保存在本机）。</div>
+     <textarea class="input mono" id="pe-framework" rows="8" style="width:100%;margin-top:6px" placeholder='{"framework_version":"...","industry_map":{},"thresholds":{},"signals":[],"combination_rules":[],"exception_rules":[],"signal_priority":[]}'></textarea>
+     <div style="margin-top:8px"><button class="button primary" id="pe-save-framework">保存框架</button></div>
+   </div>`}
+  </section>
+  ${fw?`<section class="panel" style="padding:18px;margin-bottom:16px">
+   <div class="panel-title">第二步 · 填标的数据</div>
+   <div class="panel-caption">字段来自框架的输入定义。</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+    ${(fw.inputs||[]).map(proInputField).join("")||'<div class="panel-caption" style="margin:0">框架没有声明输入字段</div>'}
+   </div>
+   <div style="margin-top:14px"><button class="button primary" id="pe-run">判定</button></div>
+  </section>`:""}
+  <div id="pe-result">${proPackageHtml(proEvalResult)}</div>`;
+  document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";proEvalResult=null;render()});
+  const sel=$("#pe-def"); if(sel) sel.onchange=()=>{proEvalDefId=sel.value;proEvalResult=null;render()};
+  const saveFw=$("#pe-save-framework"); if(saveFw) saveFw.onclick=async()=>{
+    let parsed; try{ parsed=JSON.parse($("#pe-framework").value); }catch(e){ alert("框架 JSON 解析失败："+e.message); return; }
+    if(typeof parsed!=="object"||!parsed){ alert("框架必须是一个对象。"); return; }
+    await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}`,{method:"PATCH",body:JSON.stringify({framework:parsed})});
+    cache["scenario-definitions"]=null; render(); };
+  const run=$("#pe-run"); if(run) run.onclick=async()=>{
+    const data={};
+    document.querySelectorAll("[data-pro-input]").forEach(i=>{
+      const v=i.value.trim(); if(v==="") return;
+      const numeric=i.type==="number"||/^-?\d+(\.\d+)?$/.test(v);
+      data[i.dataset.proInput]=numeric?Number(v):v; });
+    const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data})});
+    if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out); }
+    else { proEvalResult=null; $("#pe-result").innerHTML=`<section class="panel empty-state">判定未完成：${esc((out&&(out.detail||out.error))||"框架或输入有问题")}</section>`; } };
+}
+
 async function renderScenarioPreview(view){
+ if(professionalMode){return renderProfessionalPreview(view)}
  const all=await load("scenario-slices");const rows=all.filter(x=>x.status==="confirmed");
  if(!rows.length){view.innerHTML=`${titleBlock("SAFE DRY RUN","场景预演",labels["scenario-preview"].subtitle)}<section class="panel empty-state"><div class="empty-icon">▷</div><strong>还没有可预演的场景实例</strong><p>先在“场景切片”分析并确认一个场景，然后回来填写模拟输入。</p><button class="button primary" id="go-to-scenes">打开场景切片</button></section>`;$("#go-to-scenes").onclick=()=>navigate("scenario-slices");return}
  const selectedId=new URLSearchParams(location.search).get("scenario")||rows[0].id;const selected=rows.find(x=>x.id===selectedId)||rows[0];const a=selected.analysis||{};const scope=a.scope||{mode:"global"};const segmentation=a.segmentation||{mode:"global",dimensions:[],global_preferences:[],variants:[]};if(segmentation.mode==="segmented"){scope.mode="by_dimension";scope.dimension=(segmentation.dimensions||[]).map(d=>d.label||d.field).join(" + ");scope.value="按请求匹配分组"}

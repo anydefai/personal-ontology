@@ -564,3 +564,41 @@ your logic**, and it can.
 All **21 suites green**.
 
 ### Deploy and tests
+
+### R3'.1: the skill framework wired to the API and the interface (the decision package is now visible)
+
+**Backend**
+- `scenario-definitions` gained **`framework`** (the skill framework JSON) plus **`confidence` /
+  `confidence_status` / `confidence_basis`**.
+- New **`POST /v1/scenario-definitions/{id}/evaluate`**: read the definition's framework, judge one set of
+  inputs, return the decision package. No framework → **409 with an explicit message**; unknown definition
+  → 404; invalid input → 422; a broken framework → 422 stating the reason. Four new bilingual backend
+  messages were added, with the English path covered by a test.
+- **A data-loss hazard I had planted myself is fixed**: the previous round's "built-in records are
+  authoritative from code" rewrite also **wiped fields the user had added**. It now clears **only the
+  fields the seed declares**, so a `framework` or `confidence` configured on a built-in scenario survives
+  upgrades — verified by a test that seeds again and checks they are still there.
+
+**Interface** — the professional-mode **preview page**:
+- choose a scenario; if no framework is configured it offers a **paste-the-framework-JSON** box and a
+  "Save framework" button;
+- with a framework configured, the case-data inputs are **rendered dynamically from the framework's
+  `inputs`** (number / enum / text);
+- pressing Evaluate shows the **decision package**: conclusion, severity, confidence with its basis, the
+  cited framework version, the **step-by-step reasoning path**, and an evidence table (factor, value,
+  benchmark, dynamic threshold, source);
+- the page states plainly that a preview **writes no decision record and executes nothing**.
+
+**New `tests/test_skill_evaluate_api.py` (15/15)**: writes Lawyer Zhang's framework through PATCH, calls
+the evaluate endpoint, and receives the decision package matching the user's design (估值偏高 / 高 /
+threshold 1.45 / six steps / evidence 43.5 / confidence 0.78), plus the 409, 404 and 422 failure paths,
+the **English rendering of the error**, and the "re-seeding keeps user fields" guarantee.
+
+**The same class of mistake, a second time**: in the new endpoint I wrote `detail(...)` while this project
+conventions call `messages.detail(...)`, producing a `NameError` — the same class of bug as
+`display_language` in `manager.py`. The static guard's `WATCHED` set now **includes `detail`**, so
+"used but not imported" is caught by tests from now on.
+
+All **22 suites green**; asset version → **20261004d**.
+
+### Deploy and tests
