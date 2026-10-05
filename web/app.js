@@ -304,7 +304,6 @@ async function renderProfessionalSlices(view){
  const active=entries.filter(e=>e.review_state==="active").length;
  const opts=defs.map(d=>`<option value="${esc(d.id)}" ${current&&current.scenario_definition_id===d.id?"selected":""}>${esc(fieldLabel(d,"display_name_zh","display_name_en"))}</option>`).join("");
  const fields=(def?.premise_fields||[]);
- const sample=["互联网","8 亿","上海","三年以上"];
  view.innerHTML=`${proModeButtons()}
  ${titleBlock("MY JUDGMENT","我的判断","把你知道的判断写下来：什么情况下、你的判断是什么、什么情况除外、依据是什么。每条先存草稿，确认无误再启用。")}
  <section class="panel" style="padding:18px;margin-bottom:16px">
@@ -319,21 +318,17 @@ async function renderProfessionalSlices(view){
  ${current?`<section class="panel" style="padding:18px;margin-bottom:16px">
   <div class="panel-title">第二步 · 写一条判断</div>
   <div class="panel-caption">四句话就够：什么情况下、我的判断、什么情况除外、依据。不确定的先空着，之后随时能改。</div>
-  <div class="panel" style="margin:12px 0;padding:12px 14px;background:#f7f9f7"><div class="panel-caption" style="margin:0"><strong>例子</strong>：什么情况下 标的行业 互联网、交易金额 8 亿、管辖地 上海；我的判断 应先申报经营者集中，未申报不得实施交割；什么情况除外 未取得控制权，或营业额未达申报标准；依据 反垄断法第二十六条</div></div>
-  <div style="display:grid;gap:10px;margin-top:8px">
-   <div class="field-label">什么情况下</div>
+  <div style="display:grid;gap:10px;margin-top:12px">
+   ${fields.length?`<div class="field-label">什么情况下</div>
    <div style="display:flex;gap:10px;flex-wrap:wrap">
-    ${fields.map((k,i)=>`<label class="field" style="flex:1;min-width:150px"><span class="field-label">${esc(premiseLabel(def,k.key))}</span><input class="input" data-premise="${esc(k.key)}" placeholder="例如：${esc(sample[i]||"示例")}"></label>`).join("")}
-   </div>
-   <label class="field"><span class="field-label">我的判断</span><textarea class="input" id="pro-conclusion" rows="2" placeholder="例如：应先申报经营者集中，未申报不得实施交割"></textarea></label>
-   <label class="field"><span class="field-label">什么情况除外</span><textarea class="input" id="pro-exception" rows="2" placeholder="例如：未取得控制权，或营业额未达申报标准"></textarea></label>
-   <label class="field"><span class="field-label">依据</span><textarea class="input" id="pro-basis" rows="2" placeholder="例如：反垄断法第二十六条"></textarea></label>
+    ${fields.map(k=>`<label class="field" style="flex:1;min-width:150px"><span class="field-label">${esc(premiseLabel(def,k.key))}</span><input class="input" data-premise="${esc(k.key)}"></label>`).join("")}
+   </div>`:`<div class="panel-caption" style="margin:0">这个场景还没有定义前提要素，先直接写判断；前提要素等技能框架定好后会自动出现。</div>`}
+   <label class="field"><span class="field-label">我的判断</span><textarea class="input" id="pro-conclusion" rows="2"></textarea></label>
+   <label class="field"><span class="field-label">什么情况除外</span><textarea class="input" id="pro-exception" rows="2"></textarea></label>
+   <label class="field"><span class="field-label">依据</span><textarea class="input" id="pro-basis" rows="2"></textarea></label>
    <label class="field" style="max-width:280px"><span class="field-label">来源</span>
     <select class="select" id="pro-authority">${Object.entries(PRO_AUTHORITY).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
-   <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="button primary" id="pro-save">保存为草稿</button>
-    <button class="button" id="pro-fill">填入上面的例子试试</button>
-   </div>
+   <div><button class="button primary" id="pro-save">保存为草稿</button></div>
   </div>
  </section>`:`<section class="panel empty-state">先在上面选一个专业场景，再点「开始录入我的判断」。</section>`}
  <section class="panel collection-panel">
@@ -355,13 +350,6 @@ async function renderProfessionalSlices(view){
    const r=await api("/v1/scenario-slices",{method:"POST",body:JSON.stringify({original_text:label,status:"analyzed",scenario_definition_id:id,scenario_profile:{kind:"professional"},analysis:{title:label},updated_at:new Date().toISOString()})});
    if(r?.id){proSliceId=r.id;cache["scenario-slices"]=null;render()}};
  const sliceSel=$("#pro-slice"); if(sliceSel) sliceSel.onchange=()=>{proSliceId=sliceSel.value;render()};
- const fill=$("#pro-fill"); if(fill) fill.onclick=()=>{
-   const vals=["互联网","8 亿","上海","三年以上"];
-   document.querySelectorAll("[data-premise]").forEach((i,idx)=>{i.value=vals[idx]||"示例"});
-   $("#pro-conclusion").value="应先申报经营者集中，未申报不得实施交割";
-   $("#pro-exception").value="未取得控制权，或营业额未达申报标准";
-   $("#pro-basis").value="反垄断法第二十六条";
-   $("#pro-authority").value="statute"};
  const save=$("#pro-save"); if(save) save.onclick=async()=>{
    if(!proSliceId){alert("请先点「开始录入我的判断」。");return}
    const premise={}; document.querySelectorAll("[data-premise]").forEach(i=>{if(i.value.trim())premise[i.dataset.premise]=i.value.trim()});

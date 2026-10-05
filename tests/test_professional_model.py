@@ -31,7 +31,8 @@ async def main():
     slots = one.get("entry_slots") or {}
     check("四槽结构完整", set(slots) == SLOTS, str(list(slots)))
     check("四槽标签中英双语", all(isinstance(v, dict) and "zh" in v and "en" in v for v in slots.values()), str(slots))
-    check("前提要素骨架已定义", isinstance(one.get("premise_fields"), list) and len(one["premise_fields"]) >= 2,
+    # 内置场景骨架来自工程实现，**不得携带任何编造的专业前提要素**（2026-10-04 决定撤掉自造示例）
+    check("内置场景不携带编造的前提要素", one.get("premise_fields") in (None, []),
           str(one.get("premise_fields"))[:80])
 
     # —— ② 存量兼容：不带 profile 的日常切片行为不变 ——

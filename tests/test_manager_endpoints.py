@@ -8,7 +8,7 @@
 `py_compile` 与导入都发现不了函数体里的 NameError，只有调用才会暴露，
 而当时管理器端点没有任何测试覆盖 —— 所以这里补上静态与在线两类检查。
 """
-import ast, json, pathlib, sys, urllib.request
+import ast, json, pathlib, re, sys, urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RESULTS = []
@@ -66,8 +66,11 @@ try:
     headers, body = head("/")
     check("控制台 HTML 带 no-store（改前端立即生效）",
           "no-store" in headers.get("cache-control", ""), str(headers.get("cache-control")))
-    check("控制台 HTML 引用当前资源版本号",
-          b"assets/app.js?v=20261004a" in body, body[:0] and "" or "未见 ?v=20261004a")
+    local = re.search(r"assets/app\.js\?v=([0-9a-z]+)", (ROOT / "web/index.html").read_text(encoding="utf-8"))
+    served = re.search(rb"assets/app\.js\?v=([0-9a-z]+)", body)
+    check("服务端 HTML 的版本号与工作区一致",
+          local and served and local.group(1).encode() == served.group(1),
+          f"工作区 {local.group(1) if local else '?'} / 服务端 {served.group(1).decode() if served else '?'}")
     # 控制端点的存在性用路由表检查（调用它们会真的重启后端，不适合放在测试里）
     paths = {r.path for r in manager.app.routes if hasattr(r, "path")}
     for path in ("/manager/status", "/manager/start", "/manager/restart", "/manager/logs"):

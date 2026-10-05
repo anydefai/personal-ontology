@@ -485,3 +485,39 @@ exception; "Basis" plus "Source" (statute / judicial interpretation / precedent 
 Asset version → **20261004b**; bilingual uncovered count **56 (baseline 60)**; all **20 suites green**.
 
 ### Deploy and tests
+
+### Removing the self-invented acquisition example (confirmed by the user) and making built-in data correctable
+
+The user pointed out that the "acquisition assessment" example I had shown was **not their logic** — and
+they were right. I had **invented** that example, because the DeepSeek share link never yielded any
+content (I tried three times). They then pasted the full text: a skill model for "M&A valuation
+judgment" containing **industry weight tables, dynamic-threshold arithmetic, multi-signal cross
+validation, exception overrides, signal priority, confidence backtesting, a decision package,
+authorization limits and billing tiers**. What I built — a condition, a conclusion and a free-text
+exception — **cannot express that logic**; the gap analysis was delivered separately.
+
+**What this round removed**:
+- the **example sentence** on the professional page (my invented industry/deal-size/jurisdiction);
+- the **"fill in the example" button** and its filling logic;
+- the invented **placeholders** (Internet / CNY 800m / Shanghai / three years);
+- the invented **`premise_fields`** in the seeded data for all three built-in skeletons;
+- when premise fields are empty the page now says: "this scenario has no premise fields defined yet, so
+  just write the judgment; premise fields will appear once the skill framework is ready".
+
+**A structural problem fixed along the way**: built-in seeding used to be **create-only**, so anything I
+seeded into a container **could not be removed**. `domain-packs` and `scenario-definitions` are now
+**authoritative from code**: when their content differs, the record is rewritten — which makes retracting
+a bad seed effective while leaving user records alone.
+
+**Tests updated**: `test_professional_model` used to assert "premise-field skeleton defined" — exactly the
+invented content. It now asserts that built-in skeletons **carry no invented premise fields**, freezing
+this decision as a regression guard.
+
+**The same mistake twice**: I hard-coded the asset version in a test again (first
+`test_professional_ui`, then `test_manager_endpoints`). Both are now dynamic: the former matches a
+prefix, the latter compares the version in the workspace's `index.html` against the served HTML — which
+incidentally makes it a genuine "has the deployment been synced?" check.
+
+Asset version → **20261004c**; all **20 suites green**; bilingual uncovered **55 (baseline 60)**.
+
+### Deploy and tests

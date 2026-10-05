@@ -200,9 +200,6 @@ class RDFStore:
                 "description_zh": "对一项收购交易的法律风险与前置条件作出判断",
                 "description_en": "Judge the legal risks and preconditions of an acquisition",
                 "domain_pack_ids": ["legal.cn"], "version": "1.0.0", "lifecycle_state": "active", "is_builtin": True,
-                "premise_fields": [{"key": "target_industry", "label": {"zh": "标的行业", "en": "Target industry"}},
-                                   {"key": "deal_size", "label": {"zh": "交易金额", "en": "Deal size"}},
-                                   {"key": "jurisdiction", "label": {"zh": "管辖地", "en": "Jurisdiction"}}],
                 "entry_slots": {"premise": {"zh": "案情要素", "en": "Case elements"}, "conclusion": {"zh": "判断意见", "en": "Opinion"}, "exception": {"zh": "不适用情形", "en": "Inapplicable when"}, "basis": {"zh": "依据", "en": "Basis"}},
             }),
             ("scenario-definitions", "legal.labor", {
@@ -210,8 +207,6 @@ class RDFStore:
                 "description_zh": "对用工安排、解除与补偿的合规性作出判断",
                 "description_en": "Judge the compliance of employment arrangements, termination and compensation",
                 "domain_pack_ids": ["legal.cn"], "version": "1.0.0", "lifecycle_state": "active", "is_builtin": True,
-                "premise_fields": [{"key": "employment_type", "label": {"zh": "用工形式", "en": "Employment type"}},
-                                   {"key": "tenure", "label": {"zh": "在职时长", "en": "Tenure"}}],
                 "entry_slots": {"premise": {"zh": "案情要素", "en": "Case elements"}, "conclusion": {"zh": "判断意见", "en": "Opinion"}, "exception": {"zh": "不适用情形", "en": "Inapplicable when"}, "basis": {"zh": "依据", "en": "Basis"}},
             }),
             ("scenario-definitions", "legal.contract", {
@@ -219,17 +214,25 @@ class RDFStore:
                 "description_zh": "对合同条款的效力、风险与缺失项作出判断",
                 "description_en": "Judge the validity, risk and missing terms of a contract",
                 "domain_pack_ids": ["legal.cn"], "version": "1.0.0", "lifecycle_state": "active", "is_builtin": True,
-                "premise_fields": [{"key": "contract_type", "label": {"zh": "合同类型", "en": "Contract type"}},
-                                   {"key": "counterparty", "label": {"zh": "相对方", "en": "Counterparty"}}],
                 "entry_slots": {"premise": {"zh": "案情要素", "en": "Case elements"}, "conclusion": {"zh": "判断意见", "en": "Opinion"}, "exception": {"zh": "不适用情形", "en": "Inapplicable when"}, "basis": {"zh": "依据", "en": "Basis"}},
             }),
         ]
         added = False
+        authoritative = {"domain-packs", "scenario-definitions"}   # 内置专业数据以代码为准，可被修正
         for collection, item_id, record in builtins:
             subject = node_uri(collection, item_id)
-            if (subject, RDF.type, PO[CLASSES[collection]]) not in self.graph:
+            exists = (subject, RDF.type, PO[CLASSES[collection]]) in self.graph
+            if not exists:
                 object_to_graph(self.graph, collection, item_id, record)
                 added = True
+            elif collection in authoritative:
+                # 内置记录若与代码不一致（例如已撤掉的内容），按代码重写一次
+                current = graph_to_record(self.graph, collection, item_id)
+                if any(current.get(k) != v for k, v in record.items() if k not in ("is_builtin",)):
+                    for p_, o_ in list(self.graph.predicate_objects(subject)):
+                        self.graph.remove((subject, p_, o_))
+                    object_to_graph(self.graph, collection, item_id, record)
+                    added = True
         return added
 
     def _validate(self, candidate: Graph) -> None:

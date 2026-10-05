@@ -508,6 +508,7 @@
   "请填写「我的判断」": "Please fill in My judgment",
   "反垄断法第二十六条": "Anti-Monopoly Law, Article 26",
   "例如：反垄断法第二十六条": "e.g. Anti-Monopoly Law, Article 26",
+  "这个场景还没有定义前提要素，先直接写判断；前提要素等技能框架定好后会自动出现": "This scenario has no premise fields defined yet, so just write the judgment; premise fields will appear once the skill framework is ready",
   };
 
 
