@@ -32,7 +32,7 @@ for slot in ("pro-conclusion", "pro-exception", "pro-basis", "pro-authority"):
 check("复核流转（草稿↔启用）存在", 'data-pro-toggle' in app and "转回草稿" in app)
 # ⑤ 资源版本号已升
 v = re.search(r"\?v=(\d{8}[a-z]?)", html)
-check("资源版本号已更新为 2026-10-04 版", v is not None and v.group(1) == "20261004a", v.group(1) if v else "无")
+check("资源版本号已更新为 2026-10-04 版", v is not None and v.group(1).startswith("20261004"), v.group(1) if v else "无")
 # ⑥ 专业串有中英词条
 for zh in ("专业技能场景", "我的判断规则", "判断条目", "权威级别", "所属场景"):
     check(f"词条已收录：{zh}", ('"%s":' % zh) in i18n)

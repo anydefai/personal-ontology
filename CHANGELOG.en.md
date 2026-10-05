@@ -453,3 +453,35 @@ asset version in HTML: assets/app.js?v=20261004a
 must reference the current asset version — so this class of problem is caught by the regression suite.
 
 ### Deploy and tests
+
+### Professional track R2.1: engineering words replaced with plain language, plus a copyable example
+
+User feedback: on the professional page they "did not know how to type anything" and "did not understand
+what a judgment rule set is" — a wording problem. The UI used engineering terms (judgment rule set /
+entry / premise / conclusion / exception) while the person's own mental model is simply four parts.
+
+**Now four plain parts**: "My judgment" / "Start entering my judgments" instead of rule set;
+"Situation" instead of premise; "My judgment" instead of conclusion; "Does not apply when" instead of
+exception; "Basis" plus "Source" (statute / judicial interpretation / precedent / personal experience);
+"Confirm and enable" / "Back to draft" for the review states.
+
+**Three additions that lower the barrier**:
+- a **real example printed on the page** (acquisition assessment: target industry Internet, deal size
+  CNY 800m, jurisdiction Shanghai → judgment → does not apply → basis);
+- a **"Fill in the example above" button** that populates the form so you can see what a filled-in entry
+  looks like;
+- **example placeholders** in every input, and guidance-style empty states and alerts.
+
+**Process and lessons**:
+- The first attempt edited the example sentence by text slicing and **cut across a function boundary**,
+  breaking app.js. It was restored with `git checkout` and redone as an **atomic replacement of the whole
+  function**, with the div balance (15/15) and the following functions verified intact.
+  Lesson: for these very long single-line templates, replace whole functions — never slice text.
+- A leftover probe backend of mine on port 8899 made `test_agent_access` and `test_mcp_e2e` fail
+  spuriously; after cleanup they are back to 24/24 and 17/17. Lesson: clean up temporary processes.
+- `test_professional_ui`'s asset-version assertion now matches a **prefix**, so future bumps need no test
+  edit.
+
+Asset version → **20261004b**; bilingual uncovered count **56 (baseline 60)**; all **20 suites green**.
+
+### Deploy and tests

@@ -297,65 +297,81 @@ async function renderProfessionalSlices(view){
  document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(slices.length));
  const mine=slices.filter(x=>(x.scenario_profile||{}).kind==="professional");
  if(!mine.some(x=>x.id===proSliceId)) proSliceId=mine[0]?.id||null;
- const current=mine.find(x=>x.id===proSliceId)||null;
- const def=defs.find(d=>d.id===current?.scenario_definition_id)||null;
+ let current=mine.find(x=>x.id===proSliceId)||null;
+ const defsById=Object.fromEntries(defs.map(d=>[d.id,d]));
+ const def=defsById[current?.scenario_definition_id]||defs[0]||null;
  const entries=allEntries.filter(e=>e.slice_id===proSliceId);
  const active=entries.filter(e=>e.review_state==="active").length;
  const opts=defs.map(d=>`<option value="${esc(d.id)}" ${current&&current.scenario_definition_id===d.id?"selected":""}>${esc(fieldLabel(d,"display_name_zh","display_name_en"))}</option>`).join("");
- const premiseFields=(def?.premise_fields||[]).map(x=>x.key);
+ const fields=(def?.premise_fields||[]);
+ const sample=["互联网","8 亿","上海","三年以上"];
  view.innerHTML=`${proModeButtons()}
- ${titleBlock("PROFESSIONAL JUDGMENT","我的判断规则","选择或新建一个专业场景，然后手工录入你的判断条目：前提、结论、例外、依据。条目先存为草稿，复核后才可启用。")}
+ ${titleBlock("MY JUDGMENT","我的判断","把你知道的判断写下来：什么情况下、你的判断是什么、什么情况除外、依据是什么。每条先存草稿，确认无误再启用。")}
  <section class="panel" style="padding:18px;margin-bottom:16px">
-  <div class="panel-title">专业场景</div>
-  <div class="panel-caption">内置场景骨架可直接使用；选好后即可录入该场景下的判断条目</div>
+  <div class="panel-title">第一步 · 选一个专业场景</div>
+  <div class="panel-caption">选好后就能按这个场景的前提要素写判断。没有你要的场景？先随便选一个，之后可以改名。</div>
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
-   <select class="select" id="pro-def" style="max-width:320px">${opts||`<option value="">（暂无场景定义）</option>`}</select>
-   <button class="button primary" id="pro-new-slice">＋ 新建判断规则集</button>
-   ${mine.length>1?`<select class="select" id="pro-slice" style="max-width:320px">${mine.map(x=>`<option value="${esc(x.id)}" ${x.id===proSliceId?"selected":""}>${esc((defs.find(d=>d.id===x.scenario_definition_id)||{}).display_name_zh||x.id)} · ${esc(x.id.slice(-6))}</option>`).join("")}</select>`:""}
+   <select class="select" id="pro-def" style="max-width:320px">${opts||'<option value="">暂无专业场景</option>'}</select>
+   <button class="button primary" id="pro-start">开始录入我的判断</button>
+   ${mine.length>1?`<select class="select" id="pro-slice" style="max-width:300px">${mine.map(x=>`<option value="${esc(x.id)}" ${x.id===proSliceId?"selected":""}>${esc((defsById[x.scenario_definition_id]||{}).display_name_zh||x.id)} · ${esc(x.id.slice(-6))}</option>`).join("")}</select>`:""}
   </div>
  </section>
  ${current?`<section class="panel" style="padding:18px;margin-bottom:16px">
-  <div class="panel-title">新增判断条目</div>
-  <div class="panel-caption">前提决定这条判断在什么情况下成立；例外写清楚什么时候不适用</div>
-  <div style="display:grid;gap:10px;margin-top:12px">
-   ${premiseFields.map(k=>`<label class="field"><span class="field-label"><span>前提</span> · ${esc(premiseLabel(def,k))}</span><input class="input" data-premise="${esc(k)}" placeholder="${esc(premiseLabel(def,k))}"></label>`).join("")}
-   <label class="field"><span class="field-label">结论</span><textarea class="input" id="pro-conclusion" rows="2"></textarea></label>
-   <label class="field"><span class="field-label">例外</span><textarea class="input" id="pro-exception" rows="2"></textarea></label>
-   <label class="field"><span class="field-label">依据</span><textarea class="input" id="pro-basis" rows="2"></textarea></label>
-   <label class="field" style="max-width:260px"><span class="field-label">权威级别</span>
+  <div class="panel-title">第二步 · 写一条判断</div>
+  <div class="panel-caption">四句话就够：什么情况下、我的判断、什么情况除外、依据。不确定的先空着，之后随时能改。</div>
+  <div class="panel" style="margin:12px 0;padding:12px 14px;background:#f7f9f7"><div class="panel-caption" style="margin:0"><strong>例子</strong>：什么情况下 标的行业 互联网、交易金额 8 亿、管辖地 上海；我的判断 应先申报经营者集中，未申报不得实施交割；什么情况除外 未取得控制权，或营业额未达申报标准；依据 反垄断法第二十六条</div></div>
+  <div style="display:grid;gap:10px;margin-top:8px">
+   <div class="field-label">什么情况下</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap">
+    ${fields.map((k,i)=>`<label class="field" style="flex:1;min-width:150px"><span class="field-label">${esc(premiseLabel(def,k.key))}</span><input class="input" data-premise="${esc(k.key)}" placeholder="例如：${esc(sample[i]||"示例")}"></label>`).join("")}
+   </div>
+   <label class="field"><span class="field-label">我的判断</span><textarea class="input" id="pro-conclusion" rows="2" placeholder="例如：应先申报经营者集中，未申报不得实施交割"></textarea></label>
+   <label class="field"><span class="field-label">什么情况除外</span><textarea class="input" id="pro-exception" rows="2" placeholder="例如：未取得控制权，或营业额未达申报标准"></textarea></label>
+   <label class="field"><span class="field-label">依据</span><textarea class="input" id="pro-basis" rows="2" placeholder="例如：反垄断法第二十六条"></textarea></label>
+   <label class="field" style="max-width:280px"><span class="field-label">来源</span>
     <select class="select" id="pro-authority">${Object.entries(PRO_AUTHORITY).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
-   <div><button class="button primary" id="pro-save">保存条目（存为草稿）</button></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="button primary" id="pro-save">保存为草稿</button>
+    <button class="button" id="pro-fill">填入上面的例子试试</button>
+   </div>
   </div>
- </section>`:`<section class="panel empty-state">先选择或新建一个专业场景，然后录入判断条目</section>`}
+ </section>`:`<section class="panel empty-state">先在上面选一个专业场景，再点「开始录入我的判断」。</section>`}
  <section class="panel collection-panel">
-  <div class="collection-toolbar"><span class="record-count"><span>判断条目</span> ${entries.length} <span>条</span> · <span>已启用</span> ${active} <span>条</span></span><span class="toolbar-spacer"></span><button class="button" id="pro-reload">↻ 刷新</button></div>
-  <div class="table-wrap"><table><thead><tr><th>前提</th><th>结论</th><th>依据</th><th>权威级别</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+  <div class="collection-toolbar"><span class="record-count"><span>我的判断</span> ${entries.length} <span>条</span> · <span>已启用</span> ${active} <span>条</span></span><span class="toolbar-spacer"></span><button class="button" id="pro-reload">↻ 刷新</button></div>
+  <div class="table-wrap"><table><thead><tr><th>什么情况下</th><th>我的判断</th><th>依据</th><th>来源</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
   <tbody>${entries.map(e=>`<tr>
    <td>${esc(premiseText(e.premise)||"—")}</td><td>${esc(e.conclusion||"")}</td><td>${esc(e.basis||"—")}</td>
    <td>${esc(PRO_AUTHORITY[e.authority]||e.authority||"—")}</td>
    <td>${e.review_state==="active"?`<span class="badge">已启用</span>`:`<span class="badge">草稿</span>`}</td>
    <td style="text-align:right;white-space:nowrap">
-    <button class="button" data-pro-toggle="${esc(e.id)}" data-to="${e.review_state==="active"?"draft":"active"}">${e.review_state==="active"?"转回草稿":"启用"}</button>
+    <button class="button" data-pro-toggle="${esc(e.id)}" data-to="${e.review_state==="active"?"draft":"active"}">${e.review_state==="active"?"转回草稿":"确认并启用"}</button>
     <button class="button" data-pro-del="${esc(e.id)}">删除</button></td></tr>`).join("")}</tbody></table></div>
-  <div class="empty-state" ${entries.length?"hidden":""}><div class="empty-icon">◇</div>还没有判断条目</div>
+  <div class="empty-state" ${entries.length?"hidden":""}><div class="empty-icon">◇</div>还没有判断。上面写一条，点「保存为草稿」即可。</div>
  </section>`;
- const seg=$("[data-pro-mode]",view);
- 
- const defSel=$("#pro-def"); if(defSel) defSel.onchange=()=>{};
- const newBtn=$("#pro-new-slice"); if(newBtn) newBtn.onclick=async()=>{
-   const id=defSel?.value; if(!id) return;
-   const r=await api("/v1/scenario-slices",{method:"POST",body:JSON.stringify({original_text:defSel.options[defSel.selectedIndex].text,status:"analyzed",scenario_definition_id:id,scenario_profile:{kind:"professional"},analysis:{title:defSel.options[defSel.selectedIndex].text},updated_at:new Date().toISOString()})});
-   if(r?.id){proSliceId=r.id;cache["scenario-slices"]=null;render()} };
+ const defSel=$("#pro-def");
+ const startBtn=$("#pro-start"); if(startBtn) startBtn.onclick=async()=>{
+   const id=defSel?.value; if(!id){alert("请先选择一个专业场景。");return}
+   const label=defSel.options[defSel.selectedIndex].text;
+   const r=await api("/v1/scenario-slices",{method:"POST",body:JSON.stringify({original_text:label,status:"analyzed",scenario_definition_id:id,scenario_profile:{kind:"professional"},analysis:{title:label},updated_at:new Date().toISOString()})});
+   if(r?.id){proSliceId=r.id;cache["scenario-slices"]=null;render()}};
  const sliceSel=$("#pro-slice"); if(sliceSel) sliceSel.onchange=()=>{proSliceId=sliceSel.value;render()};
+ const fill=$("#pro-fill"); if(fill) fill.onclick=()=>{
+   const vals=["互联网","8 亿","上海","三年以上"];
+   document.querySelectorAll("[data-premise]").forEach((i,idx)=>{i.value=vals[idx]||"示例"});
+   $("#pro-conclusion").value="应先申报经营者集中，未申报不得实施交割";
+   $("#pro-exception").value="未取得控制权，或营业额未达申报标准";
+   $("#pro-basis").value="反垄断法第二十六条";
+   $("#pro-authority").value="statute"};
  const save=$("#pro-save"); if(save) save.onclick=async()=>{
+   if(!proSliceId){alert("请先点「开始录入我的判断」。");return}
    const premise={}; document.querySelectorAll("[data-premise]").forEach(i=>{if(i.value.trim())premise[i.dataset.premise]=i.value.trim()});
    const body={slice_id:proSliceId,premise,conclusion:$("#pro-conclusion").value.trim(),exception:$("#pro-exception").value.trim(),basis:$("#pro-basis").value.trim(),authority:$("#pro-authority").value,review_state:"draft",version:"1",updated_at:new Date().toISOString()};
-   if(!body.conclusion){alert("请填写结论");return}
+   if(!body.conclusion){alert("请填写「我的判断」。");return}
    await api("/v1/knowledge-entries",{method:"POST",body:JSON.stringify(body)});cache["knowledge-entries"]=null;render() };
  document.querySelectorAll("[data-pro-toggle]").forEach(b=>b.onclick=async()=>{
    await api(`/v1/knowledge-entries/${b.dataset.proToggle}`,{method:"PATCH",body:JSON.stringify({review_state:b.dataset.to,reviewed_at:new Date().toISOString()})});cache["knowledge-entries"]=null;render() });
  document.querySelectorAll("[data-pro-del]").forEach(b=>b.onclick=async()=>{
-   if(!confirm("删除这条判断条目？"))return; await api(`/v1/knowledge-entries/${b.dataset.proDel}`,{method:"DELETE"});cache["knowledge-entries"]=null;render() });
+   if(!confirm("删除这条判断？"))return; await api(`/v1/knowledge-entries/${b.dataset.proDel}`,{method:"DELETE"});cache["knowledge-entries"]=null;render() });
  const rel=$("#pro-reload"); if(rel) rel.onclick=()=>{cache["knowledge-entries"]=null;cache["scenario-slices"]=null;render()};
 }
 
