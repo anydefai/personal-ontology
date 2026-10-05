@@ -354,3 +354,39 @@ adding a collection.
 Full regression: the 18 existing suites are green; the bilingual gap is 0.
 
 ### Deploy and tests
+
+### Professional-judgment track, R2: mode entry, judgment-entry editor and the instance page
+
+Without touching the daily-life code path, the professional track gained an entry point and hand-entry:
+
+- **A mode switch at the top of the scenario-slice and scenario-instance pages**: "Daily-life
+  scenarios" / "Professional scenarios". Daily mode keeps its original renderers (unchanged) while
+  professional mode **branches off early** into new functions.
+- **The professional slice page**: pick a built-in skeleton (acquisition assessment / employment
+  compliance / contract review) or create a new judgment rule set, then fill in the scenario's
+  **premise-field skeleton** plus conclusion, exception, basis and authority level (statute / judicial
+  interpretation / precedent / personal experience).
+- **Entries start as drafts** and must be explicitly enabled from the list; they can also be moved back
+  to draft or deleted, reusing the existing draft-to-active discipline.
+- **The professional instance page** lists only **enabled** entries, showing their scenario, premise,
+  conclusion, basis and authority level.
+- **No new backend endpoints**: everything reuses the generic collection CRUD
+  (`knowledge-entries` / `scenario-definitions`).
+- The asset version `?v=` moves to **20261004a**.
+
+**Bilingual**: 37 new entries; `test_i18n_coverage` reports **55 uncovered (baseline 60)**, five fewer
+than before this change. Two traps were handled: (1) the scanner strips a trailing full stop, so the
+source string and the runtime node differ and the entry would never apply — trailing full stops were
+removed from the new captions; (2) Chinese glued to digits inside templates produces fragment strings —
+Chinese words are now split into their own nodes.
+
+**New `tests/test_professional_ui.py`: 18/18 passing**, covering the mode entry, the early branch with
+the original renderers still present, reuse of generic endpoints with no bespoke endpoint added, the
+four-slot editor and the review flow, the bumped asset version, and entries for the key professional
+strings.
+
+The full regression is **19 suites green**, and as per discipline the **files the server actually
+serves** were verified: the served app.js contains the new mode, index.html carries `?v=20261004a`, and
+the served i18n.js contains the new entries.
+
+### Deploy and tests

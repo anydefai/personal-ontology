@@ -6,6 +6,9 @@ let cache = {};
 let activeScenario = null;
 let activeInstanceId = null;
 const labels = {
+  "knowledge-entries": {title:"判断条目",singular:"判断条目",subtitle:"专业判断的条目：前提、结论、例外、依据",id:"entry_id",readonly:false,cols:[["conclusion","结论"],["basis","依据"],["review_state","状态"]]},
+  "scenario-definitions": {title:"场景定义",singular:"场景定义",subtitle:"可复用的专业任务骨架",id:"scenario_definition_id",readonly:false,cols:[["display_name_zh","名称"],["version","版本"]]},
+  "domain-packs": {title:"领域包",singular:"领域包",subtitle:"行业词表与追问模板",id:"pack_id",readonly:false,cols:[["display_name_zh","名称"],["version","版本"]]},
   "scenario-instances": {title:"场景实例",subtitle:"统一维护由场景切片确认写入本体的可复用实例。"},
   "account-security": {title:"登录与安全",subtitle:"管理登录密码、锁定状态与加密容器。"},
   "display-settings": {title:"显示与语言",subtitle:"选择界面与模型产出使用的语言。"},
@@ -275,13 +278,98 @@ function roleSummaryHtml(a,status){
   <p class="panel-caption" style="margin-top:8px">这只是模型的建议，实际以你的必填清单与偏好为准${pending?"；确认该场景即视为已核对。":"。"}</p>
   <div style="display:grid;gap:10px;margin-top:6px">${contract.length?`<div class="panel-caption" style="border-left:3px solid #e0b4b4;padding-left:8px">模型输出有 ${contract.length} 处不符合契约（后端已自动容错）：${contract.map(n=>`<br>· ${esc(n.message)}（${esc(n.field||"")}）`).join("")}</div>`:""}${rows.map(x=>`<div style="display:flex;gap:10px;align-items:flex-start"><span class="badge ${x.role==="both"?"pending":x.role==="preference"?"allow":""}" style="white-space:nowrap">${esc(roleLabel[x.role]||"未标注")}</span><div><strong style="font-size:12px">${esc(x.label||x.name||"")}</strong><span class="mono" style="color:#9aa79f;font-size:11px"> ${esc(x.name||"")} · 在${esc(x.kind)}</span><div class="panel-caption">${esc(x.role_reason||"（模型未给出理由）")}</div></div></div>`).join("")}</div></details></section>`;
 }
+// ===== Professional track (R2): mode switch, scenario definitions, judgment entries =====
+// The daily path is left untouched: professional mode lives in its own functions and shares one ontology core.
+let professionalMode = false;
+let proSliceId = null;
+
+function proModeButtons(){return `<div class="collection-toolbar" style="margin-bottom:14px">
+ <button class="button ${professionalMode?"":"primary"}" data-pro-mode="daily">日常生活场景</button>
+ <button class="button ${professionalMode?"primary":""}" data-pro-mode="professional">专业技能场景</button>
+ <span class="toolbar-spacer"></span>
+ <span class="record-count">专业技能场景把专业判断写成可复核、可启用的规则；日常场景不受影响</span>
+</div>`}
+
+const PRO_AUTHORITY = {statute:"法条", interpretation:"司法解释", precedent:"判例", experience:"个人经验"};
+
+async function renderProfessionalSlices(view){
+ const [defs,slices,allEntries]=await Promise.all([load("scenario-definitions"),load("scenario-slices"),load("knowledge-entries")]);
+ document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(slices.length));
+ const mine=slices.filter(x=>(x.scenario_profile||{}).kind==="professional");
+ if(!mine.some(x=>x.id===proSliceId)) proSliceId=mine[0]?.id||null;
+ const current=mine.find(x=>x.id===proSliceId)||null;
+ const def=defs.find(d=>d.id===current?.scenario_definition_id)||null;
+ const entries=allEntries.filter(e=>e.slice_id===proSliceId);
+ const active=entries.filter(e=>e.review_state==="active").length;
+ const opts=defs.map(d=>`<option value="${esc(d.id)}" ${current&&current.scenario_definition_id===d.id?"selected":""}>${esc(fieldLabel(d,"display_name_zh","display_name_en"))}</option>`).join("");
+ const premiseFields=(def?.premise_fields||[]).map(x=>x.key);
+ view.innerHTML=`${proModeButtons()}
+ ${titleBlock("PROFESSIONAL JUDGMENT","我的判断规则","选择或新建一个专业场景，然后手工录入你的判断条目：前提、结论、例外、依据。条目先存为草稿，复核后才可启用。")}
+ <section class="panel" style="padding:18px;margin-bottom:16px">
+  <div class="panel-title">专业场景</div>
+  <div class="panel-caption">内置场景骨架可直接使用；选好后即可录入该场景下的判断条目</div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+   <select class="select" id="pro-def" style="max-width:320px">${opts||`<option value="">（暂无场景定义）</option>`}</select>
+   <button class="button primary" id="pro-new-slice">＋ 新建判断规则集</button>
+   ${mine.length>1?`<select class="select" id="pro-slice" style="max-width:320px">${mine.map(x=>`<option value="${esc(x.id)}" ${x.id===proSliceId?"selected":""}>${esc((defs.find(d=>d.id===x.scenario_definition_id)||{}).display_name_zh||x.id)} · ${esc(x.id.slice(-6))}</option>`).join("")}</select>`:""}
+  </div>
+ </section>
+ ${current?`<section class="panel" style="padding:18px;margin-bottom:16px">
+  <div class="panel-title">新增判断条目</div>
+  <div class="panel-caption">前提决定这条判断在什么情况下成立；例外写清楚什么时候不适用</div>
+  <div style="display:grid;gap:10px;margin-top:12px">
+   ${premiseFields.map(k=>`<label class="field"><span class="field-label"><span>前提</span> · ${esc(premiseLabel(def,k))}</span><input class="input" data-premise="${esc(k)}" placeholder="${esc(premiseLabel(def,k))}"></label>`).join("")}
+   <label class="field"><span class="field-label">结论</span><textarea class="input" id="pro-conclusion" rows="2"></textarea></label>
+   <label class="field"><span class="field-label">例外</span><textarea class="input" id="pro-exception" rows="2"></textarea></label>
+   <label class="field"><span class="field-label">依据</span><textarea class="input" id="pro-basis" rows="2"></textarea></label>
+   <label class="field" style="max-width:260px"><span class="field-label">权威级别</span>
+    <select class="select" id="pro-authority">${Object.entries(PRO_AUTHORITY).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+   <div><button class="button primary" id="pro-save">保存条目（存为草稿）</button></div>
+  </div>
+ </section>`:`<section class="panel empty-state">先选择或新建一个专业场景，然后录入判断条目</section>`}
+ <section class="panel collection-panel">
+  <div class="collection-toolbar"><span class="record-count"><span>判断条目</span> ${entries.length} <span>条</span> · <span>已启用</span> ${active} <span>条</span></span><span class="toolbar-spacer"></span><button class="button" id="pro-reload">↻ 刷新</button></div>
+  <div class="table-wrap"><table><thead><tr><th>前提</th><th>结论</th><th>依据</th><th>权威级别</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+  <tbody>${entries.map(e=>`<tr>
+   <td>${esc(premiseText(e.premise)||"—")}</td><td>${esc(e.conclusion||"")}</td><td>${esc(e.basis||"—")}</td>
+   <td>${esc(PRO_AUTHORITY[e.authority]||e.authority||"—")}</td>
+   <td>${e.review_state==="active"?`<span class="badge">已启用</span>`:`<span class="badge">草稿</span>`}</td>
+   <td style="text-align:right;white-space:nowrap">
+    <button class="button" data-pro-toggle="${esc(e.id)}" data-to="${e.review_state==="active"?"draft":"active"}">${e.review_state==="active"?"转回草稿":"启用"}</button>
+    <button class="button" data-pro-del="${esc(e.id)}">删除</button></td></tr>`).join("")}</tbody></table></div>
+  <div class="empty-state" ${entries.length?"hidden":""}><div class="empty-icon">◇</div>还没有判断条目</div>
+ </section>`;
+ const seg=$("[data-pro-mode]",view);
+ document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";render()});
+ const defSel=$("#pro-def"); if(defSel) defSel.onchange=()=>{};
+ const newBtn=$("#pro-new-slice"); if(newBtn) newBtn.onclick=async()=>{
+   const id=defSel?.value; if(!id) return;
+   const r=await api("/v1/scenario-slices",{method:"POST",body:JSON.stringify({original_text:defSel.options[defSel.selectedIndex].text,status:"analyzed",scenario_definition_id:id,scenario_profile:{kind:"professional"},analysis:{title:defSel.options[defSel.selectedIndex].text},updated_at:new Date().toISOString()})});
+   if(r?.id){proSliceId=r.id;cache["scenario-slices"]=null;render()} };
+ const sliceSel=$("#pro-slice"); if(sliceSel) sliceSel.onchange=()=>{proSliceId=sliceSel.value;render()};
+ const save=$("#pro-save"); if(save) save.onclick=async()=>{
+   const premise={}; document.querySelectorAll("[data-premise]").forEach(i=>{if(i.value.trim())premise[i.dataset.premise]=i.value.trim()});
+   const body={slice_id:proSliceId,premise,conclusion:$("#pro-conclusion").value.trim(),exception:$("#pro-exception").value.trim(),basis:$("#pro-basis").value.trim(),authority:$("#pro-authority").value,review_state:"draft",version:"1",updated_at:new Date().toISOString()};
+   if(!body.conclusion){alert("请填写结论");return}
+   await api("/v1/knowledge-entries",{method:"POST",body:JSON.stringify(body)});cache["knowledge-entries"]=null;render() };
+ document.querySelectorAll("[data-pro-toggle]").forEach(b=>b.onclick=async()=>{
+   await api(`/v1/knowledge-entries/${b.dataset.proToggle}`,{method:"PATCH",body:JSON.stringify({review_state:b.dataset.to,reviewed_at:new Date().toISOString()})});cache["knowledge-entries"]=null;render() });
+ document.querySelectorAll("[data-pro-del]").forEach(b=>b.onclick=async()=>{
+   if(!confirm("删除这条判断条目？"))return; await api(`/v1/knowledge-entries/${b.dataset.proDel}`,{method:"DELETE"});cache["knowledge-entries"]=null;render() });
+ const rel=$("#pro-reload"); if(rel) rel.onclick=()=>{cache["knowledge-entries"]=null;cache["scenario-slices"]=null;render()};
+}
+
+function premiseLabel(def,key){const f=(def?.premise_fields||[]).find(x=>x.key===key);const l=f?.label;return l?(l.zh||l.en||key):key}
+function premiseText(premise){if(!premise)return"";if(typeof premise==="string")return premise;return Object.entries(premise).map(([k,v])=>`${k}=${v}`).join(" · ")}
+
 async function renderScenarios(view){
+ if(professionalMode){return renderProfessionalSlices(view)}
  const [rows,provider]=await Promise.all([load("scenario-slices"),api("/v1/scenario-slices/provider"),load("principals")]);
  // "场景草稿"只列未确认的：已确认的场景已写入本体，不该继续留在草稿清单里（侧栏计数仍是全部）。
  const drafts=rows.filter(x=>String(x.status||"")!=="confirmed");
  document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(rows.length));
  const scene=activeScenario;const a=scene?.analysis||{};
- view.innerHTML=`${titleBlock("SCENARIO BUILDER","场景切片","用日常语言描述一个场景。模型会拆解资源、动作、条件，并主动提示可能遗漏的信息；所有输出都只是待审草稿。")}
+ view.innerHTML=`${proModeButtons()}${titleBlock("SCENARIO BUILDER","场景切片","用日常语言描述一个场景。模型会拆解资源、动作、条件，并主动提示可能遗漏的信息；所有输出都只是待审草稿。")}
  <section class="panel" style="padding:20px;margin-bottom:16px"><div class="panel-title">描述你的场景</div><div class="panel-caption">例如：预定酒店时，先问清目标城市，价格不超过 500 元；我关心位置、评价、停车场、楼层、是否吸烟和入住天数。</div><form id="scenario-form" style="margin-top:14px"><textarea class="textarea" id="scenario-text" rows="5" maxlength="10000" placeholder="尽可能写下你的目标、偏好和限制；不完整也没关系。模型会指出缺少的信息并给出补充建议。">${esc(scene?.original_text||"")}</textarea><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:#77817c;font-size:11px"><input id="scenario-consent" type="checkbox" required><span>我知道场景描述和现有资源/动作目录会发送到已配置的模型服务进行分析。主体名称和授权数据不会发送。</span></label><div style="display:flex;align-items:center;gap:12px;margin-top:10px"><button class="button primary" id="scenario-submit" type="submit">${scene?"根据补充信息重新分析":"分析场景"} <span>→</span></button><span class="muted">${provider.configured?"分析服务已配置":"分析服务尚未配置"}</span></div><div id="scenario-error" class="form-error"></div></form></section>
  ${!provider.configured?`<section class="panel" style="padding:16px;margin-bottom:16px;color:#8b611f;background:#fffaf0">还没有配置场景分析模型。请到“配置与监控 → 模型服务”填写服务地址和模型名称，再回来分析场景。</section>`:""}
  ${drafts.length?`<section class="panel" style="padding:17px"><div class="panel-title">未确认的场景草稿</div><div class="panel-caption">草稿保存在本机本体数据中</div><div style="display:grid;gap:8px;margin-top:12px">${drafts.map(x=>`<div style="display:flex;gap:8px"><button class="button" style="flex:1;justify-content:flex-start;height:auto;padding:10px;text-align:left" data-scene="${esc(x.id)}"><span>${esc(x.analysis?.title||x.original_text.slice(0,90))}</span><span class="muted" style="margin-left:auto">${esc(formatTime(x.updated_at))}</span></button><button class="button danger" data-delete-scene="${esc(x.id)}" title="删除场景草稿">删除</button></div>`).join("")}</div></section>`:""}
@@ -350,7 +438,26 @@ function scenarioPolicySectionHtml(policies){const rules=(policies&&policies.rul
 async function loadScenarioPolicies(scenarioId){return api(`/v1/scenario-slices/${encodeURIComponent(scenarioId)}/policies`)}
 async function setScenarioPolicyStatus(scenarioId,status,ids=null){const action=status==="active"?"activate":"suspend";const body={};if(Array.isArray(ids)&&ids.length)body.authorization_ids=ids;try{const res=await api(`/v1/scenario-slices/${encodeURIComponent(scenarioId)}/${action}`,{method:"POST",body:JSON.stringify(body)});delete cache.authorizations;delete cache["scenario-slices"];const changed=(res.changed||[]).length;const blocked=(res.blocked||[]).length;toast(`${status==="active"?"已启用":"已暂停"} ${changed} 条规则${blocked?`；${blocked} 条因条件不可执行未启用`:""}`);render()}catch(error){toast(error.message,true)}}
 async function openPolicyReview(scenarioId){const dialog=$("#record-dialog"),content=$("#dialog-content");content.innerHTML=`<div class="modal-kicker">POLICY REVIEW</div><h2>审核并启用授权规则</h2><p class="modal-intro">正在读取规则…</p>`;dialog.showModal();const dismiss=()=>dialog.close();try{const results=await Promise.all([loadScenarioPolicies(scenarioId),load("scenario-slices"),load("principals"),load("resource-types"),load("actions")]);const policies=results[0],scene=(results[1]||[]).find(x=>x.id===scenarioId)||{};const pending=((policies.rules)||[]).filter(r=>r.policy_status!=="active"&&!((r.problems)||[]).length).length;content.innerHTML=`<div class="modal-kicker">POLICY REVIEW</div><h2>审核并启用授权规则</h2><p class="modal-intro">${esc(scene.analysis?.title||scenarioId)} · 启用只让判定引擎读取这些规则，不会执行任何操作。${policies.segmentation_mode==="segmented"?" 分组场景的规则暂不支持启用。":""}</p><div style="display:grid;gap:10px">${scenarioPolicyListHtml(policies)}</div><div class="modal-actions"><button type="button" class="button" id="close-review">关闭</button>${pending?`<button type="button" class="button primary" id="activate-review">启用全部可执行规则（${pending}）</button>`:""}</div>`;$("#close-review").onclick=dismiss;const all=$("#activate-review");if(all)all.onclick=async()=>{dismiss();await setScenarioPolicyStatus(scenarioId,"active")};content.querySelectorAll("[data-activate-policy]").forEach(b=>b.onclick=async()=>{dismiss();await setScenarioPolicyStatus(scenarioId,"active",[b.dataset.activatePolicy])});content.querySelectorAll("[data-suspend-policy]").forEach(b=>b.onclick=async()=>{dismiss();await setScenarioPolicyStatus(scenarioId,"suspended",[b.dataset.suspendPolicy])})}catch(error){content.innerHTML=`<div class="modal-kicker">POLICY REVIEW</div><h2>审核并启用授权规则</h2><div class="form-error">${esc(error.message)}</div><div class="modal-actions"><button type="button" class="button" id="close-review">关闭</button></div>`;$("#close-review").onclick=dismiss}}
+async function renderProfessionalInstances(view){
+ const [slices,allEntries,defs]=await Promise.all([load("scenario-slices"),load("knowledge-entries"),load("scenario-definitions")]);
+ const mine=slices.filter(x=>(x.scenario_profile||{}).kind==="professional"&&x.status==="confirmed");
+ const ids=new Set(mine.map(x=>x.id));
+ const entries=allEntries.filter(e=>ids.has(e.slice_id));
+ const active=entries.filter(e=>e.review_state==="active");
+ view.innerHTML=`${proModeButtons()}
+ ${titleBlock("PROFESSIONAL INSTANCE","已启用的判断规则集","这是你的专业判断在对外可用时的形态——只列已启用的条目，并显示各自的前提与依据")}
+ <section class="panel collection-panel">
+  <div class="collection-toolbar"><span class="record-count"><span>已启用</span> ${active.length} <span>条</span> · <span>全部</span> ${entries.length} <span>条</span></span></div>
+  <div class="table-wrap"><table><thead><tr><th>所属场景</th><th>前提</th><th>结论</th><th>依据</th><th>权威级别</th></tr></thead>
+  <tbody>${active.map(e=>`<tr><td>${esc((defs.find(d=>d.id===(mine.find(s=>s.id===e.slice_id)||{}).scenario_definition_id)||{}).display_name_zh||"—")}</td>
+   <td>${esc(premiseText(e.premise)||"—")}</td><td>${esc(e.conclusion||"")}</td><td>${esc(e.basis||"—")}</td><td>${esc(PRO_AUTHORITY[e.authority]||e.authority||"—")}</td></tr>`).join("")}</tbody></table></div>
+  <div class="empty-state" ${active.length?"hidden":""}><div class="empty-icon">◇</div>还没有已启用的判断条目，请先在场景切片页复核启用</div>
+ </section>`;
+ document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";render()});
+}
+
 async function renderScenarioInstances(view){
+ if(professionalMode){return renderProfessionalInstances(view)}
  const rows=await load("scenario-slices");
  document.querySelector('[data-count="scenario-instances"]')?.replaceChildren(document.createTextNode(rows.length));
  const selected=rows.find(x=>x.id===activeInstanceId)||null;const a=selected?.analysis||{};const scope=a.scope||{};
