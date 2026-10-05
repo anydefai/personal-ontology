@@ -340,7 +340,7 @@ async function renderProfessionalSlices(view){
   <div class="empty-state" ${entries.length?"hidden":""}><div class="empty-icon">◇</div>还没有判断条目</div>
  </section>`;
  const seg=$("[data-pro-mode]",view);
- document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";render()});
+ 
  const defSel=$("#pro-def"); if(defSel) defSel.onchange=()=>{};
  const newBtn=$("#pro-new-slice"); if(newBtn) newBtn.onclick=async()=>{
    const id=defSel?.value; if(!id) return;
@@ -453,7 +453,7 @@ async function renderProfessionalInstances(view){
    <td>${esc(premiseText(e.premise)||"—")}</td><td>${esc(e.conclusion||"")}</td><td>${esc(e.basis||"—")}</td><td>${esc(PRO_AUTHORITY[e.authority]||e.authority||"—")}</td></tr>`).join("")}</tbody></table></div>
   <div class="empty-state" ${active.length?"hidden":""}><div class="empty-icon">◇</div>还没有已启用的判断条目，请先在场景切片页复核启用</div>
  </section>`;
- document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";render()});
+ 
 }
 
 async function renderScenarioInstances(view){
@@ -622,4 +622,6 @@ async function openRecord(collection,record=null){
 }
 async function deleteRecord(collection,id){if(!confirm(`确定删除记录“${id}”？如果仍被其他数据引用，系统会阻止删除。`))return;try{await api(`/v1/${collection}/${encodeURIComponent(id)}`,{method:"DELETE"});delete cache[collection];toast("记录已删除");render()}catch(error){toast(error.message,true)}}
 async function runCheck(e){e.preventDefault();const form=new FormData(e.currentTarget);const button=e.currentTarget.querySelector("button[type=submit]");button.disabled=true;button.textContent="正在判定…";try{const result=await api("/v1/decisions/evaluate",{method:"POST",body:JSON.stringify({principal_id:form.get("principal_id"),action_id:form.get("action_id"),resource_type_id:form.get("resource_type_id"),resource_id:form.get("resource_id"),context:{source_trust:$("#check-trust").value},phase:"pre_planning"})});const kind=result.result_id==="allow"?"allow":result.result_id==="deny"?"deny":"ask";$("#check-output").innerHTML=`<div class="decision-result ${kind}"><strong>${({allow:"✓ 允许执行",deny:"⊘ 拒绝执行",ask:"◷ 暂停并确认"})[kind]}</strong>${esc(result.reason_key)}<div class="decision-id">${esc(result.decision_id||"")}</div></div>`;delete cache.decisions;document.querySelector('[data-count="decisions"]')&&(document.querySelector('[data-count="decisions"]').textContent="·")}catch(error){$("#check-output").innerHTML=`<div class="decision-result deny">${esc(error.message)}</div>`}finally{button.disabled=false;button.innerHTML="检查授权 <span>→</span>"}}
-$$('.nav-item').forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.page)));$("#refresh").onclick=reloadAll;$("#token-button").onclick=()=>navigate("account-security");refreshService();render();
+$$('.nav-item').forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.page)));
+// 模式切换用事件委托：无论按钮由哪个渲染函数画出（日常页或专业页）都能响应。
+document.addEventListener("click",event=>{const b=event.target.closest?.("[data-pro-mode]");if(!b)return;professionalMode=b.dataset.proMode==="professional";render()});$("#refresh").onclick=reloadAll;$("#token-button").onclick=()=>navigate("account-security");refreshService();render();

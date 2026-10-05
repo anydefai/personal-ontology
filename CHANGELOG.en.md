@@ -390,3 +390,34 @@ serves** were verified: the served app.js contains the new mode, index.html carr
 the served i18n.js contains the new entries.
 
 ### Deploy and tests
+
+### Two live defects fixed: the professional-mode entry did nothing, and restarting the backend raised Internal Server Error
+
+**1. Clicking "Professional scenarios" on the scenario-slice page did nothing.**
+The mode buttons' click handlers were bound only inside the two **professional** renderers; the entry on
+the **daily** path was never bound. Fixed with **event delegation**: one listener registered at init
+responds no matter which renderer drew the buttons, and the per-render bindings were removed so a click
+cannot trigger multiple renders.
+
+**2. Restarting the backend from Service monitor raised Internal Server Error and then required a new
+login.** The root cause was **a regression I introduced during the bilingual work**: `manager.py`
+called
+`display_language(request.headers.get("x-display-language"))`
+without **importing the function**, so the call raised `NameError`. `py_compile` and importing the module
+cannot catch a `NameError` inside a function body — only a real call exposes it — and the manager
+endpoints had **no test coverage at all**, so it stayed broken. The import is restored and
+`tests/test_manager_endpoints.py` (24 checks) was added: (1) an AST-based static check that no backend
+module uses a shared helper it has not imported — a general guard for this class of bug; (2) an
+assertion that `display_language` really resolves in the manager namespace; (3) the read-only endpoint
+works online (`/manager/health`); (4) the control endpoints (status/start/restart/logs) are
+**registered** — calling them would really restart the backend, so they do not belong in a test.
+
+**End-to-end verification** with a real session token:
+
+```
+POST /manager/restart  →  {"ok":true,"message":"治理后端已重启。"}   HTTP 200
+```
+
+(previously 500). The full regression is now **20 suites green**.
+
+### Deploy and tests

@@ -1237,6 +1237,35 @@ SHACL 校验边界（8 个 shape 的结构约束 + 示意 Turtle）、现有对�
 全量回归 **19 套全绿** ✓ 并已按纪律验证**服务器实际给出的文件**：服务端 app.js 含新模式 ✓
 index.html 资源版本号为 20261004a ✓ i18n.js 含新词条 ✓
 
+### 修复两个线上缺陷：专业模式入口无响应、重启后端报 Internal Server Error
+
+**① 场景切片页点「专业技能场景」无反应** ✗
+原因：模式按钮的点击处理只在**专业模式下**的两个渲染函数里绑定 ✗ 日常模式那个入口**从未绑定** ✗
+修法：改为**事件委托** ✓ 在初始化处挂一个监听 ✓ 无论按钮由哪个渲染函数画出都能响应 ✓
+并移除原来的逐次绑定 ✓（避免重复绑定导致多次渲染 ✓）
+
+**② 服务监控点「重启后端」报 Internal Server Error，随后需重新登录** ✗
+根因是**我在双语改造那一轮引入的回归** ✓ `manager.py` 里写了
+`display_language(request.headers.get("x-display-language"))`
+却**忘了导入该函数** ✗ → 调用即 `NameError` ✗
+`py_compile` 与模块导入都发现不了函数体里的 `NameError` ✓ 只有真正调用才暴露 ✓
+而**管理器端点当时没有任何测试覆盖** ✗ 所以它一直没被发现 ✓
+修法：补上导入 ✓ 并新增 `tests/test_manager_endpoints.py`（24 项 ✓）：
+① 用 AST 静态检查所有后端模块**「用到但未导入」**的共享工具名 ✓（这类 bug 的通用防线 ✓）
+② 断言 manager 命名空间真的能解析出 `display_language` ✓
+③ 只读端点在线可用 ✓（`/manager/health` ✓）
+④ 控制端点（status/start/restart/logs）**已注册** ✓（调用它们会真的重启后端，不适合放进测试 ✓）
+
+**端到端验证** ✓（用真实会话令牌调用重启端点）：
+
+```
+POST /manager/restart  →  {"ok":true,"message":"治理后端已重启。"}   HTTP 200
+```
+
+（修复前为 500 ✓）
+
+修复后全量 **20 套回归全绿** ✓
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并

@@ -19,8 +19,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .origin_policy import origin_allowed
 from . import messages
-from .config import (ALLOWED_ORIGINS, APP_DIR, BACKEND_PORT, CONTAINER_FILE, DATA_DIR, GRAPH_FILE, HOST, MANAGER_PORT,
-                     MODEL_CONFIG_FILE, PROPERTIES_FILE, SHAPES_FILE, WEB_DIR)
+from .config import (ALLOWED_ORIGINS, APP_DIR, BACKEND_PORT, CONTAINER_FILE, DATA_DIR, GRAPH_FILE, HOST,
+                     MANAGER_PORT, MODEL_CONFIG_FILE, PROPERTIES_FILE, SHAPES_FILE, WEB_DIR, display_language)
 
 APP_LABEL = "personalontology.personal-ontology"
 BACKEND_LABEL = APP_LABEL + ".backend"
