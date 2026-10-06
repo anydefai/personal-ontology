@@ -1248,3 +1248,33 @@ the metric pass while the interface stays untranslated.
 so **no restart and no re-login**.
 
 ### Deploy and tests
+
+### Line-based input format: the parser is done (lawyers do not write JSON)
+
+The user pointed out that a lawyer will not write JSON but is far more likely to type **one line at a time**,
+so converting JSON is of little value, and asked whether the import format needs to be explained. It does,
+and the format belongs **next to the input box**.
+
+**This round tackles the hard part: the line parser** — a new, self-contained `backend/line_format.py`
+(249 lines) touching no existing file. It supports six inputs, all in plain Chinese phrases with no quotes and
+no nesting: field definitions (`市盈率 ｜ 数字`), the baseline and its adjustments
+(`监管环境=收紧 → -0.10`), named signals (`市盈率超阈值 = 市盈率 大于 行业平均市盈率 × 基准线`), combined
+judgments (`… 且 … → 估值偏高（高）`), exceptions (`… → 团队流失权重 ×0.5` or `直接判 估值偏高`) and priority
+(`A > B > C`). It tolerates full-width or half-width separators, Chinese or Latin punctuation, stray spaces,
+`#` comments and blank lines, and **a bad line only affects that line**: the parser returns a per-line report
+with line number, original text and reason while importing the rest.
+
+**New `tests/test_line_format.py` (17/17)**, whose most important check is the closed loop: Zhang's M&A
+valuation framework written **one line at a time**, parsed, then judged — yielding 估值偏高 / 高 / threshold
+1.45 / 45 > 30×1.45=43.5 / no exception triggered, **exactly matching the design document**. That proves the
+line format can carry the design.
+
+**A real parser defect was found and fixed**: the priority separator `>` also appears inside signal names such
+as `客户集中度>70`, which split them wrongly; the separator now requires spaces around it, with a clear error
+message otherwise.
+
+**Next, the interface**, following the confirmed plan: a small per-part line box with the format shown inside,
+plus a paste box that treats content starting with `{` as JSON and everything else as lines, showing a preview
+and report before confirming, and storing the pasted original in `framework.source` so nothing is lost.
+
+### Deploy and tests
