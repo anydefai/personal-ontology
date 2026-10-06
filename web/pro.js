@@ -358,6 +358,8 @@ function poHasFramework(fw) {
     var principals = [];
     try { principals = (await api("/v1/principals")) || []; } catch (e) { principals = []; }
     if (!Array.isArray(principals)) principals = principals.items || [];
+    var approvedAgents = [];
+    try { approvedAgents = ((await api("/v1/agents")) || {}).approved || []; } catch (e) { approvedAgents = []; }
     var pend = null;
     try { pend = sessionStorage.getItem("poProPickSlice"); } catch (e) { pend = null; }
     if (pend) {
@@ -469,13 +471,33 @@ function poHasFramework(fw) {
     });
     view.querySelectorAll("[data-do-enable]").forEach(function (b) {
       b.onclick = async function () {
-        var g = view.querySelector("[data-enable-grantor]"), e = view.querySelector("[data-enable-grantee]");
-        if (!g || !e || !g.value || !e.value) { alert("请先选择授权方与被授权方。"); return; }
+        var g = view.querySelector("[data-enable-grantor]"), a = view.querySelector("[data-enable-agent]");
+        if (!g || !g.value) { alert("请先选择授权方。"); return; }
+        if (!a || !a.value) { alert("请先选择被授权方（已批准的本机程序）。"); return; }
+        var agent = (approvedAgents || []).filter(function (x) { return x.key === a.value; })[0] || {};
+        var agentName = String(agent.name || a.value);
+        // The program needs a matching principal for the rule to reference (a mirror; its name must equal the program's).
+        var mirrorId = null;
+        try {
+          var all = (await api("/v1/principals")) || [];
+          if (!Array.isArray(all)) all = all.items || [];
+          var hit = all.filter(function (x) { return String(x.display_name_zh || "") === agentName; })[0];
+          if (hit) { mirrorId = hit.id; }
+          else {
+            var made = await api("/v1/principals", { method: "POST",
+              body: JSON.stringify({ display_name_zh: agentName, display_name_en: agentName, principal_type: "person" }) });
+            mirrorId = (made || {}).id;
+          }
+        } catch (err) {
+          alert("为该程序建立对应主体失败：" + (err && err.message ? err.message : err));
+          return;
+        }
+        if (!mirrorId) { alert("没有拿到该程序的对应主体，已中止。"); return; }
         try {
           var out = await api("/v1/scenario-slices/" + encodeURIComponent(window.poEnableFor) + "/enable",
-            { method: "POST", body: JSON.stringify({ grantor_id: g.value, grantee_id: e.value }) });
+            { method: "POST", body: JSON.stringify({ grantor_id: g.value, grantee_id: mirrorId }) });
           window.poEnableFor = null; cache["scenario-slices"] = null; render();
-          alert("已启用并生成授权规则：" + ((out && out.authorization_id) || "已生成"));
+          alert("已启用，并授权给「" + agentName + "」\n授权规则：" + ((out && out.authorization_id) || "已生成"));
         } catch (err) {
           alert("启用失败：" + (err && err.message ? err.message : err));
         }
@@ -1065,7 +1087,7 @@ function poHasFramework(fw) {
           (x.status === "confirmed"
             ? '<button class="button" data-unconfirm-slice="' + esc(x.id) + '">退回草稿</button> '
             : '<button class="button primary" data-confirm-slice="' + esc(x.id) + '">确认并启用…</button> ') +
-          (window.poEnableFor === x.id ? granteePicker(principals) : "") +
+          (window.poEnableFor === x.id ? granteePicker(principals, approvedAgents) : "") +
           '<button class="button" data-drop-slice="' + esc(x.id) + '">删除</button>' +
         "</td></tr>";
     }).join("");
@@ -1086,17 +1108,28 @@ window.addEventListener("unhandledrejection", function (e) {
 });
 
 // -- Choose who may call this slice: the grantor (you) and the grantee (the caller) must both be principals --
-function granteePicker(principals) {
-  var list = principals || [];
-  if (!list.length) {
-    return '<div class="panel-caption" style="margin-top:6px">还没有主体。请先到「主体」菜单建两个：本人 与 调用方（例如 法智AI），类型选 person</div>';
+function granteePicker(principals, agents) {
+  var people = principals || [];
+  var programs = agents || [];
+  if (!people.length) {
+    return '<div class="panel-caption" style="margin-top:6px">还没有主体。请先到「主体」菜单建一个「本人」（类型选 person），它是授权方。</div>';
   }
-  var options = list.map(function (pp) {
+  var popts = people.map(function (pp) {
     return '<option value="' + esc(pp.id) + '">' + esc(pp.display_name_zh || pp.id) + "</option>";
   }).join("");
+  if (!programs.length) {
+    return '<div class="panel-caption" style="margin-top:6px">授权方 <select class="select" data-enable-grantor>' + popts + '</select>' +
+      '<br>还没有【已批准的本机程序】。正确的顺序是：让调用方先连一次 → 它会出现在「本机程序」页等待批准 → ' +
+      '你在那里批准并勾选 judgment 范围 → 它才会出现在这里供你选择。' +
+      '<div style="margin-top:6px"><button class="button" data-cancel-enable>取消</button></div></div>';
+  }
+  var aopts = programs.map(function (a) {
+    var sc = (a.scopes || []).indexOf("judgment") >= 0 ? "（已含 judgment）" : "（缺 judgment 范围，需先批准）";
+    return '<option value="' + esc(a.key) + '">' + esc(a.name || a.key) + " " + sc + "</option>";
+  }).join("");
   return '<div class="panel-caption" style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
-    '<span>授权方</span><select class="select" data-enable-grantor>' + options + "</select>" +
-    '<span>被授权方（调用方）</span><select class="select" data-enable-grantee>' + options + "</select>" +
+    '<span>授权方</span><select class="select" data-enable-grantor>' + popts + "</select>" +
+    '<span>被授权方（已批准的本机程序）</span><select class="select" data-enable-agent>' + aopts + "</select>" +
     '<button class="button primary" data-do-enable>确认启用</button>' +
     '<button class="button" data-cancel-enable>取消</button></div>';
 }

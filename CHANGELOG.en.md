@@ -1584,3 +1584,25 @@ The caller contract is a body of `{data: {...}, request: {caller, purpose, amoun
 no_resale or exceeding the purpose range means no answer rather than a conclusion.
 
 Step two, changing the interface so enabling a slice offers approved programs to pick from, is not yet done.
+
+### A2: enabling a slice now picks an approved local program, creating a mirror principal as needed
+
+Continuing option A, "granted to whom" no longer relies on a hand-typed name but binds to an approved local program.
+
+**Interface, front-end only with no restart**: pressing Confirm and enable expands the row into a grantor select,
+still chosen from principals since the grantor is you, and a licensee select that now lists approved local programs
+with a note when one already carries the judgment scope. With no approved programs it no longer invites a blind
+choice but states the correct order: let the caller connect once, approve it on the local-programs page ticking the
+judgment scope, and only then does it appear here.
+
+**Mirror principal, option a, no schema change**: a rule's grantee must be a principal, so on confirm the front end
+finds or creates a principal named after the program and uses it for the rule. Real identity still rests with the
+gateway and the kernel; the principal is only the label the rule hangs on.
+
+**The loop is now complete**: a program connects and appears pending; you approve it with the judgment scope; you
+select it when enabling a slice; a rule is written with source skill-slice:<id> and the mirror principal as grantee;
+and when it calls the judge endpoint through the gateway, the gateway checks process identity and scope, the slice
+checks that it is authorised for that program, and the boundaries check amount, purpose and no resale before any
+conclusion is returned.
+
+Render tests 10/10, all 34 suites green, 59 uncovered which is below the baseline, and the version is 20261006p.
