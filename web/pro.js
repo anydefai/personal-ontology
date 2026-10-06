@@ -190,6 +190,8 @@ function poHasFramework(fw) {
   // ── 2 · 不同行业的侧重 ──
   function weightsPanel(f) {
     var cats = Object.keys(f.industry_weights);
+      // Always offer one editable row: entering weights must not depend on the add button working.
+      if (!cats.length) cats = ["新行业1"];
     var dims = {};
     cats.forEach(function (c) { Object.keys(f.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; }); });
     var dimList = Object.keys(dims);
