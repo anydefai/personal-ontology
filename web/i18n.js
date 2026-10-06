@@ -849,6 +849,22 @@
   "调用方反馈": "Caller feedback",
   "计费演示": "Billing demo",
   "还没有定价（到场景切片页的交付说明里填": "not priced yet (fill it in on the scenario-slice page's delivery note",
+  "这一页属于专业判断侧：每条记录是一次正式交付（预演不写记录）": "This page belongs to the professional side: each record is a formal delivery (a dry run records nothing)",
+  "每条记录是一次正式交付：结论、交付层级，以及这次交付的审计号、有效期、内容指纹与签名状态。预演不写记录。": "Each record is one formal delivery: the conclusion, the delivery tier, and this delivery's audit id, expiry, content fingerprint and signature status. A dry run records nothing.",
+  "每条记录是一次正式交付：结论、交付层级，以及这次交付的审计号、有效期、内容指纹与签名状态。预演不写记录": "Each record is one formal delivery: the conclusion, the delivery tier, and this delivery's audit id, expiry, content fingerprint and signature status. A dry run records nothing",
+  "正式交付": "Formal deliveries",
+  "交付层级": "Delivery tier",
+  "还没有正式交付。到「对外交付与反馈」页点「生成正式交付」。": "No formal deliveries yet. Create one from the Delivery and feedback page.",
+  "还没有正式交付。到「对外交付与反馈」页点「生成正式交付」": "No formal deliveries yet; create one from the Delivery and feedback page",
+  "生成一次正式交付": "Create a formal delivery",
+  "预演不写记录；正式交付会写一条判定记录，并附上审计号、有效期与内容指纹": "A dry run records nothing; a formal delivery writes a decision record with an audit id, expiry and content fingerprint",
+  "标的数据，例如": "case data, e.g.",
+  "生成正式交付": "Create delivery",
+  "已记录 · 结论 ": "Recorded · conclusion ",
+  " · 审计号 ": " · audit id ",
+  "交付失败：": "Delivery failed: ",
+  "请检查数据与框架": "check the data and the framework",
+  "标的数据不是合法 JSON：": "The case data is not valid JSON: ",
   };
 
 

@@ -101,8 +101,8 @@ function titleBlock(kicker,title,subtitle,action=""){return `<div class="title-r
 function badge(value){const v=String(value??"").toLowerCase();const kind=["allow","deny","ask"].includes(v)?v:["true","active","person"].includes(v)?"active":["revoked","false"].includes(v)?"revoked":["high","critical"].includes(v)?"ask":"neutral";const text={allow:"允许",deny:"拒绝",ask:"需确认",true:"启用",false:"停用",person:"个人",low:"低",medium:"中",high:"高",critical:"严重"}[v]||value||"—";return `<span class="badge ${kind}">${esc(text)}</span>`}
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
-  else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
- if(["scenario-slices","scenario-instances","scenario-preview","delivery"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
+  else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="decisions")await renderDecisions(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
+ if(["scenario-slices","scenario-instances","scenario-preview","delivery","decisions"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
 async function renderAgentIntegration(view){
  const [configs,status]=await Promise.all([api("/manager/agent-configs"),api("/manager/status")]);
  const sessions=status.agent_sessions||[];
@@ -856,11 +856,33 @@ async function renderDelivery(view){
      <span class="panel-caption" style="margin:0" id="bill-demo-out"></span>
     </div>
    </section>
+   <section class="panel" style="padding:16px;margin-bottom:16px">
+    <div class="panel-title">生成一次正式交付</div>
+    <div class="panel-caption" style="margin:6px 0 10px">预演不写记录；正式交付会写一条判定记录，并附上审计号、有效期与内容指纹</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+     <select class="select" id="dl-slice" style="max-width:260px">${mine.map(s=>`<option value="${esc(s.id)}">${esc(nameOf(s))}</option>`).join("")}</select>
+     <input class="input" id="dl-data" style="min-width:320px" placeholder='标的数据，例如 {"市盈率": 45}'>
+     <button class="button primary" id="dl-deliver">生成正式交付</button>
+     <span class="panel-caption" style="margin:0" id="dl-out"></span>
+    </div>
+   </section>
    <section class="panel" style="padding:16px">
     <div class="panel-title">真实调用时会附上什么</div>
     <div class="panel-caption" style="margin-top:6px">审计号 · 有效期至 · 内容指纹 · 数字签名状态（预演不产生这些）；反馈由调用方通过接口提交，满 10 次升为「初步置信度」，满 100 次升为「稳定置信度」</div>
    </section>`;
   const rel=view.querySelector("#dl-reload"); if(rel) rel.onclick=()=>{cache["scenario-slices"]=null;render()};
+  const dv=view.querySelector("#dl-deliver");
+  if(dv) dv.onclick=async()=>{
+    const sid=(view.querySelector("#dl-slice")||{}).value||"";
+    const out=view.querySelector("#dl-out");
+    let data; try{ data=JSON.parse((view.querySelector("#dl-data")||{}).value||"{}"); }
+    catch(e){ if(out) out.textContent="标的数据不是合法 JSON："+e.message; return; }
+    const r=await api("/v1/scenario-slices/"+encodeURIComponent(sid)+"/deliver",{method:"POST",body:JSON.stringify({data})});
+    if(out) out.textContent=(r&&r.recorded)
+      ?("已记录 · 结论 "+((r.decision)||"—")+" · 审计号 "+(r.audit_id||"—"))
+      :("交付失败："+((r&&(r.detail||r.error))||"请检查数据与框架"));
+    cache["decisions"]=null;
+  };
   const run=view.querySelector("#bill-demo-run");
   if(run) run.onclick=()=>{
     const sid=(view.querySelector("#bill-demo-slice")||{}).value||"";
@@ -874,5 +896,40 @@ async function renderDelivery(view){
       ?(label+" 还没有定价（到场景切片页的交付说明里填）")
       :("应收 "+amt+unit+" · 调用方：示例调用方（"+label+"）");
   };
+  view.querySelectorAll("[data-pro-mode]").forEach(b=>{b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";try{localStorage.setItem("po.professionalMode",professionalMode?"1":"0")}catch(e){}render()}});
+}
+
+// -- Decision records (a top-level menu page): one row per formal delivery --
+async function renderDecisions(view){
+  if(!professionalMode){
+    view.innerHTML=`${proModeButtons()}${titleBlock("DECISION RECORDS","判定记录","这一页属于专业判断侧：每条记录是一次正式交付（预演不写记录）")}
+     <section class="panel empty-state"><div class="empty-icon">◇</div>先在上方切到「专业技能场景」</section>`;
+    return;
+  }
+  const [slices,decs]=await Promise.all([load("scenario-slices"),load("decisions")]);
+  const nameOf=id=>{const s=(slices||[]).find(x=>x.id===id);return (s&&((s.analysis&&s.analysis.title)||s.original_text))||id;};
+  const rows=(decs||[]).filter(d=>(d.reason_key||"")==="skill_delivery")
+    .sort((a,b)=>String(b.timestamp||"").localeCompare(String(a.timestamp||"")));
+  const body=rows.map(d=>{
+    const p=d.reason_params||{}, disp=d.reason_display||{}, inp=d.input_params||{};
+    return `<tr>
+      <td>${esc(d.timestamp||"")}</td>
+      <td>${esc(nameOf(inp.slice_id))}</td>
+      <td>${esc(disp.decision||"—")}</td>
+      <td>${esc(disp.severity||"—")}</td>
+      <td>${esc(inp.tier||"—")}</td>
+      <td>${esc(p.audit_id||"—")}</td>
+      <td>${esc(p.valid_until||"—")}</td>
+      <td>${esc((p.content_fingerprint||"").slice(0,12)||"—")}</td>
+      <td>${p.signature_status==="not_implemented"?'<span class="muted">尚未实现</span>':esc(String(p.signature_status||"—"))}</td>
+    </tr>`;}).join("");
+  view.innerHTML=`${proModeButtons()}
+   ${titleBlock("DECISION RECORDS","判定记录","每条记录是一次正式交付：结论、交付层级，以及这次交付的审计号、有效期、内容指纹与签名状态。预演不写记录。")}
+   <section class="panel collection-panel">
+    <div class="collection-toolbar"><span class="record-count"><span>正式交付</span> ${rows.length} <span>条</span></span><span class="toolbar-spacer"></span><button class="button" id="dr-reload">↻ 刷新</button></div>
+    <div class="table-wrap"><table><thead><tr><th>时间</th><th>我的切片</th><th>结论</th><th>严重度</th><th>交付层级</th><th>审计号</th><th>有效期至</th><th>内容指纹</th><th>数字签名</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="empty-state" ${rows.length?"hidden":""}><div class="empty-icon">◇</div>还没有正式交付。到「对外交付与反馈」页点「生成正式交付」。</div>
+   </section>`;
+  const rel=view.querySelector("#dr-reload"); if(rel) rel.onclick=()=>{cache["decisions"]=null;render()};
   view.querySelectorAll("[data-pro-mode]").forEach(b=>{b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";try{localStorage.setItem("po.professionalMode",professionalMode?"1":"0")}catch(e){}render()}});
 }

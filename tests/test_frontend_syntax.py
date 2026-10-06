@@ -1,0 +1,38 @@
+"""前端语法检查（堵住"测试只读文本、抓不到语法错误"的盲区）。
+
+    ~/personal-ontology/.venv/bin/python tests/test_frontend_syntax.py
+
+背景：2026-10-04 我把 app.js 写出语法错误，而当时 3 套"全绿"的界面测试
+只把 app.js 当**文本**读，根本没有执行它，所以谁都没抓住 ✗
+本测试对 web/ 下每个 .js 跑一次 `node --check`，语法错误当场失败。
+"""
+import pathlib, shutil, subprocess, sys
+
+RESULTS = []
+def check(label, ok, detail=""):
+    RESULTS.append((bool(ok), label))
+    print(("  ✔ " if ok else "  ✗ ") + label + (f" — {detail}" if detail and not ok else ""))
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+WEB = ROOT / "web"
+files = sorted(p for p in WEB.glob("*.js"))
+check("找到前端脚本", len(files) >= 2, str([p.name for p in files]))
+check("本机有 node（语法检查依赖它）", shutil.which("node") is not None, "未找到 node")
+
+for f in files:
+    r = subprocess.run(["node", "--check", str(f)], capture_output=True, text=True)
+    check(f"{f.name} 语法正确", r.returncode == 0, (r.stderr or "").strip().split("\n")[-1][:160])
+
+# index.html 引用的脚本必须都存在（避免 404 的静默失败）
+html = (WEB / "index.html").read_text(encoding="utf-8")
+import re
+refs = re.findall(r'src="/assets/([A-Za-z0-9_.-]+)\?v=', html)
+check("外壳引用的脚本都存在", all((WEB / r).exists() for r in refs),
+      str([r for r in refs if not (WEB / r).exists()]))
+check("引用的脚本都在被检查之列", all((WEB / r) in files for r in refs), str(refs))
+
+p = sum(1 for ok, _ in RESULTS if ok)
+print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
+for ok, l in RESULTS:
+    if not ok: print("  失败：", l)
+sys.exit(0 if p == len(RESULTS) else 1)

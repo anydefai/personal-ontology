@@ -79,6 +79,28 @@ async def main():
     st, r = await call("POST", "/v1/scenario-slices/slice.ma.mine/draft", body={"description": "短"}, token=token)
     check("切片草稿：描述过短 → 422", st == 422, f"HTTP {st}")
 
+    # ⑦ 正式交付：写判定记录；预演不写
+    st, d1 = await call("POST", "/v1/scenario-slices/slice.ma.mine/deliver",
+                        body={"data": {"市盈率": 45}}, token=token)
+    check("正式交付成功且标记已记录", st == 200 and d1.get("recorded") is True, f"{st} {d1.get('recorded')}")
+    check("交付带审计号/有效期/内容指纹/签名状态",
+          str(d1.get("audit_id", "")).startswith("AUDIT-") and d1.get("valid_until")
+          and d1.get("content_fingerprint") and d1.get("signature_status") == "not_implemented",
+          f"{d1.get('audit_id')} / {d1.get('signature_status')}")
+    check("交付回带 decision_id", str(d1.get("decision_id", "")).startswith("decision.deliver."),
+          str(d1.get("decision_id")))
+    st, decs = await call("GET", "/v1/decisions", token=token)
+    items = (decs.get("items") if isinstance(decs, dict) else decs) or []
+    mine = [x for x in items if str(x.get("phase") or "") == "pre_execution"
+            and (x.get("reason_key") or "") == "skill_delivery"]
+    check("交付记录可通过 /v1/decisions 列出", st == 200 and len(mine) >= 1, f"{st} {len(mine)}")
+    st, _ev = await call("POST", "/v1/scenario-slices/slice.ma.mine/evaluate",
+                         body={"data": {"市盈率": 45}}, token=token)
+    st2, decs2 = await call("GET", "/v1/decisions", token=token)
+    items2 = (decs2.get("items") if isinstance(decs2, dict) else decs2) or []
+    mine2 = [x for x in items2 if (x.get("reason_key") or "") == "skill_delivery"]
+    check("预演不写记录（交付记录数不变）", len(mine2) == len(mine), f"{len(mine)} → {len(mine2)}")
+
     # ⑥ 迁移：定义上的框架搬到切片，且幂等
     await call("PATCH", "/v1/scenario-definitions/legal.labor",
                body={"framework": dict(FW, framework_version="FROM-DEF"), "insight": "旧位置"}, token=token)

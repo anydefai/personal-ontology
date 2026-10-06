@@ -1190,3 +1190,35 @@ first time. The assertions were updated in step, since moving the block necessar
 **28 suites green**; front-end only, so **no restart and no re-login**.
 
 ### Deploy and tests
+
+### A + B: decision records show delivery identity, and front-end syntax checking joins the tests
+
+**B first (small)**: a new `tests/test_frontend_syntax.py` (7/7) runs `node --check` over every `web/*.js`
+and verifies that every script the shell references exists — closing the blind spot where, on 2026-10-04, I
+broke app.js's syntax and three "green" UI suites never noticed because they only read app.js as text.
+
+**A (decision records showing delivery identity)** surfaced a key fact: the judgment package was **never
+recorded at all** — `/evaluate` is a dry run and by design writes nothing — so the decision-records page had
+no professional deliveries to show. The distinction was therefore built first: a new
+`/v1/scenario-slices/{id}/deliver` judges and **writes a decision record** carrying the audit id, expiry,
+content fingerprint and signature status as a snapshot in the record's `reason_params`. The interface gained a
+"create a formal delivery" action on the Delivery and feedback page, and the **Decision records** page now
+shows a table of deliveries: time, slice, conclusion, severity, tier, **audit id**, **valid until**,
+**content fingerprint** and **digital signature**.
+
+**Four real problems hit and fixed, all recorded**: `decisions.phase` is SHACL-constrained to
+`pre_planning`/`pre_execution`; a decision requires exactly one `result_id` (using `allow`, with the real
+conclusion in `reason_display`); `cited_assertions` is typed as a dateTime and rejected the audit id, so that
+field was dropped; and I was **shadowed by a generic collection route once more** — `GET /v1/deliveries`
+collides with `/v1/{collection}` — so the listing now filters the existing `GET /v1/decisions`, adding no
+route at all. The `/feedback` shadowing was the same class of bug I had literally just written the lesson
+for, and this is its third recording.
+
+**One judgement of mine was wrong and is corrected**: I said the app had no decision-records page; it already
+had one (sidebar line 31). My added menu duplicated it, so mine is removed and the original kept, while my new
+`renderDecisions` still takes over that page id.
+
+Five new assertions in total; all **29 suites green**; 60 uncovered, level with the baseline; **the backend
+was restarted, so one more login is needed.**
+
+### Deploy and tests

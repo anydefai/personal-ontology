@@ -2017,3 +2017,55 @@ async def migrate_frameworks_to_slices() -> Any:
 def _now_iso() -> str:
     import datetime as _dt
     return _dt.datetime.now().isoformat(timespec="seconds")
+
+
+@app.post("/v1/scenario-slices/{slice_id}/deliver", dependencies=[Depends(require_session)])
+async def deliver_slice(slice_id: str, body: dict[str, Any]) -> Any:
+    """**正式交付**一次：判定并写入判定记录（预演不写记录，交付才写）。
+
+    与 /evaluate 的唯一区别：这里会落一条判定记录，带着审计号、有效期、内容指纹与签名状态。
+    """
+    import datetime as _dt, uuid as _uuid
+    item = _slice_or_404(slice_id)
+    framework = _slice_framework(item)
+    data = (body or {}).get("data")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    tier = (body or {}).get("tier") or ((item.get("boundaries") or {}).get("default_tier")) or "audit"
+    if tier not in skill_framework.TIERS:
+        raise HTTPException(status_code=422, detail=messages.detail("tier_invalid"))
+    try:
+        package = skill_framework.judge(
+            framework, data, confidence=item.get("confidence"),
+            confidence_status=item.get("confidence_status") or "unverified",
+            confidence_basis=item.get("confidence_basis") or "")
+    except Exception as exc:
+        raise HTTPException(status_code=422,
+                            detail=messages.detail("framework_evaluation_failed", reason=str(exc)[:200]))
+    _slice_identity(package, item)
+    package["slice_id"] = slice_id
+    package["definition_id"] = item.get("scenario_definition_id")
+    out = skill_framework.apply_tier(package, tier)
+    # 记录级身份信息不随分层裁剪：交付人自己看得到自己签发的审计号与有效期
+    for _k in ("audit_id", "valid_until", "content_fingerprint", "signature_status"):
+        out[_k] = package.get(_k)
+
+    now = _dt.datetime.now()
+    decision_id = "decision.deliver." + _uuid.uuid4().hex[:12]
+    record = {
+        "timestamp": now.isoformat(timespec="seconds"),
+        "phase": "pre_execution", "sequence": "1", "result_id": "allow",
+        "reason_key": "skill_delivery",
+        "input_params": {"slice_id": slice_id, "tier": tier, "decision": out.get("decision"),
+                         "severity": out.get("severity"), "data": data},
+        "reason_display": {"decision": out.get("decision"), "severity": out.get("severity"),
+                           "slice_id": slice_id, "tier": tier},
+        "reason_params": {"audit_id": out.get("audit_id"), "valid_until": out.get("valid_until"),
+                          "content_fingerprint": out.get("content_fingerprint"),
+                          "signature_status": out.get("signature_status"),
+                          "definition_id": item.get("scenario_definition_id")},
+    }
+    store.put("decisions", decision_id, record)
+    out["decision_id"] = decision_id
+    out["recorded"] = True
+    return out
