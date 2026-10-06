@@ -1100,6 +1100,9 @@
   "已含 judgment": "has the judgment scope",
   "缺 judgment 范围，需先批准": "missing the judgment scope; approve it first",
   "被授权方（已批准的本机程序": "Licensee (an approved local program",
+  "详情 - ": "Details - ",
+  "详情": "Details",
+  "详情 -": "Details -",
   };
 
 

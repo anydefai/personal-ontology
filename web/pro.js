@@ -1185,7 +1185,8 @@ function polishPanels(view) {
     var d = document.createElement("details");
     d.open = count > 0;
     var sum = document.createElement("summary");
-    sum.textContent = title + (count ? " · " + count + " 条" : " · 还没填");
+    // Read as "详情 - <panel name> · N 条" so every folded line names itself.
+    sum.textContent = "详情 - " + title + (count ? " · " + count + " 条" : " · 还没填");
     if (t) t.style.display = "none";
     sec.parentNode.insertBefore(d, sec);
     d.appendChild(sec);
