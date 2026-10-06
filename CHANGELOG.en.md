@@ -1470,3 +1470,22 @@ unused legacy path; recorded here for later cleanup.
 All 31 suites green; front-end only, so **no restart and no re-login**.
 
 ### Deploy and tests
+
+### Fix: the scenario-slice page failed with "hasFramework is not defined" (a split IIFE scope)
+
+The user reported the scenario-slice page dying with "temporarily unable to read data - hasFramework is not
+defined".
+
+**Cause, established from evidence**: pro.js opens its IIFE at line 11 but closes it at line 748, while the two
+calls to hasFramework sit at lines 794 and 823 - outside it. The renderers I appended near the end of the file
+therefore live outside the IIFE, while hasFramework is defined inside it, so the call finds nothing. This went
+undetected because an IIFE followed by top-level code is perfectly legal JavaScript, so `node --check` passed:
+a blind spot in how I had been validating this file.
+
+**Fixes**: a global `poHasFramework` now sits at the very top of the file, outside the IIFE, and the two outer
+calls use it, while the IIFE-scoped copy stays for calls inside. A new structural test, `check_iife_scope`,
+automatically finds any function defined inside the IIFE that is called outside it, so this class of error is
+caught by the suite instead of by eye. This round also added a global unhandledrejection handler in pro.js so any
+failed API call raises a dialog rather than appearing to do nothing. Version to 20261005k.
+
+### Deploy and tests

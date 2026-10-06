@@ -31,6 +31,32 @@ check("外壳引用的脚本都存在", all((WEB / r).exists() for r in refs),
       str([r for r in refs if not (WEB / r).exists()]))
 check("引用的脚本都在被检查之列", all((WEB / r) in files for r in refs), str(refs))
 
+
+
+def check_iife_scope():
+    """node --check 查不出"作用域被切开"这类错：一个函数定义在 IIFE 里，却在 IIFE 之外被调用。
+
+    真实事故：pro.js 的 IIFE 在第 748 行就结束了，而我在文件末尾追加的渲染函数在 IIFE 之外
+    调用了 hasFramework -> 场景切片页直接报 "hasFramework is not defined"。
+    """
+    src = (ROOT / "web" / "pro.js").read_text(encoding="utf-8")
+    lines = src.split("\n")
+    close = next((i for i, l in enumerate(lines) if l.strip() == "})();"), None)
+    if close is None:
+        return True, "没有 IIFE（无需检查）"
+    inner = set()
+    for l in lines[:close]:
+        m = re.match(r"^  (?:async )?function ([A-Za-z_$][\w$]*)", l)
+        if m:
+            inner.add(m.group(1))
+    outer = "\n".join(lines[close + 1:])
+    bad = sorted(n for n in inner if re.search(r"\b" + re.escape(n) + r"\s*\(", outer))
+    if bad:
+        return False, f"这些 IIFE 内部函数在 IIFE 之外被调用：{bad}"
+    return True, f"IIFE 之外没有调用 IIFE 内部函数（内部共 {len(inner)} 个函数）"
+
+
+check("IIFE 作用域没被切开（IIFE 外不调用内部函数）", *check_iife_scope())
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
 for ok, l in RESULTS:

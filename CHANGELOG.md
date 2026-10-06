@@ -2270,6 +2270,30 @@ priority    现金流危机 > 团队流失高 > 客户集中度>70 > 市盈率�
 
 所有 31 套测试全绿 ✓ 纯前端 ✓ **无需重启、无需重新登录** ✓
 
+### 修复：场景切片页报 hasFramework is not defined（IIFE 作用域被切开）
+
+用户报告：**场景切片页面出不来了** ✗ 显示「暂时无法读取数据 · hasFramework is not defined」✗
+
+**真因（实证定位）** ✓：
+```
+pro.js 的 IIFE 从第 11 行开始 → 在第 748 行就结束了
+而调用 hasFramework 的两处在第 794 / 823 行 ← 在 IIFE 之外 ✗
+```
+我在文件**末尾追加**的渲染函数落在 IIFE 之外 ✓ 而 `hasFramework` 定义在 IIFE 之内 ✓
+→ 两个作用域 ✗ → 调用时"未定义" ✓
+
+**为什么我的校验没抓到** ✗：「IIFE + 后面的顶层代码」是**合法 JS** ✓ 所以 `node --check` **通过** ✓
+—— 这是我校验方法的**盲区** ✗ 今天暴露出来了 ✓
+
+**修法** ✓：
+1. 在**文件最顶部（IIFE 之外）**加一份全局 `poHasFramework` ✓
+   IIFE 外的两处调用改用它 ✓（IIFE 内那份保留 ✓ 内部调用不受影响 ✓）
+2. **新增结构性测试** `check_iife_scope` ✓：自动找出"IIFE 内部定义、却在 IIFE 之外被调用"的函数名 ✗
+   → 这类错误**以后会被测试直接拦住** ✓（不再靠我肉眼 ✓）
+
+**另外这轮做的** ✓：pro.js 加**全局 unhandledrejection 兜底** ✓（任何接口失败一律弹窗 ✓ 不再静默 ✗）
+版本 → **20261005k** ✓
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并

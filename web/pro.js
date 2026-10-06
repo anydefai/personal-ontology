@@ -1,3 +1,19 @@
+/* Global helper, deliberately OUTSIDE the IIFE below.
+ *
+ * The renderers appended near the end of this file sit outside the IIFE (it closes around line 732),
+ * so anything they call must be global. This bit me once: "hasFramework is not defined" on the
+ * scenario-slice page, because the IIFE-scoped copy was invisible out there.
+ */
+function poHasFramework(fw) {
+  if (!fw || typeof fw !== "object") return false;
+  var lists = ["inputs", "signals", "combination_rules", "exception_rules", "signal_priority"];
+  for (var i = 0; i < lists.length; i++) { if ((fw[lists[i]] || []).length) return true; }
+  if (Object.keys(fw.industry_weights || {}).length) return true;
+  if (Object.keys(fw.industry_map || {}).length) return true;
+  if (((fw.thresholds || {}).adjustments || []).length) return true;
+  return false;
+}
+
 /* Professional track: the skill-framework authoring interface (steps 1-4).
  *
  * Relationship to app.js: this file only renders the "professional mode / scenario slice" page,
@@ -775,7 +791,7 @@
           '<button class="button primary" data-orphan-attach="' + esc(x.id) + '">挂过去</button>'
         : '<span class="muted">先建一个场景才能挂</span>';
       return "<tr><td>" + esc(nameOf(x)) + "</td>" +
-        "<td>" + (hasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
+        "<td>" + (poHasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
         "<td>" + esc(conf) + "</td>" +
         '<td style="text-align:right;white-space:nowrap">' + action +
         ' <button class="button" data-orphan-del="' + esc(x.id) + '">删除</button></td></tr>';
@@ -804,7 +820,7 @@
       return '<tr>' +
         '<td>' + esc(nameOf(x)) + (x.id === currentId ? ' <span class="badge">当前</span>' : "") +
         (x.status === "confirmed" ? ' <span class="badge">已启用</span>' : ' <span class="muted">草稿</span>') + "</td>" +
-        "<td>" + (hasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
+        "<td>" + (poHasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
         "<td>" + esc(conf) + "</td>" +
         "<td>" + (priced ? ("已设 " + priced + " 项") : '<span class="muted">未设</span>') + "</td>" +
         '<td style="text-align:right;white-space:nowrap">' +
