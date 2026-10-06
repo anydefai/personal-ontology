@@ -1533,3 +1533,26 @@ served pro.js contains the picker.
 **Not done yet**: the "granted to whom" column on the scenario-instance page, which is display only, and the
 second half of option A, where editing an enabled slice regenerates its rule - today such an edit does not
 recompute the rule, it only warns.
+
+### Convention B: every field declared in "information I need" is required; a missing one yields no conclusion
+
+The user chose B and asked whether "information I need" or "information the caller must provide" is clearer.
+
+**On naming**: keep "information I need", since it matches the expert's first-person voice and the tone of the
+whole panel; the ambiguity about who supplies it is removed by one line saying that anyone calling this judgment
+must provide these values, while the delivery and decision package - whose reader is the caller - uses "information
+the caller must provide".
+
+**Implementing B**: previously `inputs` appeared in the executor only inside its docstring and was never checked.
+judge() now begins with an input-completeness check: the required fields come from the framework's inputs, and
+anything absent is collected as missing. If anything is missing it returns immediately with the conclusion
+"insufficient information, cannot judge", severity "not judged", the `required_inputs` contract, the
+`missing_inputs` list, and a step 0 in the reasoning path stating how many are missing and that no conclusion is
+drawn by convention - it neither simulates a judgment nor offers any conclusion that looks valid. With everything
+supplied it judges normally and always carries `required_inputs` in the package. Both new keys are in ALWAYS, so
+every tier from basic upwards includes them.
+
+Measured: declaring a and b while supplying only a returns insufficient/cannot judge, not judged, missing ['b'],
+contract ['a','b']; supplying both yields 偏高 with an empty missing list. Five tests were added to
+test_skill_framework.py and all 33 suites pass, with no existing test broken since they all supply complete data.
+The backend has been restarted, so one re-login is needed.

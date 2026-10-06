@@ -136,8 +136,29 @@ def _exception_effect(rule: dict[str, Any], data: dict[str, Any], threshold: flo
 def judge(framework: dict[str, Any], data: dict[str, Any],
           *, confidence: float | None = None, confidence_status: str = "unverified",
           confidence_basis: str = "") -> dict[str, Any]:
-    """按框架判定一组输入，返回判定包（结论/严重度/推理路径/证据）。"""
+    """按框架判定一组输入，返回判定包（结论/严重度/推理路径/证据）。
+
+    约定 B（用户 2026-10-06 选定）：声明在 inputs 里的字段都是调用方【必须提供】的；
+    缺任何一项就【不出结论】，只回「信息不足，无法判断」并列出缺哪些 —— 不假装判断过。
+    """
     path: list[dict[str, Any]] = []
+
+    required = [str(i.get("name")) for i in (framework.get("inputs") or [])
+                if isinstance(i, dict) and i.get("name")]
+    missing = [n for n in required if n not in (data or {})]
+    if missing:
+        return {
+            "decision": "信息不足，无法判断", "severity": "未判定",
+            "required_inputs": required, "missing_inputs": missing,
+            "evidence": [f"缺少 {len(missing)} 项必需输入：{'、'.join(missing)}"],
+            "basis": [], "score": 0.0,
+            "confidence": confidence, "confidence_status": confidence_status,
+            "confidence_basis": confidence_basis,
+            "reasoning_path": [{"step": 0, "name": "输入完整性检查",
+                                "detail": f"缺少 {len(missing)} 项（{'、'.join(missing)}），按约定不出结论"}],
+            "signals": {}, "signal_reasons": {}, "threshold": None,
+            "matched_rules": [], "exceptions_applied": [], "rule_cited": [],
+        }
 
     # ── 第 1 步：行业分类 ──
     industry = data.get("行业")
@@ -258,6 +279,7 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
 
     return {
         "decision": decision, "severity": severity, "basis": basis, "score": score,
+        "required_inputs": required, "missing_inputs": [],
         "confidence": confidence, "confidence_status": confidence_status,
         "confidence_basis": confidence_basis,
         "reasoning_path": path,
@@ -283,7 +305,7 @@ TIERS = {
                      "owner_credentials", "owner_signature",
                      "signature_status", "audit_id", "valid_until", "content_fingerprint"],
 }
-ALWAYS = ["definition_id", "slice_id", "tier"]
+ALWAYS = ["definition_id", "slice_id", "tier", "required_inputs", "missing_inputs"]
 
 
 def content_fingerprint(package: dict[str, Any]) -> str:

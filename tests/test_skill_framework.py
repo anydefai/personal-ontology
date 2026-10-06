@@ -10,7 +10,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from backend.skill_framework import judge
+from backend.skill_framework import apply_tier, judge
 
 RESULTS = []
 def check(label, ok, detail=""):
@@ -111,6 +111,30 @@ out4 = judge(MISS, CASE)
 check("缺失字段不放行", out4["decision"] == "无明确结论", out4["decision"])
 check("缺失字段给出原因", "缺少字段" in out4["signal_reasons"].get("缺字段信号", ""),
       out4["signal_reasons"].get("缺字段信号"))
+
+# ── 约定 B（用户选定）：声明在 inputs 里的字段都是调用方必须提供的；缺任何一项都不出结论 ──
+_fw_b = {
+    "inputs": [{"name": "a", "type": "number"}, {"name": "b", "type": "string"}],
+    "thresholds": {"base": 1.3, "adjustments": []},
+    "signals": [{"name": "s1", "when": {"a": {"op": "gt", "value": 10}}}],
+    "combination_rules": [{"all_of": ["s1"], "conclusion": "偏高", "severity": "高"}],
+}
+_miss = judge(dict(_fw_b), {"a": 45})
+check("B：缺必填就不出结论（不假装判断过）",
+      _miss["decision"] == "信息不足，无法判断" and _miss["severity"] == "未判定",
+      str(_miss["decision"]))
+check("B：判定包同时给出输入契约与缺项",
+      _miss["required_inputs"] == ["a", "b"] and _miss["missing_inputs"] == ["b"],
+      str((_miss.get("required_inputs"), _miss.get("missing_inputs"))))
+check("B：推理路径第 0 步说明缺什么",
+      _miss["reasoning_path"][0]["name"] == "输入完整性检查" and "b" in _miss["reasoning_path"][0]["detail"],
+      str(_miss["reasoning_path"][0]))
+_ok_b = judge(dict(_fw_b), {"a": 45, "b": "x"})
+check("B：给全了就正常出结论，且缺项为空",
+      _ok_b["decision"] == "偏高" and _ok_b["missing_inputs"] == [] and _ok_b["required_inputs"] == ["a", "b"],
+      f"{_ok_b['decision']}/{_ok_b['missing_inputs']}")
+check("B：缺项信息不受层级过滤影响（basic 层也带）",
+      "missing_inputs" in apply_tier(dict(_miss), "basic") and "required_inputs" in apply_tier(dict(_miss), "basic"))
 
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
