@@ -1136,3 +1136,32 @@ what you see is unchanged; that plus slice-scoped preview is next.
 All **28 suites green**.
 
 ### Deploy and tests
+
+### Third cut: the interface becomes a two-level choice of scenario (template) and my slice (personal asset)
+
+**The slice page (`pro.js`) is now a two-level selector**, with the relationship spelled out as the user
+asked: a scenario is a shared template carrying none of your judgment, while a slice is your personal
+judgment asset, and one scenario can carry several slices (an internet edition, a manufacturing edition).
+The page shows a scenario picker and, beneath it, my slices with their state (framework present, confidence),
+plus a box and button to create a new slice, and a line stating that both saving and drafting write to the
+currently selected slice. On load it calls the **idempotent migration**, so the framework previously attached
+to a definition moves onto a slice automatically; saving, drafting, boundaries, pricing, insight, credentials
+and validity all read from and write to the slice.
+
+**The preview page (`app.js`) now judges by slice**: its list is the professional slices and all five
+endpoints point at `/v1/scenario-slices/{slice_id}/…`, with feedback on `/judgment-feedback`.
+
+**The method finally held**: read the real text first, replace whole functions by their boundaries
+(`renderSlices`, lines 285–329) rather than guessing scattered anchors, and validate a candidate file with
+`node --check` before replacing it — four front-end edits passed first time.
+
+**Test problems fixed this round, all my own over-narrow assertions**: the version assertion hard-coded a date
+and now compares dynamically against the workspace `index.html` (which doubles as a deployment self-check);
+the "saves to the slice" assertion checked negatively for the definition path, which is legitimately used for
+creating and deleting scenarios, and now checks positively; and the preview assertion depended on a Chinese
+comment I had just replaced, so it now checks the endpoint and data source.
+
+Three UI assertions added, three stale ones corrected; **58 uncovered against a baseline of 60**; the backend
+was restarted with all six slice routes registered; all **28 suites green**; asset version → **20261005a**.
+
+### Deploy and tests

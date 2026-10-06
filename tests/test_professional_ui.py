@@ -5,7 +5,7 @@
 界面无法在无口令环境下点开，因此这里做**静态断言**：入口存在、日常路径未被改写、
 资源版本号已升、专业串都有中英词条。运行时行为由 test_professional_model.py 覆盖。
 """
-import pathlib, re, sys
+import pathlib, re, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 app = (ROOT / "web/app.js").read_text(encoding="utf-8")
@@ -72,6 +72,15 @@ check("分层设置移到切片页（默认交付层级）", "data-dlv-tier" in 
 check("场景实例页接住对外交付与反馈统计", "对外交付与调用方反馈" in app)
 check("四层价格由用户自己填（切片页）", _pro.count("data-price-tier") >= 2 and "data-price-mode" in _pro and "pricing" in _pro)
 check("场景实例页有计费演示（读本人定价）", "data-bill-demo" in app and "bill-demo-tier" in app and "pricing" in app)
+check("切片页是两级选择（场景模板 + 我的切片）并从切片读数据",
+      all(k in _pro for k in ("id=\"pro-slice\"", "id=\"pro-add-slice\"", "migrate-from-definitions")))
+check("保存与起草都写到切片上",
+      '"/v1/scenario-slices/" + encodeURIComponent(sliceId)' in _pro
+      and "/draft\", { method: \"POST\"" in _pro)
+check("预演页按切片判定（端点指向切片层）",
+      "/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}" in app
+      and "/judgment-feedback" in app
+      and 'const defs=(await load("scenario-slices"))' in app)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
@@ -90,7 +99,10 @@ check("预演页展示判定包（结论/严重度/路径/证据）",
       all(k in app for k in ("决策" if False else "结论", "严重度", "推理路径", "证据")))
 # ⑤ 资源版本号已升
 v = re.search(r"\?v=(\d{8}[a-z]?)", html)
-check("资源版本号已更新为 2026-10-04 版", v is not None and v.group(1).startswith("20261004"), v.group(1) if v else "无")
+_html = pathlib.Path(__file__).resolve().parent.parent.joinpath("web/index.html").read_text(encoding="utf-8")
+_ver = re.search(r"assets/app\.js\?v=([0-9a-z]+)", _html)
+check("资源版本号与工作区一致（部署自检）", v is not None and _ver and v.group(1) == _ver.group(1),
+      f"读取 {v.group(1) if v else '无'} / 工作区 {_ver.group(1) if _ver else '无'}")
 # ⑥ 专业串有中英词条
 for zh in ("专业技能场景", "我的判断规则", "判断条目", "权威级别", "所属场景"):
     check(f"词条已收录：{zh}", ('"%s":' % zh) in i18n)

@@ -619,11 +619,11 @@ function proBacktestHtml(rep){
 }
 
 async function renderProfessionalPreview(view){
-  const defs=await load("scenario-definitions");
+  const defs=(await load("scenario-slices")).filter(x=>(x.scenario_profile||{}).kind==="professional");   // The preview judges against my slice
   if(!proEvalDefId||!defs.some(d=>d.id===proEvalDefId)) proEvalDefId=defs[0]?.id||null;
   const def=defs.find(d=>d.id===proEvalDefId)||null;
   const fw=(def?.framework)||null;
-  const opts=defs.map(d=>`<option value="${esc(d.id)}" ${d.id===proEvalDefId?"selected":""}>${esc(fieldLabel(d,"display_name_zh","display_name_en"))}</option>`).join("");
+  const opts=defs.map(d=>`<option value="${esc(d.id)}" ${d.id===proEvalDefId?"selected":""}>${esc((d.analysis&&d.analysis.title)||d.original_text||d.id)}</option>`).join("");
   view.innerHTML=`${proModeButtons()}
   ${titleBlock("SKILL FRAMEWORK","专业预演","用一组标的数据跑一遍你的判断框架：结论、严重度、推理路径与证据都会列出来。预演不写判定记录，也不执行任何操作。")}
   <section class="panel" style="padding:18px;margin-bottom:16px">
@@ -667,11 +667,11 @@ async function renderProfessionalPreview(view){
   const saveFw=$("#pe-save-framework"); if(saveFw) saveFw.onclick=async()=>{
     let parsed; try{ parsed=JSON.parse($("#pe-framework").value); }catch(e){ alert("框架 JSON 解析失败："+e.message); return; }
     if(typeof parsed!=="object"||!parsed){ alert("框架必须是一个对象。"); return; }
-    await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}`,{method:"PATCH",body:JSON.stringify({framework:parsed})});
+    await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}`,{method:"PATCH",body:JSON.stringify({framework:parsed})});
     cache["scenario-definitions"]=null; render(); };
   const parseCases=()=>{ try{ return JSON.parse($("#pe-cases").value); }catch(e){ alert("案例 JSON 解析失败："+e.message); return null; } };
   const sendFeedback=async(verdict)=>{
-    const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/feedback`,{method:"POST",body:JSON.stringify({verdict})});
+    const out=await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}/judgment-feedback`,{method:"POST",body:JSON.stringify({verdict})});
     const h=$("#pe-fb-hint");
     if(h) h.textContent=out&&out.confidence_status?("已记录：共 "+out.feedback_total+" 次反馈，一致率 "+Math.round((out.accuracy_from_feedback||0)*100)+"%，置信度 "+out.confidence_status):"反馈未记录";
     cache["scenario-definitions"]=null; };
@@ -679,12 +679,12 @@ async function renderProfessionalPreview(view){
   const fbNo=$("#pe-fb-no"); if(fbNo) fbNo.onclick=()=>sendFeedback("inaccurate");
   const bt=$("#pe-backtest"); if(bt) bt.onclick=async()=>{
     const cases=parseCases(); if(!cases) return;
-    const rep=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases})});
+    const rep=await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases})});
     if(rep&&rep.total!==undefined){ proBacktest=rep; $("#pe-backtest-result").innerHTML=proBacktestHtml(rep); }
     else { proBacktest=null; $("#pe-backtest-result").innerHTML=`<div class="panel-caption" style="margin-top:10px">回测未完成：${esc((rep&&(rep.detail||rep.error))||"案例或框架有问题")}</div>`; } };
   const ps=$("#pe-persist"); if(ps) ps.onclick=async()=>{
     const cases=parseCases(); if(!cases) return;
-    const rep=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases,persist:true})});
+    const rep=await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases,persist:true})});
     if(rep&&rep.persisted){ proBacktest=rep; cache["scenario-definitions"]=null; render(); }
     else { $("#pe-backtest-result").innerHTML=`<div class="panel-caption" style="margin-top:10px">保存未完成：${esc((rep&&(rep.detail||rep.error))||"案例或框架有问题")}</div>`; } };
   const run=$("#pe-run"); if(run) run.onclick=async()=>{
@@ -698,7 +698,7 @@ async function renderProfessionalPreview(view){
       const k=c.dataset.proMulti; if(!mult[k])mult[k]=[]; if(c.checked)mult[k].push(c.value); });
     Object.keys(mult).forEach(k=>{ if(mult[k].length)data[k]=mult[k]; });
     const tier=(def&&def.boundaries&&def.boundaries.default_tier)||"audit";
-    const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data,tier})});
+    const out=await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data,tier})});
     if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out)+proPreviewNote(); }
     else { proEvalResult=null; $("#pe-result").innerHTML=`<section class="panel empty-state">判定未完成：${esc((out&&(out.detail||out.error))||"框架或输入有问题")}</section>`; } };
 }

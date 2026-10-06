@@ -13,6 +13,7 @@
 
   var state = null;          // the framework being edited
   var defId = null;          // current scenario-definition id
+  var sliceId = null;        // the slice currently selected (personal asset)
   var lastDraft = "";        // description used for the last draft
 
   // Expert wording to internal type: only the left-hand wording ever reaches the screen.
@@ -285,39 +286,66 @@
   async function renderSlices(view) {
     var defs = await load("scenario-definitions");
     if (!defId || !defs.some(function (d) { return d.id === defId; })) defId = defs[0] ? defs[0].id : null;
+    // Idempotent migration: move the personal asset still sitting on a shared scenario definition onto my slice.
+    try {
+      var mv = await api("/v1/scenario-slices/migrate-from-definitions", { method: "POST", body: "{}" });
+      if (mv && mv.count) { cache["scenario-slices"] = null; cache["scenario-definitions"] = null; defs = await load("scenario-definitions"); }
+    } catch (e) { /* a failed migration must not block the page */ }
     var def = defs.filter(function (d) { return d.id === defId; })[0] || null;
-    if (!state || state.__defId !== defId) {
-      state = ensureShape(def && def.framework ? def.framework : emptyFramework());
-      state.__defId = defId;
+    var allSlices = await load("scenario-slices");
+    var mine = allSlices.filter(function (x) {
+      return (x.scenario_profile || {}).kind === "professional" && x.scenario_definition_id === defId;
+    });
+    if (!sliceId || !mine.some(function (x) { return x.id === sliceId; })) sliceId = mine[0] ? mine[0].id : null;
+    var slice = mine.filter(function (x) { return x.id === sliceId; })[0] || null;
+    if (!state || state.__slice !== sliceId) {
+      state = ensureShape(slice && slice.framework ? slice.framework : emptyFramework());
+      state.__slice = sliceId;
     }
     var opts = defs.map(function (d) {
       return '<option value="' + esc(d.id) + '"' + (d.id === defId ? " selected" : "") + ">" +
         esc(fieldLabel(d, "display_name_zh", "display_name_en")) + "</option>";
     }).join("");
+    var sliceOpts = mine.map(function (x) {
+      var st = x.framework
+        ? ("已有框架" + (x.confidence_status && x.confidence_status !== "unverified" ? " · 置信度 " + x.confidence_status : ""))
+        : "尚未配置框架";
+      return '<option value="' + esc(x.id) + '"' + (x.id === sliceId ? " selected" : "") + ">" +
+        esc((x.analysis && x.analysis.title) || x.original_text || x.id) + "（" + st + "）</option>";
+    }).join("");
     view.innerHTML = proModeButtons() +
       titleBlock("SKILL FRAMEWORK", "技能框架", "先用一段话讲清你的判断方式，让模型起草；再逐条改成你自己的说法。改的过程就是这套框架的价值所在。") +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-        '<div class="panel-title"><span>先选一个场景，再用一段话讲你的判断方式</span></div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">' +
-          '<select class="select" id="pro-def" style="max-width:320px">' + (opts || '<option value="">还没有专业场景</option>') + "</select>" +
-          '<span class="badge">' + (def && def.framework ? "已有框架" : "还没有框架") + "</span>" +
-        "</div>" +
+        '<div class="panel-title"><span>先选场景，再选我的切片</span></div>' +
+        '<div class="panel-caption" style="margin:6px 0 10px">场景是<strong>可共享的模板</strong>，不含你的判断；切片是<strong>你的个人判断资产</strong>，同一个场景可以建多条（例如互联网版、制造业版）</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">' +
-          '<input class="input" id="pro-new-name" style="max-width:260px" placeholder="新场景叫什么，例如：并购估值判断">' +
+          '<span class="field-label" style="min-width:56px">场景</span>' +
+          '<select class="select" id="pro-def" style="max-width:300px">' + (opts || '<option value="">还没有专业场景</option>') + "</select>" +
+          '<input class="input" id="pro-new-name" style="max-width:220px" placeholder="新场景叫什么">' +
           '<button class="button" id="pro-new">＋ 新建场景</button>' +
-          (def && !def.is_builtin ? '<button class="button" id="pro-rename">改名</button>' +
-            '<button class="button" id="pro-del-def">删除场景</button>' : "") +
-          '<span class="panel-caption" style="margin:0">场景可以自己加：一个场景配一套判断框架。</span>' +
+          (def && !def.is_builtin ? '<button class="button" id="pro-rename">改名</button><button class="button" id="pro-del-def">删除场景</button>' : "") +
         "</div>" +
-        '<textarea class="input" id="pro-desc" rows="4" style="width:100%" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid #e6e9ef">' +
+          '<span class="field-label" style="min-width:56px">我的切片</span>' +
+          (mine.length ? '<select class="select" id="pro-slice" style="max-width:360px">' + sliceOpts + "</select>"
+                       : '<span class="badge">还没有我的切片</span>') +
+          '<input class="input" id="pro-new-slice" style="max-width:200px" placeholder="新切片叫什么，例如：互联网版">' +
+          '<button class="button primary" id="pro-add-slice">＋ 新建我的切片</button>' +
+        "</div>" +
+        (slice
+          ? '<div class="panel-caption" style="margin:10px 0 0">当前切片：<strong>' +
+            esc((slice.analysis && slice.analysis.title) || slice.original_text || slice.id) + "</strong> · 置信度 " +
+            esc(slice.confidence_status || "未验证") + " · 保存与起草都写在这条切片上</div>"
+          : '<div class="panel-caption" style="margin:10px 0 0">先新建一条「我的切片」，框架保存在切片上</div>') +
+        '<textarea class="input" id="pro-desc" rows="4" style="width:100%;margin-top:10px" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
         '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
           '<button class="button primary" id="pro-gen">让模型起草框架</button>' +
           '<button class="button" data-save-framework>保存我的框架</button>' +
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
       '<div id="pro-editor">' +
-        boundariesPanel((def && def.boundaries) || {}) +
-        deliveryPanel(def || {}) +
+        boundariesPanel((slice && slice.boundaries) || {}) +
+        deliveryPanel(slice || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
       "</div>" +
@@ -325,8 +353,57 @@
         '<span class="toolbar-spacer"></span>' +
         '<button class="button primary" data-save-framework>保存我的框架</button></div>';
     bind(view);
+    // Override the handlers bound earlier: saving and drafting write to my slice.
+    view.querySelectorAll("[data-save-framework]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!sliceId) { alert("请先新建一条「我的切片」，框架保存在切片上。"); return; }
+        var f = collect();
+        var bndRaw = ((view.querySelector("[data-bnd-amount]") || {}).value || "").trim();
+        var bnd = {
+          max_amount: bndRaw === "" ? null : Number(bndRaw),
+          allowed_scenarios: ((view.querySelector("[data-bnd-scenarios]") || {}).value || "")
+            .split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean),
+          confidentiality: ((view.querySelector("[data-bnd-conf]") || {}).value || "").trim(),
+          default_tier: ((view.querySelector("[data-dlv-tier]") || {}).value || "audit"),
+          pricing: (function () {
+            var tiers = {};
+            view.querySelectorAll("[data-price-tier]").forEach(function (el) {
+              var v = parseFloat(el.value); if (!isNaN(v)) tiers[el.dataset.priceTier] = v;
+            });
+            return { mode: ((view.querySelector("[data-price-mode]") || {}).value || "per_call"), tiers: tiers };
+          })()
+        };
+        var dvDays = ((view.querySelector("[data-dlv-days]") || {}).value || "").trim();
+        await api("/v1/scenario-slices/" + encodeURIComponent(sliceId), { method: "PATCH", body: JSON.stringify({
+          framework: f, boundaries: bnd,
+          insight: ((view.querySelector("[data-dlv-insight]") || {}).value || "").trim(),
+          owner_credentials: ((view.querySelector("[data-dlv-cred]") || {}).value || "").trim(),
+          valid_days: dvDays === "" ? 1 : Number(dvDays) }) });
+        cache["scenario-slices"] = null; state = null; render();
+      };
+    });
+    var genBtn = view.querySelector("#pro-gen");
+    if (genBtn) genBtn.onclick = async function () {
+      if (!sliceId) { var h = view.querySelector("#pro-hint"); if (h) h.textContent = "请先新建一条「我的切片」"; return; }
+      var desc = (view.querySelector("#pro-desc") || {}).value || "";
+      var h2 = view.querySelector("#pro-hint"); if (h2) h2.textContent = "正在让模型起草…（大约十几秒）";
+      var out = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/draft", { method: "POST", body: JSON.stringify({ description: desc }) });
+      if (out && out.framework) { state = ensureShape(out.framework); state.__slice = sliceId; render(); }
+      else if (h2) { h2.textContent = "起草失败：" + ((out && (out.detail || out.error)) || "请检查模型服务"); }
+    };
+    var sliceSel = view.querySelector("#pro-slice");
+    if (sliceSel) sliceSel.onchange = function () { sliceId = sliceSel.value; state = null; render(); };
+    var addSlice = view.querySelector("#pro-add-slice");
+    if (addSlice) addSlice.onclick = async function () {
+      var name = ((view.querySelector("#pro-new-slice") || {}).value || "").trim() || "我的切片";
+      var out = await api("/v1/scenario-slices", { method: "POST", body: JSON.stringify({
+        original_text: name, status: "analyzed", scenario_definition_id: defId,
+        scenario_profile: { kind: "professional" }, analysis: { title: name },
+        updated_at: new Date().toISOString() }) });
+      if (out && out.id) { cache["scenario-slices"] = null; sliceId = out.id; state = null; render(); }
+      else alert("新建切片失败：" + ((out && (out.detail || out.error)) || "请稍后重试"));
+    };
   }
-
   function collect() {
     var f = ensureShape({ framework_version: state.framework_version, industry_map: clone(state.industry_map) });
     var q = function (a) { return document.querySelectorAll(a); };
