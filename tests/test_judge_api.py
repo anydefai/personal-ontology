@@ -64,6 +64,16 @@ async def main():
 
     check("返回里带调用方身份（会话/agent:key）", bool(r.get("caller")), str(r.get("caller"))[:30])
 
+    # 审计（设计文档第八步）：每次对外判定都要留下一条判定记录
+    st, r2 = await call("POST", "/v1/scenario-slices/s.j/judge", body={"data": DATA, "request": REQ}, token=token)
+    did = (r2 or {}).get("decision_id")
+    check("判定后返回 decision_id（写入了审计记录）", st == 200 and bool(did), f"HTTP {st} id={did}")
+    st, ds = await call("GET", "/v1/decisions", token=token)
+    items = (ds.get("items") if isinstance(ds, dict) else ds) or []
+    hit = [x for x in items if str(x.get("id") or x.get("decision_id") or "") == str(did)]
+    check("该记录能在判定记录里查到，且标注了切片与调用方",
+          bool(hit) and "s.j" in json.dumps(hit[0], ensure_ascii=False), f"找到 {len(hit)} 条")
+
 asyncio.run(main())
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")

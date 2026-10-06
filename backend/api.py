@@ -2209,4 +2209,28 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
                                 confidence=item.get("confidence"),
                                 confidence_status=str(item.get("confidence_status") or "unverified"),
                                 confidence_basis=str(item.get("confidence_basis") or ""))
-    return {"slice_id": slice_id, "caller": who, "authorize": authz, "judgment": pkg}
+    # Audit: every external judgment leaves a record. A package that was produced but not recorded must not
+    # be handed out, matching how /v1/decisions behaves (no allow without a written record).
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    decision_id = "decision_skill_" + uuid4().hex[:16]
+    concluded = str(pkg.get("decision") or "") not in ("", "信息不足，无法判断")
+    record = {
+        "phase": "pre_execution",
+        "sequence": 0,
+        "result_id": "allow" if concluded else "pause",
+        "reason_key": "skill." + str(pkg.get("decision") or "no_conclusion"),
+        "reason_params": {"slice_id": slice_id, "caller": who, "severity": pkg.get("severity"),
+                          "score": pkg.get("score"), "missing_inputs": pkg.get("missing_inputs") or []},
+        "reason_display": {"zh": str(pkg.get("decision") or ""), "en": str(pkg.get("decision") or "")},
+        "input_params": (body or {}).get("request") or {},
+        "cited_assertions": [str(x) for x in (pkg.get("basis") or [])],
+        "timestamp": stamp,
+    }
+    try:
+        await asyncio.to_thread(store.put, "decisions", decision_id, record, create_only=True)
+    except Exception as exc:                                  # noqa: BLE001 - an unrecorded judgment is not issued
+        raise HTTPException(status_code=503, detail={"error": "audit_write_failed",
+                                                     "message": "判定记录写入失败，已拒绝给出结论。",
+                                                     "detail": str(exc)}) from exc
+    return {"slice_id": slice_id, "caller": who, "authorize": authz,
+            "judgment": pkg, "decision_id": decision_id}

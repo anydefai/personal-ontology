@@ -1626,3 +1626,21 @@ collected before appending, with a failure reported and the action aborted rathe
 
 Render tests 10/10, since both new panels render, and all 34 suites pass with 60 uncovered, level with the
 baseline. Version to 20261006u.
+
+### Auditing added against the design document, and one open item recorded
+
+Having retrieved the shared conversation, I compared its thirteen sections with what is built. Two real gaps:
+
+**Fixed: external judgments now write an audit record** (section eight). Every /judge call writes a decision with
+phase, result_id, reason_key, reason_params, reason_display, input_params, cited_assertions and timestamp, and the
+response carries a decision_id. If the write fails the endpoint returns 503 and refuses to hand out a conclusion,
+matching /v1/decisions, where an unrecorded outcome is never issued. Two assertions were added: the response
+contains a decision_id, and that record can be found in the decisions list naming the slice and caller.
+
+**Open item, noted in the code: a caller can still read the framework** (section seven says it must not). The slice
+list and detail endpoints are open to agents holding the catalog scope, and they return the whole framework,
+weights and thresholds. The right fix is to strip fields per caller inside the generic collection handler, but that
+handler serves every collection, so a careless change would ripple through the API. I tried removing those two
+scope rules outright, which broke the MCP catalog tool (13/18) and was rolled back with a TODO left in place. That
+is the second time today that tightening a security boundary broke a feature: the lesson is to run the MCP
+end-to-end suite before touching permissions.

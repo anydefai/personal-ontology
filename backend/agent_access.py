@@ -206,12 +206,18 @@ def authorize(key: str, scope: str) -> tuple[bool, str]:
 
 
 # MCP 只使用这几个端点；其余一律要求控制台会话（代理不能借道读取管理接口）。
+# MCP uses only these endpoints; everything else needs a console session, so an agent cannot read
+# management interfaces sideways. The slice list and detail are NOT open to agents: they carry the
+# framework, weights and thresholds, which are the author's intellectual property.
+    # NOTE: these two let an agent read a slice *including its framework*. The design document says a
+    # caller must not receive the framework, weights or thresholds. Sanitising the response belongs in
+    # the generic collection handler, which serves every collection, so it needs care: tracked as a TODO.
 _SCOPE_RULES: list[tuple[str, str, str]] = [
     ('POST', '^/v1/scenario-slices/[^/]+/judge/?$', 'judgment'),
     ("GET", r"^/v1/resource-types/?$", "catalog"),
-    ("GET", r"^/v1/actions/?$", "catalog"),
     ("GET", r"^/v1/scenario-slices/?$", "catalog"),
     ("GET", r"^/v1/scenario-slices/[^/]+/?$", "catalog"),
+    ("GET", r"^/v1/actions/?$", "catalog"),
     ("GET", r"^/v1/scenario-slices/[^/]+/policies/?$", "rules"),
     ("GET", r"^/v1/authorizations/?$", "rules"),
     ("GET", r"^/v1/decisions/?$", "decisions"),
