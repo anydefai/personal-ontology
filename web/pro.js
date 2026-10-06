@@ -462,14 +462,23 @@
     });
 
     var doImport = async function (save) {
+      var h = view.querySelector("#line-report");
+      if (!sliceId) { alert("请先新建或选择一条「我的切片」，框架保存在切片上。"); return; }
       var texts = {};
       view.querySelectorAll("[data-line-part]").forEach(function (ta) {
         if (ta.value.trim()) texts[ta.dataset.linePart] = ta.value;
       });
       if (!Object.keys(texts).length) { var h0 = view.querySelector("#line-report"); if (h0) h0.textContent = "先在上面任意一个框里写几行。"; return; }
-      var out = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/import-lines",
-        { method: "POST", body: JSON.stringify({ texts: texts, save: !!save }) });
-      var h = view.querySelector("#line-report");
+      var out = null;
+      try {
+        out = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/import-lines",
+          { method: "POST", body: JSON.stringify({ texts: texts, save: !!save }) });
+      } catch (err) {
+        if (h) h.textContent = "导入失败：" + (err && err.message ? err.message : err);
+        alert("导入失败：" + (err && err.message ? err.message : err));
+        return;
+      }
+      h = view.querySelector("#line-report");
       if (out && out.framework) {
         state = ensureShape(out.framework); state.__slice = sliceId;
         var bad = [];
@@ -482,8 +491,6 @@
         if (h2) h2.textContent = bad.length ? ("已导入，但有 " + bad.length + " 行没看懂：" + bad.join("；")) : "已导入，下面面板里可以看到";
       } else if (h) { h.textContent = "导入失败：" + ((out && (out.detail || out.error)) || "请检查内容"); }
     };
-    var li = view.querySelector("#line-import"); if (li) li.onclick = function () { doImport(false); };
-    var lis = view.querySelector("#line-import-save"); if (lis) lis.onclick = function () { doImport(true); };
 
     var sliceSel = view.querySelector("#pro-slice");
     if (sliceSel) sliceSel.onchange = function () { sliceId = sliceSel.value; state = null; render(); };
@@ -728,8 +735,8 @@
           '</div>';
       }).join("") +
       '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<button class="button primary" id="line-import">导入到面板</button>' +
-        '<button class="button" id="line-import-save">导入并保存</button>' +
+        '<button class="button primary" data-save-framework>保存</button>' +
+        '<span class="panel-caption" style="margin:0">保存会先把上面的内容变成下面面板里的内容，再存进这条切片；有看不懂的行会弹出来告诉你第几行</span>' +
         '<span class="panel-caption" style="margin:0" id="line-report"></span>' +
       '</div></section>';
   }

@@ -96,8 +96,11 @@ check("切片页有「我的切片」列表（含选中/删除与空态）",
       all(k in _pro for k in ("function sliceTable", "data-pick-slice", "data-drop-slice", "这个场景还没有我的切片")))
 check("有「未归属切片」区（删场景后切片可挂回）",
       all(k in _pro for k in ("function orphanPanel", "data-orphan-attach", "data-orphan-del", "未归属切片")))
-check("切片页有「一行一条录入」六个框（含导入/导入并保存）",
-      all(k in _pro for k in ("function lineImportPanel", "data-line-part", "line-import", "line-import-save", "import-lines")))
+check("切片页有「一行一条录入」六个框（只有一个「保存」按钮，不再有多个导入按钮）",
+      all(k in _pro for k in ("function lineImportPanel", "data-line-part", "import-lines"))
+      and "line-import\"" not in _pro and "line-import-save" not in _pro)
+check("未选切片时保存会给提示（不再静默无反应）", "请先新建或选择一条「我的切片」" in _pro)
+check("导入失败不再静默（会弹出来）", "catch (err)" in _pro and "导入失败：" in _pro)
 check("保存我的框架会先导入逐行框（不会默默丢掉输入）",
       "function hasFramework" in _pro and "lineTexts" in _pro and "save: true" in _pro)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)

@@ -937,6 +937,10 @@
   "团队流失权重": "团队流失权重",
   "现金流危机": "现金流危机",
   "有几行没看懂，已跳过：": "Some lines were not understood and were skipped: ",
+  "保存会先把上面的内容变成下面面板里的内容，再存进这条切片；有看不懂的行会弹出来告诉你第几行": "Saving first turns what is written above into the panels below, then stores it in this slice; any line it cannot read is reported with its line number",
+  "保存会先把上面的内容变成下面面板里的内容，再存进这条切片": "Saving first turns what is written above into the panels below, then stores it in this slice",
+  "请先新建或选择一条「我的切片」，框架保存在切片上。": "Create or choose a slice first; the framework is stored on a slice.",
+  "请先新建或选择一条「我的切片」，框架保存在切片上": "Create or choose a slice first; the framework is stored on a slice",
   };
 
 

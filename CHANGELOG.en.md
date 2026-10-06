@@ -1299,3 +1299,30 @@ empty" symptom.
 UI tests **56/56**; all **31 suites green**; front-end only, so **no restart and no re-login**.
 
 ### Deploy and tests
+
+### Fix: three buttons with colliding meanings, and clicks that did nothing
+
+The user reported that Import into the panels and Import and save did nothing, and asked what the three
+buttons were for.
+
+**Stated plainly, the design was my mistake**: "Import into the panels" turned the boxes into panel content
+without saving, leaving the user to remember its relationship to saving; "Import and save" duplicated "Save my
+framework"; and once I made the save import first, the three collided outright.
+
+**The real cause of "nothing happens"**: with no slice selected, the request went to
+`/…/slices/null/import-lines`, the backend answered 404, and my `api()` helper threw while nothing caught it —
+so the interface showed nothing at all.
+
+**The fix merges three buttons into one**: a single Save button inside the line box (the persistent bottom bar
+keeps the same action), which first turns what is written into the panels and then stores it in the slice, in
+one step, so there is no order to remember; saving without a slice now says so explicitly; and a failed import
+is caught, shown beside the button and raised in a dialog instead of failing silently. The panel caption spells
+out exactly what saving does, including that unreadable lines are reported with their line number.
+
+UI tests **58/58** (three new: a single button, a prompt when no slice is selected, no silent failure);
+all **31 suites green**; 60 uncovered, level with the baseline; front-end only, so **no restart and no
+re-login**; version → **20261005e**.
+
+**Left over**: `doImport` is now uncalled dead code, harmless and to be cleaned up later.
+
+### Deploy and tests
