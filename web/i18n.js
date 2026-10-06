@@ -1007,6 +1007,9 @@
   "启用失败：": "Enabling failed: ",
   "确认并启用…": "Confirm and enable...",
   "已生成": "created",
+  "字段来自这条切片里「我要知道的信息」——在「场景切片」页改动并保存后，这里会跟着变。": "The fields come from this slice's \"information I need\" - change and save them on the scenario-slice page and they follow here.",
+  "字段来自这条切片里「我要知道的信息」——在「场景切片」页改动并保存后，这里会跟着变": "The fields come from this slice's \"information I need\" - change and save them on the scenario-slice page and they follow here",
+  "标的数据（字段名与你在场景切片里填的一致）": "Sample data (field names as you entered them on the scenario-slice page)",
   };
 
 

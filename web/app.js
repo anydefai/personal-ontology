@@ -625,7 +625,7 @@ async function renderProfessionalPreview(view){
   </section>
   ${fw?`<section class="panel" style="padding:18px;margin-bottom:16px">
    <div class="panel-title">第二步 · 填标的数据</div>
-   <div class="panel-caption">字段来自框架的输入定义。</div>
+   <div class="panel-caption">字段来自这条切片里「我要知道的信息」——在「场景切片」页改动并保存后，这里会跟着变。</div>
    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
     ${(fw.inputs||[]).map(proInputField).join("")||'<div class="panel-caption" style="margin:0">框架没有声明输入字段</div>'}
    </div>
@@ -862,7 +862,7 @@ async function renderDelivery(view){
     <div class="panel-caption" style="margin:6px 0 10px">预演不写记录；正式交付会写一条判定记录，并附上审计号、有效期与内容指纹</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
      <select class="select" id="dl-slice" style="max-width:260px">${mine.map(s=>`<option value="${esc(s.id)}">${esc(nameOf(s))}</option>`).join("")}</select>
-     <input class="input" id="dl-data" style="min-width:320px" placeholder='标的数据，例如 {"市盈率": 45}'>
+     <input class="input" id="dl-data" style="min-width:320px" placeholder='标的数据（字段名与你在场景切片里填的一致）'>
      <button class="button primary" id="dl-deliver">生成正式交付</button>
      <span class="panel-caption" style="margin:0" id="dl-out"></span>
     </div>
