@@ -955,7 +955,7 @@ function proEnabledSlicesHtml(defs, slices) {
     <td>${esc(defName(x.scenario_definition_id))}</td>
     <td>${esc(summary(x))}</td>
     <td>${esc(x.confidence_status || "unverified")}</td>
-    <td style="text-align:right"><button class="button" data-unconfirm-slice="${esc(x.id)}">退回草稿</button></td>
+    <td style="text-align:right"><button class="button" data-edit-slice="${esc(x.id)}">编辑</button> <button class="button" data-unconfirm-slice="${esc(x.id)}">退回草稿</button></td>
   </tr>`).join("");
   return `<section class="panel collection-panel" style="margin-bottom:14px">
    <div class="collection-toolbar"><span class="record-count"><span>已启用的切片</span> ${enabled.length} <span>条</span></span>
@@ -964,6 +964,13 @@ function proEnabledSlicesHtml(defs, slices) {
    <tbody>${rows}</tbody></table></div></section>`;
 }
 document.addEventListener("click", event => {
+  const e2 = event.target.closest?.("[data-edit-slice]");
+  if (e2) {
+    try { sessionStorage.setItem("poProPickSlice", e2.dataset.editSlice); } catch (err) {}
+    const nav = document.querySelector('[data-page="scenario-slices"]');
+    if (nav) nav.click();
+    return;
+  }
   const b = event.target.closest?.("[data-unconfirm-slice]");
   if (!b) return;
   api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.unconfirmSlice),

@@ -324,6 +324,12 @@ function poHasFramework(fw) {
     var mine = allSlices.filter(function (x) {
       return (x.scenario_profile || {}).kind === "professional" && x.scenario_definition_id === defId;
     });
+    var pend = null;
+    try { pend = sessionStorage.getItem("poProPickSlice"); } catch (e) { pend = null; }
+    if (pend) {
+      try { sessionStorage.removeItem("poProPickSlice"); } catch (e) {}
+      if (mine.some(function (x) { return x.id === pend; })) sliceId = pend;
+    }
     if (!sliceId || !mine.some(function (x) { return x.id === sliceId; })) sliceId = mine[0] ? mine[0].id : null;
     // 未归属切片：所属场景已被删除（或从未归属）—— 不该消失，应当能捞回来
     var defIds = defs.map(function (d) { return d.id; });
@@ -392,6 +398,9 @@ function poHasFramework(fw) {
     // Override the handlers bound earlier: saving and drafting write to my slice.
     view.querySelectorAll("[data-save-framework]").forEach(function (b) {
       b.onclick = async function () {
+        if (!sliceId) { alert("请先点上面的「＋ 新建我的切片」建一条切片，框架保存在切片上。"); return; }
+        if (slice && slice.status === "confirmed" &&
+            !confirm("这条切片已启用，改动会影响对外调用。确定保存吗？")) return;
         // Anything still sitting in the line boxes gets imported and saved here, so nothing is lost silently.
         var lineTexts = {};
           var importedFw = null;   // framework returned by a successful line import (panels are stale)

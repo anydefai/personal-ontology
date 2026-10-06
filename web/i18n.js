@@ -993,6 +993,10 @@
   "估值中性（中": "估值中性（中",
   "操作失败：": "Operation failed: ",
   "未知错误": "unknown error",
+  "这条切片已启用，改动会影响对外调用。确定保存吗？": "This slice is enabled, so changes affect external calls. Save anyway?",
+  "这条切片已启用，改动会影响对外调用。确定保存吗": "This slice is enabled, so changes affect external calls. Save anyway",
+  "请先点上面的「＋ 新建我的切片」建一条切片，框架保存在切片上。": "Create a slice first with the + New slice of mine button above; the framework is stored on a slice.",
+  "请先点上面的「＋ 新建我的切片」建一条切片，框架保存在切片上": "Create a slice first with the + New slice of mine button above; the framework is stored on a slice.",
   };
 
 
