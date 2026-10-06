@@ -1165,3 +1165,28 @@ Three UI assertions added, three stale ones corrected; **58 uncovered against a 
 was restarted with all six slice routes registered; all **28 suites green**; asset version → **20261005a**.
 
 ### Deploy and tests
+
+### "Delivery and feedback" promoted to a top-level menu page, placed below "Skill preview"
+
+The user pointed out that the billing demo did not belong on the scenario-instance page and proposed a better
+structure directly.
+
+**Changes**: `web/index.html` gains a sidebar entry "对外交付与反馈" immediately after "场景预演"; `app.js`
+adds a `delivery` branch to the router and to the mode-switch fallback list, and a new `renderDelivery(view)`
+showing a table of my slices (slice, scenario, default tier, **tier pricing**, caller feedback, confidence),
+a **billing demo** (choose a slice and tier, simulate one call, see the amount due from your own prices), and
+a note on what a real call carries. The old "delivery and caller feedback" block is **removed from the
+scenario-instance page** so it is not duplicated, and in daily mode the page shows a friendly empty state with
+the mode switch.
+
+**This also answers the A/B question I asked earlier**: with a dedicated page, the billing demo travels with
+it instead of being squeezed onto an "enabled state" page that is about what the judgment looks like
+externally, not about money.
+
+The method held again: read the real text, validate a candidate with `node --check`, then replace — passing
+first time. The assertions were updated in step, since moving the block necessarily invalidated the old one.
+
+**57 uncovered against a baseline of 60**, having removed one more Chinese comment; UI tests **48/48**; all
+**28 suites green**; front-end only, so **no restart and no re-login**.
+
+### Deploy and tests

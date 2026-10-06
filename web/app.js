@@ -101,8 +101,8 @@ function titleBlock(kicker,title,subtitle,action=""){return `<div class="title-r
 function badge(value){const v=String(value??"").toLowerCase();const kind=["allow","deny","ask"].includes(v)?v:["true","active","person"].includes(v)?"active":["revoked","false"].includes(v)?"revoked":["high","critical"].includes(v)?"ask":"neutral";const text={allow:"允许",deny:"拒绝",ask:"需确认",true:"启用",false:"停用",person:"个人",low:"低",medium:"中",high:"高",critical:"严重"}[v]||value||"—";return `<span class="badge ${kind}">${esc(text)}</span>`}
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
-  else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
- if(["scenario-slices","scenario-instances","scenario-preview"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
+  else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
+ if(["scenario-slices","scenario-instances","scenario-preview","delivery"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
 async function renderAgentIntegration(view){
  const [configs,status]=await Promise.all([api("/manager/agent-configs"),api("/manager/status")]);
  const sessions=status.agent_sessions||[];
@@ -452,24 +452,7 @@ async function renderProfessionalInstances(view){
  const entries=allEntries.filter(e=>ids.has(e.slice_id));
  const active=entries.filter(e=>e.review_state==="active");
  view.innerHTML=`${proModeButtons()}
-  <section class="panel" style="padding:16px;margin-bottom:14px">
-   <div class="panel-title">对外交付与调用方反馈</div>
-   <div class="panel-caption" style="margin-top:6px">场景：${esc((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).display_name_zh||"—")} · 默认交付层级：${esc(((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).boundaries||{}).default_tier||"audit")}（在场景切片页的「对外交付时附上的说明」里修改）</div>
-   <div class="panel-caption">调用方反馈：${Number((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).feedback_total||0)} 次 · 置信度：${esc((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).confidence_status||"unverified")}</div>
-   <div class="panel-caption">真实调用交付时还会附上：审计号 · 有效期至 · 内容指纹 · 数字签名状态（预演不产生这些）</div>
-   <div class="panel-caption">反馈由调用方通过接口提交；满 10 次升为「初步置信度」，满 100 次升为「稳定置信度」</div>
-   <div style="margin-top:12px;border-top:1px solid #e6e9ef;padding-top:12px">
-    <div class="panel-caption" style="margin:0 0 8px">计费演示：演示数据，不写记录；价格由你在场景切片页设定</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-     <select class="select" id="bill-demo-tier" style="max-width:260px">
-      <option value="basic">基础层</option><option value="standard">标准层</option>
-      <option value="professional">专业层</option><option value="audit">审计层</option>
-     </select>
-     <button class="button" data-bill-demo>模拟一次调用</button>
-     <span class="panel-caption" style="margin:0" id="bill-demo-out"></span>
-    </div>
-   </div>
-  </section>
+  
  ${titleBlock("PROFESSIONAL INSTANCE","已启用的判断规则集","这是你的专业判断在对外可用时的形态——只列已启用的条目，并显示各自的前提与依据")}
  <section class="panel collection-panel">
   <div class="collection-toolbar"><span class="record-count"><span>已启用</span> ${active.length} <span>条</span> · <span>全部</span> ${entries.length} <span>条</span></span></div>
@@ -830,3 +813,66 @@ $$('.nav-item').forEach(button=>button.addEventListener("click",()=>navigate(but
 // 模式切换用事件委托：无论按钮由哪个渲染函数画出（日常页或专业页）都能响应。
 document.addEventListener("click",event=>{const bd=event.target.closest?.("[data-bill-demo]");if(!bd)return;const dn=(document.querySelector("#bill-demo-tier")||{}).value||"basic";const list=(typeof cache!=="undefined"&&cache["scenario-definitions"])||[];const dd=list[0]||{};const dp=((dd.boundaries||{}).pricing)||{};const dt=(dp.tiers||{})[dn];const du=dp.mode==="monthly"?"元/月":"元/次";const dl={basic:"基础层",standard:"标准层",professional:"专业层",audit:"审计层"}[dn];const out=document.querySelector("#bill-demo-out");if(out)out.textContent=(dt==null)?"这个层级还没有定价（到场景切片页的「对外交付时附上的说明」里填）":("应收 "+dt+" "+du+" · 调用方：示例调用方（"+dl+"）");});
 document.addEventListener("click",event=>{const b=event.target.closest?.("[data-pro-mode]");if(!b)return;professionalMode=b.dataset.proMode==="professional";try{localStorage.setItem("po.professionalMode",professionalMode?"1":"0")}catch(e){}render()});$("#refresh").onclick=reloadAll;$("#token-button").onclick=()=>navigate("account-security");refreshService();render();
+
+
+// -- Delivery and feedback (a top-level menu page) --
+async function renderDelivery(view){
+  if(!professionalMode){
+    view.innerHTML=`${proModeButtons()}${titleBlock("DELIVERY & FEEDBACK","对外交付与反馈","这一页属于专业判断侧：看你的判断对外交付的层级与定价，以及调用方的反馈统计。")}
+     <section class="panel empty-state"><div class="empty-icon">◇</div>先在上方切到「专业技能场景」</section>`;
+    return;
+  }
+  const [defs,slices]=await Promise.all([load("scenario-definitions"),load("scenario-slices")]);
+  const mine=(slices||[]).filter(x=>(x.scenario_profile||{}).kind==="professional");
+  const nameOf=s=>(s.analysis&&s.analysis.title)||s.original_text||s.id;
+  const rows=mine.map(s=>{
+    const b=s.boundaries||{}, pr=b.pricing||{}, tiers=pr.tiers||{};
+    const ft=Number(s.feedback_total||0), fa=Number(s.feedback_accurate||0);
+    const unit=pr.mode==="monthly"?" 元/月":" 元/次";
+    const price=t=>tiers[t]==null?"未定价":(tiers[t]+unit);
+    return `<tr><td>${esc(nameOf(s))}</td>
+      <td>${esc((defs.find(d=>d.id===s.scenario_definition_id)||{}).display_name_zh||"—")}</td>
+      <td>${esc(b.default_tier||"audit")}</td>
+      <td>基础 ${esc(price("basic"))} · 标准 ${esc(price("standard"))} · 专业 ${esc(price("professional"))} · 审计 ${esc(price("audit"))}</td>
+      <td>${ft?esc(String(ft)+" 次 · "+Math.round(fa/ft*100)+"%"):"—"}</td>
+      <td>${esc(s.confidence_status||"unverified")}</td></tr>`;
+  }).join("");
+  view.innerHTML=`${proModeButtons()}
+   ${titleBlock("DELIVERY & FEEDBACK","对外交付与反馈","你的判断对外交付的层级与定价，以及调用方的反馈统计。层级、定价、洞察与资历都在「场景切片」页的交付说明里设置。")}
+   <section class="panel collection-panel">
+    <div class="collection-toolbar"><span class="record-count"><span>我的切片</span> ${mine.length} <span>条</span></span><span class="toolbar-spacer"></span><button class="button" id="dl-reload">↻ 刷新</button></div>
+    <div class="table-wrap"><table><thead><tr><th>我的切片</th><th>场景</th><th>默认层级</th><th>四层定价</th><th>调用方反馈</th><th>置信度</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="empty-state" ${mine.length?"hidden":""}><div class="empty-icon">◇</div>还没有专业切片。到「场景切片」页新建一条。</div>
+   </section>
+   <section class="panel" style="padding:16px;margin-bottom:16px">
+    <div class="panel-title">计费演示</div>
+    <div class="panel-caption" style="margin:6px 0 10px">演示数据，不写记录；价格与计费方式由你在「场景切片」页设定。</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+     <select class="select" id="bill-demo-slice" style="max-width:280px">${mine.map(s=>`<option value="${esc(s.id)}">${esc(nameOf(s))}</option>`).join("")}</select>
+     <select class="select" id="bill-demo-tier" style="max-width:220px">
+      <option value="basic">基础层</option><option value="standard">标准层</option>
+      <option value="professional">专业层</option><option value="audit">审计层</option></select>
+     <button class="button" id="bill-demo-run">模拟一次调用</button>
+     <span class="panel-caption" style="margin:0" id="bill-demo-out"></span>
+    </div>
+   </section>
+   <section class="panel" style="padding:16px">
+    <div class="panel-title">真实调用时会附上什么</div>
+    <div class="panel-caption" style="margin-top:6px">审计号 · 有效期至 · 内容指纹 · 数字签名状态（预演不产生这些）；反馈由调用方通过接口提交，满 10 次升为「初步置信度」，满 100 次升为「稳定置信度」</div>
+   </section>`;
+  const rel=view.querySelector("#dl-reload"); if(rel) rel.onclick=()=>{cache["scenario-slices"]=null;render()};
+  const run=view.querySelector("#bill-demo-run");
+  if(run) run.onclick=()=>{
+    const sid=(view.querySelector("#bill-demo-slice")||{}).value||"";
+    const t=(view.querySelector("#bill-demo-tier")||{}).value||"basic";
+    const s=mine.find(x=>x.id===sid)||{};
+    const pr=(s.boundaries||{}).pricing||{}, amt=(pr.tiers||{})[t];
+    const unit=pr.mode==="monthly"?" 元/月":" 元/次";
+    const label={basic:"基础层",standard:"标准层",professional:"专业层",audit:"审计层"}[t];
+    const out=view.querySelector("#bill-demo-out");
+    if(out) out.textContent=(amt==null)
+      ?(label+" 还没有定价（到场景切片页的交付说明里填）")
+      :("应收 "+amt+unit+" · 调用方：示例调用方（"+label+"）");
+  };
+  view.querySelectorAll("[data-pro-mode]").forEach(b=>{b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";try{localStorage.setItem("po.professionalMode",professionalMode?"1":"0")}catch(e){}render()}});
+}

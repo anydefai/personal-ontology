@@ -69,7 +69,11 @@ check("反馈入口在界面上（准确/不准确）", "pe-fb-ok" in app and "p
 check("切片页有常驻底部保存栏（改动不会自动保存）", "pro-savebar" in _pro and _pro.count("data-save-framework") >= 2)
 check("预演页不再展示交付身份信息，改为预演说明", "proPreviewNote" in app and "pe-feedback-panel" not in app)
 check("分层设置移到切片页（默认交付层级）", "data-dlv-tier" in _pro and "pe-tier" not in app)
-check("场景实例页接住对外交付与反馈统计", "对外交付与调用方反馈" in app)
+check("对外交付与反馈是独立一级菜单（在场景预演之后）",
+      'data-page="delivery"' in pathlib.Path(__file__).resolve().parent.parent.joinpath("web/index.html").read_text(encoding="utf-8")
+      and 'currentPage==="delivery")await renderDelivery(view)' in app)
+check("该区块已从场景实例页移除（不再重复）", "对外交付与调用方反馈" not in app)
+check("计费演示已随该页走（不再挤在场景实例页）", app.count("bill-demo-run") == 2 and "id=\"bill-demo-slice\"" in app)
 check("四层价格由用户自己填（切片页）", _pro.count("data-price-tier") >= 2 and "data-price-mode" in _pro and "pricing" in _pro)
 check("场景实例页有计费演示（读本人定价）", "data-bill-demo" in app and "bill-demo-tier" in app and "pricing" in app)
 check("切片页是两级选择（场景模板 + 我的切片）并从切片读数据",
