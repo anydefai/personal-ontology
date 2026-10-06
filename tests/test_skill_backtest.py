@@ -72,22 +72,28 @@ except ValueError as exc:
 # ── 经接口 ──
 async def api_part():
     st, pl = await call("POST", "/v1/setup", body={"password": "Backtest-94!"}); token = pl["token"]
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/backtest",
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/backtest",
                        body={"cases": CASES}, token=token)
     check("未配置框架 → 409", st == 409, f"HTTP {st}")
-    await call("PATCH", "/v1/scenario-definitions/legal.acquisition",
+    await call("PATCH", "/v1/scenario-definitions/test.scenario",
                body={"framework": FRAMEWORK}, token=token)
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/backtest",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/backtest",
                        body={"cases": "x"}, token=token)
     check("cases 非法 → 422", st == 422, f"HTTP {st}")
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/backtest",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/backtest",
                        body={"cases": [{"inputs": {}}]}, token=token)
     check("案例缺字段 → 422 并说明原因",
           st == 422 and "actual_result" in json.dumps(r, ensure_ascii=False), f"HTTP {st} {str(r)[:120]}")
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/backtest",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/backtest",
                        body={"cases": CASES, "persist": True}, token=token)
     check("回测成功并持久化", st == 200 and r.get("accuracy") == 0.78, f"HTTP {st} {str(r)[:120]}")
-    st, one = await call("GET", "/v1/scenario-definitions/legal.acquisition", token=token)
+    st, one = await call("GET", "/v1/scenario-definitions/test.scenario", token=token)
     check("置信度已写回定义（0.78 / backtested）",
           abs(float(one.get("confidence") or 0) - 0.78) < 1e-9 and one.get("confidence_status") == "backtested",
           f"{one.get('confidence')}/{one.get('confidence_status')}")
@@ -95,7 +101,7 @@ async def api_part():
           "50" in (one.get("confidence_basis") or "") and "78" in (one.get("confidence_basis") or ""),
           str(one.get("confidence_basis"))[:100])
     # 闭环：判定包里能读到置信度
-    st, pkg = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate",
+    st, pkg = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate",
                          body={"data": {"行业": "新能源", "市盈率": 45, "行业平均市盈率": 30,
                                         "行业周期位置": "上升期", "现金流状况": "健康"}}, token=token)
     check("判定包带出置信度（闭环）",

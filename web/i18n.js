@@ -880,6 +880,9 @@
   "草稿就在这里：一条切片": "Your drafts are here: one slice",
   "一套你的判断": "one set of your judgments",
   "删除这条切片？它的框架、定价与调整记录都会一并删除": "Delete this slice? Its framework, pricing and adjustment log go with it",
+  "请先新建或选择一个场景（切片必须挂在某个场景下）。": "Create or choose a scenario first (a slice must belong to one).",
+  "请先新建或选择一个场景（切片必须挂在某个场景下）": "Create or choose a scenario first (a slice must belong to one)",
+  "请先新建或选择一个场景（切片必须挂在某个场景下": "Create or choose a scenario first (a slice must belong to one",
   };
 
 

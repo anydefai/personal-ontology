@@ -52,13 +52,19 @@ except skill_draft.DraftError as exc:
 # ── 经接口（临时数据目录，模型未配置 → 必须明确报错，不能伪造草稿）──
 async def api_part():
     st, pl = await call("POST", "/v1/setup", body={"password": "Draft-94!"}); token = pl["token"]
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
     st, r = await call("POST", "/v1/scenario-definitions/legal.nope/draft",
                        body={"description": "我判断并购估值时会先分行业，再按行业周期调整阈值。"}, token=token)
     check("定义不存在 → 404", st == 404, f"HTTP {st}")
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/draft",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/draft",
                        body={"description": "太短"}, token=token)
     check("描述过短 → 422", st == 422, f"HTTP {st}")
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/draft",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/draft",
                        body={"description": "我判断并购估值时会先分行业，再按行业周期调整阈值。"}, token=token)
     check("未配置模型 → 503 明确报错（不返回伪造草稿）",
           st == 503 and "模型" in json.dumps(r, ensure_ascii=False), f"HTTP {st} {str(r)[:140]}")

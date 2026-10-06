@@ -14,6 +14,12 @@ DAILY = {"title": "订酒店", "facts": [], "questions": [], "scope": {"mode": "
 
 async def main():
     st, pl = await call("POST", "/v1/setup", body={"password": "Prof-Model-94!"}); token = pl["token"]
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
 
     # —— ① 内置领域包与场景骨架 ——
     st, packs = await call("GET", "/v1/domain-packs", token=token)
@@ -21,16 +27,16 @@ async def main():
     check("内置法律领域包 legal.cn 已播种", "legal.cn" in ids, str(ids))
     st, defs = await call("GET", "/v1/scenario-definitions", token=token)
     dids = sorted(i["id"] for i in defs["items"])
-    check("内置 3 个法律场景骨架", dids == ["legal.acquisition", "legal.contract", "legal.labor"], str(dids))
+    check("专业侧不再预置内置场景（种子已移除）",
+          dids == ["test.scenario", "test.scenario2"], str(dids))
     check("内置数据不重复（id 唯一）", len(dids) == len(set(dids)), str(dids))
 
-    st, one = await call("GET", "/v1/scenario-definitions/legal.acquisition", token=token)
-    check("双语显示名齐全", one.get("display_name_zh") == "收购评估" and one.get("display_name_en") == "Acquisition assessment",
+    st, one = await call("GET", "/v1/scenario-definitions/test.scenario", token=token)
+    check("双语显示名齐全", one.get("display_name_zh") == "测试场景" and one.get("display_name_en") == "测试场景",
           f"{one.get('display_name_zh')} / {one.get('display_name_en')}")
     check("多值关系回读为数组", one.get("domain_pack_ids") == ["legal.cn"], str(one.get("domain_pack_ids")))
     slots = one.get("entry_slots") or {}
-    check("四槽结构完整", set(slots) == SLOTS, str(list(slots)))
-    check("四槽标签中英双语", all(isinstance(v, dict) and "zh" in v and "en" in v for v in slots.values()), str(slots))
+    check("不再预置四槽骨架（场景由用户自建）", not slots, str(list(slots)))
     # 内置场景骨架来自工程实现，**不得携带任何编造的专业前提要素**（2026-10-04 决定撤掉自造示例）
     check("内置场景不携带编造的前提要素", one.get("premise_fields") in (None, []),
           str(one.get("premise_fields"))[:80])
@@ -52,13 +58,13 @@ async def main():
     st, _ = await call("POST", "/v1/scenario-slices",
                        body={"original_text": "收购评估：判断是否需要经营者集中申报",
                              "status": "analyzed", "analysis": {"title": "收购评估"},
-                             "scenario_definition_id": "legal.acquisition",
+                             "scenario_definition_id": "test.scenario",
                              "scenario_profile": {"kind": "professional", "domain_pack_ids": ["legal.cn"]},
                              "updated_at": "2026-01-02T00:00:00Z"}, token=token)
     check("专业切片可创建并挂到场景定义", st in (200, 201), f"HTTP {st} {str(_)[:100]}")
     st, lst = await call("GET", "/v1/scenario-slices", token=token)
     pro = [i for i in lst["items"] if i.get("scenario_definition_id")]
-    check("专业切片的关系已写入", len(pro) == 1 and pro[0]["scenario_definition_id"] == "legal.acquisition",
+    check("专业切片的关系已写入", len(pro) == 1 and pro[0]["scenario_definition_id"] == "test.scenario",
           str([i.get("scenario_definition_id") for i in lst["items"]]))
     pro_id = pro[0]["id"]
     st, pr = await call("GET", f"/v1/scenario-slices/{pro_id}", token=token)

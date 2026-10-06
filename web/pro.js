@@ -409,6 +409,7 @@
     if (sliceSel) sliceSel.onchange = function () { sliceId = sliceSel.value; state = null; render(); };
     var addSlice = view.querySelector("#pro-add-slice");
     if (addSlice) addSlice.onclick = async function () {
+      if (!defId) { alert("请先新建或选择一个场景（切片必须挂在某个场景下）。"); return; }
       var name = ((view.querySelector("#pro-new-slice") || {}).value || "").trim() || "我的切片";
       var out = await api("/v1/scenario-slices", { method: "POST", body: JSON.stringify({
         original_text: name, status: "analyzed", scenario_definition_id: defId,

@@ -34,33 +34,39 @@ async def api_part():
     st, pl = await call("POST", "/v1/setup", body={"password": "Pkg-94-ok!"})
     assert "token" in pl, f"setup 失败：HTTP {st} {json.dumps(pl, ensure_ascii=False)[:200]}"
     token = pl["token"]
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
     import json as _j
     fw = {"framework_version": "T-V1", "thresholds": {"base": 1.0, "adjustments": []},
           "signals": [{"name": "偏高", "when": {"市盈率": {"op": "gt", "value": 39}}}],
           "combination_rules": [{"all_of": ["偏高"], "conclusion": "估值偏高", "severity": "高"}]}
-    await call("PATCH", "/v1/scenario-definitions/legal.acquisition",
+    await call("PATCH", "/v1/scenario-definitions/test.scenario",
                body={"framework": fw, "insight": "普通判断只看市盈率，本判断还看周期与监管。",
                      "owner_credentials": "执业15年，主导过80+并购案", "valid_days": 2}, token=token)
     DATA = {"data": {"市盈率": 45}, "tier": "audit"}
-    st, full = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate", body=DATA, token=token)
+    st, full = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate", body=DATA, token=token)
     check("审计层交付成功", st == 200 and full.get("tier") == "audit", f"HTTP {st}")
     check("含专业洞察与资历", full.get("professional_insight", "").startswith("普通判断") and "执业" in full.get("owner_credentials", ""), str(full.get("professional_insight"))[:40])
     check("含审计号与有效期", str(full.get("audit_id", "")).startswith("AUDIT-") and full.get("valid_until"), f"{full.get('audit_id')} / {full.get('valid_until')}")
     check("含内容指纹且不算签名", full.get("content_fingerprint") and full.get("signature_status") == "not_implemented", str(full.get("signature_status")))
-    st, basic = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate",
+    st, basic = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate",
                            body={"data": {"市盈率": 45}, "tier": "basic"}, token=token)
     check("基础层只回结论与严重度", st == 200 and "evidence" not in basic and "professional_insight" not in basic, str(sorted(basic)))
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate",
                        body={"data": {"市盈率": 45}, "tier": "乱写"}, token=token)
     check("非法分层 → 422", st == 422, f"HTTP {st}")
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/feedback", body={"verdict": "乱写"}, token=token)
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/feedback", body={"verdict": "乱写"}, token=token)
     check("非法反馈 → 422", st == 422, f"HTTP {st}")
     for i in range(9):
-        st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/feedback", body={"verdict": "accurate"}, token=token)
+        st, r = await call("POST", "/v1/scenario-definitions/test.scenario/feedback", body={"verdict": "accurate"}, token=token)
     check("9 次反馈 → 仍未验证", r.get("confidence_status") == "unverified", str(r))
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/feedback", body={"verdict": "inaccurate"}, token=token)
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/feedback", body={"verdict": "inaccurate"}, token=token)
     check("第 10 次反馈 → 初步置信度", r.get("confidence_status") == "preliminary" and r.get("feedback_total") == 10, str(r))
-    st, one = await call("GET", "/v1/scenario-definitions/legal.acquisition", token=token)
+    st, one = await call("GET", "/v1/scenario-definitions/test.scenario", token=token)
     check("置信度已写回定义（9/10 一致 = 0.9）",
           abs(float(one.get("confidence") or 0) - 0.9) < 1e-9 and one.get("confidence_status") == "preliminary",
           f"{one.get('confidence')}/{one.get('confidence_status')}")

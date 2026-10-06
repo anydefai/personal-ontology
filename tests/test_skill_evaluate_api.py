@@ -31,10 +31,16 @@ CASE = {"行业": "新能源", "市盈率": 45, "行业平均市盈率": 30, "�
 
 async def main():
     st, pl = await call("POST", "/v1/setup", body={"password": "Skill-Api-94!"}); token = pl["token"]
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
 
     # ① 没有框架时要明确报错（不能静默给结论）
     # 同时验证：错误文案会按 X-Display-Language 解析成对应语言（不是抛原始消息键）
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate",
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate",
                        body={"data": CASE}, token=token, headers={"X-Display-Language": "en"})
     check("未配置框架 → 409 明确报错", st == 409, f"HTTP {st} {str(r)[:100]}")
     check("报错文案按显示语言英文化", "skill framework" in json.dumps(r, ensure_ascii=False), str(r)[:140])
@@ -44,17 +50,17 @@ async def main():
     check("定义不存在 → 404", st == 404, f"HTTP {st}")
 
     # ③ 写入框架（走通用 PATCH，无需专属端点）
-    st, r = await call("PATCH", "/v1/scenario-definitions/legal.acquisition",
+    st, r = await call("PATCH", "/v1/scenario-definitions/test.scenario",
                        body={"framework": FRAMEWORK, "confidence": 0.78,
                              "confidence_status": "backtested",
                              "confidence_basis": "基于50个历史案例回测，准确率78%"}, token=token)
     check("框架可经通用 PATCH 写入", st in (200, 201), f"HTTP {st} {str(r)[:100]}")
-    st, one = await call("GET", "/v1/scenario-definitions/legal.acquisition", token=token)
+    st, one = await call("GET", "/v1/scenario-definitions/test.scenario", token=token)
     check("框架读回为对象", isinstance(one.get("framework"), dict)
           and one["framework"].get("framework_version") == "JUDGMENT-FRAMEWORK-V2", str(one.get("framework"))[:80])
 
     # ④ 判定
-    st, pkg = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate",
+    st, pkg = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate",
                          body={"data": CASE}, token=token)
     check("判定成功（200）", st == 200, f"HTTP {st} {str(pkg)[:120]}")
     check("结论 估值偏高", pkg.get("decision") == "估值偏高", str(pkg.get("decision")))
@@ -66,16 +72,16 @@ async def main():
     check("置信度透传（0.78 / backtested）",
           abs(float(pkg.get("confidence") or 0) - 0.78) < 1e-9 and pkg.get("confidence_status") == "backtested",
           f"{pkg.get('confidence')}/{pkg.get('confidence_status')}")
-    check("回带 definition_id", pkg.get("definition_id") == "legal.acquisition", str(pkg.get("definition_id")))
+    check("回带 definition_id", pkg.get("definition_id") == "test.scenario", str(pkg.get("definition_id")))
 
     # ⑤ 非法输入 → 422
-    st, r = await call("POST", "/v1/scenario-definitions/legal.acquisition/evaluate", body={"data": "x"}, token=token)
+    st, r = await call("POST", "/v1/scenario-definitions/test.scenario/evaluate", body={"data": "x"}, token=token)
     check("非法输入 → 422", st == 422, f"HTTP {st}")
 
     # ⑥ 内置记录升级不得抹掉用户后加的 framework（刚修的数据丢失隐患）
     from backend import api as api_module
     api_module.store._ensure_builtins()
-    st, again = await call("GET", "/v1/scenario-definitions/legal.acquisition", token=token)
+    st, again = await call("GET", "/v1/scenario-definitions/test.scenario", token=token)
     check("再次播种后框架仍在（用户字段不被覆盖）",
           isinstance(again.get("framework"), dict) and abs(float(again.get("confidence") or 0) - 0.78) < 1e-9,
           f"framework={'有' if again.get('framework') else '无'} confidence={again.get('confidence')}")

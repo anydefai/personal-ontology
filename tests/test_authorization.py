@@ -41,17 +41,23 @@ check("边界允许但调用方未承诺不转售 → 拒绝", r["result"] == "d
 
 async def api_part():
     st, pl = await call("POST", "/v1/setup", body={"password": "Auth-94!"}); token = pl["token"]
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
     st, _ = await call("POST", "/v1/scenario-definitions/legal.nope/authorize", body=REQ, token=token)
     check("定义不存在 → 404", st == 404, f"HTTP {st}")
-    st, one = await call("POST", "/v1/scenario-definitions/legal.acquisition/authorize", body=REQ, token=token)
+    st, one = await call("POST", "/v1/scenario-definitions/test.scenario/authorize", body=REQ, token=token)
     check("未设边界的内置场景 → 拒绝（默认拒绝）", st == 200 and one.get("result") == "deny", f"HTTP {st} {one.get('result')}")
-    await call("PATCH", "/v1/scenario-definitions/legal.acquisition", body={"boundaries": B}, token=token)
-    st, one = await call("POST", "/v1/scenario-definitions/legal.acquisition/authorize", body=REQ, token=token)
+    await call("PATCH", "/v1/scenario-definitions/test.scenario", body={"boundaries": B}, token=token)
+    st, one = await call("POST", "/v1/scenario-definitions/test.scenario/authorize", body=REQ, token=token)
     check("设好边界后 → 允许", st == 200 and one.get("result") == "allow", f"HTTP {st} {one.get('result')}")
-    st, one = await call("POST", "/v1/scenario-definitions/legal.acquisition/authorize",
+    st, one = await call("POST", "/v1/scenario-definitions/test.scenario/authorize",
                          body=dict(REQ, amount=1500000000), token=token)
     check("经接口：超限 → 需确认", st == 200 and one.get("result") == "confirm", one.get("result"))
-    check("回带 definition_id", one.get("definition_id") == "legal.acquisition", str(one.get("definition_id")))
+    check("回带 definition_id", one.get("definition_id") == "test.scenario", str(one.get("definition_id")))
 
 asyncio.run(api_part())
 p = sum(1 for ok, _ in RESULTS if ok)

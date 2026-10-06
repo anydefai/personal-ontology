@@ -15,7 +15,7 @@ FW = {"framework_version": "SLICE-V2", "thresholds": {"base": 1.0, "adjustments"
       "signals": [{"name": "偏高", "when": {"市盈率": {"op": "gt", "value": 39}}}],
       "combination_rules": [{"all_of": ["偏高"], "conclusion": "估值偏高", "severity": "高"}]}
 SLICE = {"id": "slice.ma.mine", "original_text": "我的收购评估", "status": "analyzed",
-         "scenario_definition_id": "legal.acquisition", "scenario_profile": {"kind": "professional"},
+         "scenario_definition_id": "test.scenario", "scenario_profile": {"kind": "professional"},
          "analysis": {"title": "我的收购评估"}, "updated_at": "2026-10-06T00:00:00",
          "framework": FW, "insight": "同时看行业周期与监管", "owner_credentials": "执业 15 年",
          "valid_days": 3,
@@ -26,6 +26,12 @@ async def main():
     st, pl = await call("POST", "/v1/setup", body={"password": "SliceApi-94!"})
     assert "token" in pl, f"setup 失败 {st} {pl}"
     token = pl["token"]
+    # 测试自建场景（不依赖内置种子：内置场景已按用户要求删除）
+    for _sid, _zh in (("test.scenario", "测试场景"), ("test.scenario2", "测试场景二")):
+        await call("POST", "/v1/scenario-definitions", body={
+            "id": _sid, "display_name_zh": _zh, "display_name_en": _zh,
+            "domain_pack_ids": ["legal.cn"], "version": "1.0.0",
+            "lifecycle_state": "active", "is_builtin": False}, token=token)
 
     # ① 判定取自切片
     st, r = await call("POST", "/v1/scenario-slices/slice.nope/evaluate", body={"data": {}}, token=token)
@@ -35,7 +41,7 @@ async def main():
                          body={"data": {"市盈率": 45}, "tier": "audit"}, token=token)
     check("用切片框架判定成功", st == 200 and pkg.get("decision") == "估值偏高", f"HTTP {st} {str(pkg)[:80]}")
     check("回带 slice_id 与来源定义", pkg.get("slice_id") == "slice.ma.mine"
-          and pkg.get("definition_id") == "legal.acquisition", f"{pkg.get('slice_id')}/{pkg.get('definition_id')}")
+          and pkg.get("definition_id") == "test.scenario", f"{pkg.get('slice_id')}/{pkg.get('definition_id')}")
     st, prof = await call("POST", "/v1/scenario-slices/slice.ma.mine/evaluate",
                           body={"data": {"市盈率": 45}}, token=token)
     check("不指定层级时取切片的默认层级（professional）", prof.get("tier") == "professional", str(prof.get("tier")))
@@ -102,7 +108,7 @@ async def main():
     check("预演不写记录（交付记录数不变）", len(mine2) == len(mine), f"{len(mine)} → {len(mine2)}")
 
     # ⑥ 迁移：定义上的框架搬到切片，且幂等
-    await call("PATCH", "/v1/scenario-definitions/legal.labor",
+    await call("PATCH", "/v1/scenario-definitions/test.scenario2",
                body={"framework": dict(FW, framework_version="FROM-DEF"), "insight": "旧位置"}, token=token)
     st, mv = await call("POST", "/v1/scenario-slices/migrate-from-definitions", token=token)
     check("迁移创建了切片", st == 200 and mv.get("count") == 1, f"{st} {json.dumps(mv, ensure_ascii=False)[:120]}")
@@ -111,7 +117,7 @@ async def main():
     check("框架已搬到新切片", (one.get("framework") or {}).get("framework_version") == "FROM-DEF",
           str((one.get("framework") or {}).get("framework_version")))
     check("洞察也一并搬走", one.get("insight") == "旧位置", str(one.get("insight")))
-    st, d = await call("GET", "/v1/scenario-definitions/legal.labor", token=token)
+    st, d = await call("GET", "/v1/scenario-definitions/test.scenario2", token=token)
     check("定义上的个人字段已清空（保持可共享的干净）", not d.get("framework") and not d.get("insight"),
           f"{bool(d.get('framework'))}/{d.get('insight')}")
     st, mv2 = await call("POST", "/v1/scenario-slices/migrate-from-definitions", token=token)
