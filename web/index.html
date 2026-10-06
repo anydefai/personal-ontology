@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>个人本体治理 · 本地控制台</title>
-  <link rel="stylesheet" href="/assets/app.css?v=20261006g">
-  <script src="/assets/i18n.js?v=20261006g"></script>
-  <script src="/assets/app.js?v=20261006g" defer></script>
-  <script src="/assets/pro.js?v=20261006g"></script>
+  <link rel="stylesheet" href="/assets/app.css?v=20261006h">
+  <script src="/assets/i18n.js?v=20261006h"></script>
+  <script src="/assets/app.js?v=20261006h" defer></script>
+  <script src="/assets/pro.js?v=20261006h"></script>
 <style>
     /* pro-row / pro-grid had no rules at all: the professional panels' controls were plain inline elements,
        so they wrapped onto two lines as soon as the window was narrow. One row per item now. */
@@ -20,7 +20,19 @@
     .pro-grid > * { min-width: 0; }
     .pro-grid input, .pro-grid select { width: 100%; }
     .pro-check { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; white-space: nowrap; }
-  </style>
+  
+    /* Post-render polish: a sticky index beside the editor, and foldable panels. */
+    .pro-editor-wrap { display: flex; gap: 14px; align-items: flex-start; margin-top: 10px; }
+    .pro-toc { position: sticky; top: 12px; flex: 0 0 168px; display: flex; flex-direction: column;
+               gap: 4px; max-height: 80vh; overflow: auto; }
+    .pro-toc a { font-size: 12px; text-decoration: none; color: inherit; opacity: .82; padding: 2px 0; }
+    .pro-toc a:hover { opacity: 1; text-decoration: underline; }
+    .pro-editor-wrap > #pro-editor { flex: 1 1 auto; min-width: 0; }
+    #pro-editor details { margin-bottom: 10px; }
+    #pro-editor details > summary { cursor: pointer; font-weight: 600; padding: 8px 10px;
+                                    background: rgba(127,127,127,.10); border-radius: 6px; }
+    @media (max-width: 900px) { .pro-editor-wrap { display: block; } .pro-toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 10px; max-height: none; } }
+</style>
 </head>
 <body>
   <div class="shell">
@@ -64,6 +76,6 @@
 
   <dialog id="record-dialog" class="modal"><form method="dialog" class="modal-dismiss"><button aria-label="关闭">×</button></form><div id="dialog-content"></div></dialog>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
-  <div id="build-version" style="position:fixed;right:10px;bottom:8px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#8a94a6;background:rgba(255,255,255,.82);padding:2px 7px;border-radius:5px;pointer-events:none">BUILD 20261006g</div>
+  <div id="build-version" style="position:fixed;right:10px;bottom:8px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#8a94a6;background:rgba(255,255,255,.82);padding:2px 7px;border-radius:5px;pointer-events:none">BUILD 20261006h</div>
 </body>
 </html>

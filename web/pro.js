@@ -174,7 +174,10 @@ function poHasFramework(fw) {
       f.inputs.map(function (i, n) {
         var t = (i.type === "number" && i.__money) ? "money" : (i.type || "string");
         return row('<div style="min-width:150px">' + input(i.name, 'data-in-name="' + n + '" placeholder="叫什么，例如：标的行业"') + "</div>" +
-          '<div style="min-width:220px"><select class="select" data-in-type="' + n + '">' +
+          '<div style="min-width:220px">' +
+        '<span class="badge" data-in-type-label="' + n + '">' + esc(TYPE_LABEL[(i.type || "string")] || i.type || "一句描述或名称") + '</span> ' +
+        '<a href="#" data-in-type-edit="' + n + '" style="font-size:12px">改</a>' +
+        '<select class="select" data-in-type="' + n + '" style="display:none;margin-top:4px">' +
             TYPES.map(function (x) { return '<option value="' + x[0] + '"' + (t === x[0] ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") +
           "</select></div>" +
           '<div style="min-width:240px">' +
@@ -430,9 +433,26 @@ function poHasFramework(fw) {
         rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
       "</div>";
     bind(view);
+    polishPanels(view);
     // Override the handlers bound earlier: saving and drafting write to my slice.
     view.querySelectorAll("[data-confirm-slice]").forEach(function (b) {
       b.onclick = function () { window.poEnableFor = b.dataset.confirmSlice; render(); };
+    });
+    view.querySelectorAll("[data-in-type-edit]").forEach(function (a) {
+      a.onclick = function (ev) {
+        ev.preventDefault();
+        var n = a.dataset.inTypeEdit;
+        var sel = view.querySelector('[data-in-type="' + n + '"]');
+        var lab = view.querySelector('[data-in-type-label="' + n + '"]');
+        if (sel) { sel.style.display = ""; sel.focus(); }
+        if (lab) lab.style.display = "none";
+        if (sel) sel.onchange = function () {
+          if (lab) { lab.textContent = TYPE_LABEL[sel.value] || sel.value; lab.style.display = ""; }
+          sel.style.display = "none";
+          var vals = view.querySelector('[data-in-values="' + n + '"]');
+          if (vals) vals.style.display = (sel.value === "enum" || sel.value === "multi") ? "" : "none";
+        };
+      };
     });
     view.querySelectorAll("[data-cancel-enable]").forEach(function (b) {
       b.onclick = function () { window.poEnableFor = null; render(); };
@@ -951,7 +971,7 @@ function poHasFramework(fw) {
     if (tierSel) tierSel.onchange = function () { state.__tier = tierSel.value; };
   }
 
-  window.POPro = { renderSlices: renderSlices };
+  window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
 })();
 
 
@@ -1069,4 +1089,44 @@ function granteePicker(principals) {
     '<span>被授权方（调用方）</span><select class="select" data-enable-grantee>' + options + "</select>" +
     '<button class="button primary" data-do-enable>确认启用</button>' +
     '<button class="button" data-cancel-enable>取消</button></div>';
+}
+
+// -- Post-render polish: fold each editor panel and build a sticky index beside it. DOM-only, so it cannot
+//    disturb the panel templates (and it is guarded so a second render never double-wraps). --
+function polishPanels(view) {
+  var ed = view.querySelector("#pro-editor");
+  if (!ed || ed.dataset.polished === "1") return;
+  ed.dataset.polished = "1";
+  var sections = Array.prototype.slice.call(ed.children).filter(function (el) {
+    return el.classList && el.classList.contains("panel");
+  });
+  if (!sections.length) return;
+  var toc = document.createElement("div");
+  toc.className = "pro-toc";
+  sections.forEach(function (sec) {
+    var t = sec.querySelector(".panel-title");
+    var title = t ? t.textContent.trim() : "面板";
+    var count = sec.querySelectorAll("[data-del]").length;
+    var d = document.createElement("details");
+    d.open = count > 0;
+    var sum = document.createElement("summary");
+    sum.textContent = title + (count ? " · " + count + " 条" : " · 还没填");
+    if (t) t.style.display = "none";
+    sec.parentNode.insertBefore(d, sec);
+    d.appendChild(sec);
+    var link = document.createElement("a");
+    link.href = "#";
+    link.textContent = title;
+    link.onclick = function (ev) {
+      ev.preventDefault();
+      d.open = true;
+      if (sec.scrollIntoView) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    toc.appendChild(link);
+  });
+  var wrap = document.createElement("div");
+  wrap.className = "pro-editor-wrap";
+  ed.parentNode.insertBefore(wrap, ed);
+  wrap.appendChild(toc);
+  wrap.appendChild(ed);
 }

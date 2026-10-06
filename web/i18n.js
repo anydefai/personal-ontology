@@ -1062,6 +1062,9 @@
   "请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列": "Go to \"what I observe\" above and add a dimension to the end of each signal row (for example | finance); save and return, and the columns will appear here",
   "在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列。": "add a dimension to the end of each signal row (for example | finance); save and return and the columns appear",
   "核对与微调": "Review and fine-tune",
+  "改": "change",
+  "还没填": "not filled in yet",
+  "面板": "Panel",
   };
 
 
