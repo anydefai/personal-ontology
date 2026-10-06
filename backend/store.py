@@ -180,10 +180,12 @@ class RDFStore:
             ("actions", "app.launch", {"display_name_zh":"打开应用", "display_name_en":"Launch", "applies_to":"app", "risk_level":"low"}),
             ("actions", "app.control", {"display_name_zh":"控制应用", "display_name_en":"Control", "applies_to":"app", "risk_level":"high"}),
             ("actions", "network.connect", {"display_name_zh":"连接网络", "display_name_en":"Connect", "applies_to":"network", "risk_level":"medium"}),
+            ("actions", "skill.call", {"display_name_zh":"调用专业判断", "display_name_en":"Call professional judgment", "applies_to":"skill", "risk_level":"low"}),
             ("actions", "network.send", {"display_name_zh":"发送网络数据", "display_name_en":"Send", "applies_to":"network", "risk_level":"high"}),
             ("resource-types", "file", {"type_name":"file", "display_name_zh":"文件", "display_name_en":"File", "matcher_id":"glob", "actions":["file.read","file.write","file.delete"], "default_priority":0, "is_builtin":True}),
             ("resource-types", "app", {"type_name":"app", "display_name_zh":"应用", "display_name_en":"Application", "matcher_id":"glob", "actions":["app.launch","app.control"], "default_priority":0, "is_builtin":True}),
             ("resource-types", "network", {"type_name":"network", "display_name_zh":"网络连接", "display_name_en":"Network", "matcher_id":"glob", "actions":["network.connect","network.send"], "default_priority":0, "is_builtin":True}),
+            ("resource-types", "skill", {"type_name":"skill", "display_name_zh":"专业判断调用", "display_name_en":"Professional judgment call", "matcher_id":"glob", "actions":["skill.call"], "default_priority":0, "is_builtin":True, "params":[]}),
             # —— 专业判断侧的内置数据（生活侧不使用这三个集合，缺省时零影响）——
             ("domain-packs", "legal.cn", {
                 "display_name_zh": "中国法律", "display_name_en": "PRC law",

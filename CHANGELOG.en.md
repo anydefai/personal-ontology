@@ -1489,3 +1489,26 @@ caught by the suite instead of by eye. This round also added a global unhandledr
 failed API call raises a dialog rather than appearing to do nothing. Version to 20261005k.
 
 ### Deploy and tests
+
+### Rule layer working end to end: enabling a slice now really creates an authorisation rule
+
+**The finding that shaped the approach**: the built-in app/file/network resource types are **seeded straight into
+the vault**, bypassing runtime validation - the built-in app even carries two type_name values while the schema
+says maxCount 1, so it fails its own shape. Records created at runtime must satisfy a stricter schema, which
+started at seven SHACL violations, came down to five, and still would not pass. Mirroring the built-ins, the fix
+is to **seed** the professional resource type and action in the store's `_ensure_builtins()`: resource type
+`skill` hanging off the built-in glob matcher, and action `skill.call`.
+
+Two hard constraints were established and honoured: a principal's `principal_type` only allows `person`, and
+`type_name` and `action_id` are single strings.
+
+The endpoints are `POST /v1/scenario-slices/{id}/enable`, which checks both principals exist, writes an
+authorisations rule with `source = "skill-slice:<slice id>"`, `effect = allow` and `policy_status = active`, and
+marks the slice confirmed, and `POST .../disable`, which revokes that rule and returns the slice to draft. They
+reuse the daily side's authorisations table with symmetric source naming. The amount cap, allowed uses and
+no-resale term stay on the slice and are still checked per call by the first-layer `/authorize`; the rule governs
+who may call. `tests/test_rule_layer.py` passes 16/16, including that enabling leaves the boundaries untouched and
+that a missing principal yields 422 rather than a fabricated authorisation.
+
+The interface is not wired to these endpoints yet, so the backend was **not** restarted this round; the principal
+picker and the restart come next.

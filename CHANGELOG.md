@@ -2294,6 +2294,29 @@ pro.js 的 IIFE 从第 11 行开始 → 在第 748 行就结束了
 **另外这轮做的** ✓：pro.js 加**全局 unhandledrejection 兜底** ✓（任何接口失败一律弹窗 ✓ 不再静默 ✗）
 版本 → **20261005k** ✓
 
+### ② 规则层打通：启用即生成授权规则（不再只是提示）
+
+**关键发现（决定做法）** ✗✓：
+内置的 `app` / `file` / `network` 是**直接播种进库**的（绕过运行时校验 ✓ —— 证据：内置 app 的 `type_name` 有 2 个值 ✗ 而 schema 写 maxCount 1 ✗ 它自己都不合规 ✓）
+而我**运行时新建**的记录要满足更严的 schema ✗ → 一开始撞 **7 项** SHACL 违规 ✓ 改到 5 项 ✗ 仍过不去 ✓
+**正确解法**：像内置一样，在 `store.py` 的 `_ensure_builtins()` 里**播种** ✓ → 一次播种 ✓ 永久可用 ✓
+（播种：资源类型 `skill`「专业判断调用」挂内置 glob matcher ✓ ＋ 动作 `skill.call`「调用专业判断」✓）
+
+**探明并遵守的两个硬约束** ✓：主体 `principal_type` **只允许 `person`** ✗；`type_name` / `action_id` 是**单值字符串** ✗
+
+**端点** ✓：
+```
+POST /v1/scenario-slices/{id}/enable   校验双方主体存在 → 写 authorizations 规则
+                                       source="skill-slice:<切片id>" · effect=allow · policy_status=active
+                                       切片 → confirmed（出现在场景实例）
+POST /v1/scenario-slices/{id}/disable  撤回规则（revoked/suspended）→ 切片退回 analyzed
+```
+**与生活侧同一张 `authorizations` 表** ✓ `source` 命名对称 ✓（`scenario-slice:<id>` ↔ `skill-slice:<id>` ✓）
+**边界（金额上限/允许用途/不转售）仍留在切片上** ✓ 由第一层 `/authorize` 逐次校验 ✓（规则只管"谁可以调用"✓）
+**测试** `tests/test_rule_layer.py` **16/16** ✓（含"启用不动边界"✓"主体不存在 → 422 不伪造授权"✓）
+
+**尚未接界面** ✗ 因此**本轮未重启后端** ✓（下一轮做主体选择框时一起重启 ✓）
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并
