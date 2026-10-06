@@ -2167,3 +2167,46 @@ async def disable_slice(slice_id: str) -> Any:
     updated = dict(item); updated["status"] = "analyzed"
     store.put("scenario-slices", slice_id, updated)
     return {"slice_id": slice_id, "status": "analyzed", "revoked": revoked}
+
+
+@app.post("/v1/scenario-slices/{slice_id}/judge")
+async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(require_session)) -> Any:
+    """按这条已启用的切片给出判断。这是给调用方用的对外接口。
+
+    三层校验，缺一不可：
+      第 1 层 身份：经智能体网关来的请求，其进程身份由内核判定、断言由网关签名（require_session 已做，
+                    并按路径要求 judgment 范围）；控制台会话也可调用，便于自己试。
+      第 2 层 切片级授权：这条切片必须已启用，且**授权给了这个调用方**（authorizations 里
+                    source=skill-slice:<id>、grantee 对应它、且未被撤回）。
+      第 3 层 边界：金额上限 / 允许用途 / 不转售（沿用切片边界 authorization.authorize）。
+    最后按框架判定；声明在 inputs 里的字段都是必填（约定 B），缺一项即返回「信息不足，无法判断」。
+    """
+    item = _slice_or_404(slice_id)
+    if str(item.get("status") or "") != "confirmed":
+        raise HTTPException(status_code=409, detail={"error": "slice_not_enabled",
+                                                     "message": "这条切片还没有确认并启用，不能对外调用。"})
+
+    if who.startswith("agent:"):
+        caller_key = who[6:]
+        clients = agent_access.clients()
+        approved = [c for c in (clients.get("approved") or []) if str(c.get("key")) == caller_key]
+        display = str((approved[0].get("name") if approved else "") or "")
+        grantee_ids = {str(x.get("id")) for x in store.list("principals")
+                       if display and str(x.get("display_name_zh") or "") == display}
+        rules = [r for r in store.list("authorizations") if str(r.get("source")) == f"skill-slice:{slice_id}"]
+        if not any((not r.get("revoked")) and str(r.get("grantee_id")) in grantee_ids for r in rules):
+            raise HTTPException(status_code=403, detail={"error": "slice_not_granted_to_agent",
+                                                         "message": f"这条切片没有授权给 {display or caller_key}。"})
+
+    # 边界结果字段是 result（allow / confirm / deny）。除 allow 外一律不给结论：
+    # 这个接口是给外部调用方的，宁可拒答也不在"需确认/被拒"的情况下递出结论。
+    authz = authorization.authorize(item.get("boundaries"), (body or {}).get("request") or {})
+    if str(authz.get("result")) != "allow":
+        return {"slice_id": slice_id, "caller": who, "authorize": authz, "judgment": None,
+                "refused": "boundaries"}
+
+    pkg = skill_framework.judge(item.get("framework") or {}, (body or {}).get("data") or {},
+                                confidence=item.get("confidence"),
+                                confidence_status=str(item.get("confidence_status") or "unverified"),
+                                confidence_basis=str(item.get("confidence_basis") or ""))
+    return {"slice_id": slice_id, "caller": who, "authorize": authz, "judgment": pkg}

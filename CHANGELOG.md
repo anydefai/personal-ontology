@@ -2365,6 +2365,40 @@ judge() 一进来先做【输入完整性检查】：
 **测试**：`test_skill_framework.py` 新增 5 条 ✓ 全量 **33 套全绿** ✓（现有测试都传完整数据 ✓ 无一被打破 ✓）
 **后端已重启** ✓（需重新登录一次 ✗）
 
+### 对外判定接口 + 权限范围：接入本机进程身份门（方案 A）
+
+用户选定 **A** ✓（接现有的 agent_gateway 进程身份机制 ✓ 而不是另造令牌 ✗）✓ 并要两步都做 ✓
+
+**先读懂了那套机制** ✓（`agent_access.py` / `agent_gateway.py`）：
+```
+· 调用方身份由【内核】判定（uid / 可执行文件 / 命令行）✓ 不落任何令牌文件
+  模块注释原文：令牌能被同一用户的进程复制，而进程身份不能
+· 首次连接 = pending ✓ → 控制台批准/拒绝 ✓ 批准时带【范围 scopes】
+· 批准后经 data/agent.sock（0600）转发 ✓ 附每进程 HMAC 签名断言（X-PO-Agent / -Sig）
+· 统一入口是 api.py 的 require_session ✓：有断言 → 解析成 agent:<key> 并按路径判范围；
+  否则走控制台会话令牌 ✓（管理类接口只认会话 ✓）
+```
+
+**第一步（后端 ✓ 已重启）**：
+```
+① 新增范围 judgment（中英双语）＋ 路径规则 POST /v1/scenario-slices/{id}/judge → judgment
+② 新增对外判定接口 POST /v1/scenario-slices/{id}/judge，三层校验：
+   第1层 身份：require_session（网关断言 ✓ 或控制台会话 ✓）
+   第2层 切片级授权：切片必须 confirmed ✓；经网关来的必须是"这条切片授权给它的那个程序"✓
+                    （查 authorizations：source=skill-slice:<id> ✓ grantee 对应它的镜像主体 ✓ 未撤回 ✓）
+   第3层 边界：金额上限 ✓ 允许用途 ✓ 不转售（字段 no_resale ✓）✓
+   → 全部通过才判定 ✓ 缺必填按约定 B 返回「信息不足，无法判断」✓
+   → **除 allow 外一律不给结论**（修了一处我自己的严重 bug ✗：边界结果字段是 result ✓ 我原先写 decision ✗
+      → 导致"边界拒绝了还照样给结论"✗）
+```
+**测试**：新增 `tests/test_judge_api.py` **7/7** ✓（未启用 409 ✓ 无边界不给结论 ✓ 边界允许才判定 ✓
+缺必填→信息不足 ✓ 金额超限不给 ✓ 用途越界不给 ✓ 返回带调用方身份 ✓）
+
+**契约细节**（给调用方）✓：请求体 `{data: {...字段}, request: {caller, purpose, amount, no_resale}}` ✓
+—— 少 `no_resale` 或用途越界 ✓ 一律**拒答**（宁拒答不递结论 ✓）
+
+**第二步**（界面：启用切片时改为"选已批准的程序" ✗ 尚未做）✓
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并

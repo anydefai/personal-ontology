@@ -39,6 +39,7 @@ SCOPES: dict[str, str] = {
     "check": "提交授权检查（会写入判定记录）",
     "preview": "预演场景实例",
     "feedback": "写回场景反馈与长期偏好",
+    "judgment": "按专业判断对一组标的给出结论（会写入判定记录）",
 }
 
 # 一个"只是想让智能体替我做场景"的客户端，这些就够；主体名称与判定记录默认不给。
@@ -51,6 +52,7 @@ SCOPES_EN: dict[str, str] = {
     "check": "Submit authorization checks (writes decision records)",
     "preview": "Rehearse scenario instances",
     "feedback": "Write back scenario feedback and standing preferences",
+    "judgment": "Judge a set of facts against a professional framework (writes a decision record)",
 }
 
 DEFAULT_SCOPES: tuple[str, ...] = ("catalog", "rules", "check", "preview")
@@ -205,6 +207,7 @@ def authorize(key: str, scope: str) -> tuple[bool, str]:
 
 # MCP 只使用这几个端点；其余一律要求控制台会话（代理不能借道读取管理接口）。
 _SCOPE_RULES: list[tuple[str, str, str]] = [
+    ('POST', '^/v1/scenario-slices/[^/]+/judge/?$', 'judgment'),
     ("GET", r"^/v1/resource-types/?$", "catalog"),
     ("GET", r"^/v1/actions/?$", "catalog"),
     ("GET", r"^/v1/scenario-slices/?$", "catalog"),

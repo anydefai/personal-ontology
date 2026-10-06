@@ -1556,3 +1556,31 @@ Measured: declaring a and b while supplying only a returns insufficient/cannot j
 contract ['a','b']; supplying both yields 偏高 with an empty missing list. Five tests were added to
 test_skill_framework.py and all 33 suites pass, with no existing test broken since they all supply complete data.
 The backend has been restarted, so one re-login is needed.
+
+### The external judgment endpoint and its scope: wired to the local process-identity gate (option A)
+
+The user chose A, reusing the existing agent_gateway process-identity mechanism rather than inventing tokens, and
+asked for both steps.
+
+**The mechanism, read first**: a caller's identity is decided by the kernel (uid, executable, command line), with no
+token file on disk - the module itself notes that a token can be copied by any same-user process while process
+identity cannot. A first connection becomes pending, the console approves or denies it with an explicit scope list,
+and approved traffic is forwarded over data/agent.sock (0600) carrying a per-process HMAC assertion. The single
+entry point is require_session: an assertion resolves to agent:<key> and is checked against the path's required
+scope, otherwise a console session token is used, and management endpoints accept sessions only.
+
+**Step one, backend, restarted**: a new scope, `judgment`, with Chinese and English descriptions and a path rule
+mapping POST /v1/scenario-slices/{id}/judge to it; and that endpoint with three layers of checks - identity via
+require_session, slice-level authorisation requiring the slice to be confirmed and, for gateway calls, a live
+authorisation whose grantee matches the calling program's mirror principal, and the boundaries (amount cap, allowed
+purposes, no resale via the field `no_resale`). Only when all three pass does it judge; a missing required input
+returns "insufficient information, cannot judge" under convention B. Anything other than allow yields no conclusion
+at all, which fixed a serious bug of mine: the boundary result field is `result` while I had read `decision`, so a
+denied boundary had still produced a conclusion.
+
+New tests/test_judge_api.py passes 7/7, covering not-enabled 409, no boundaries yielding no conclusion, judging once
+boundaries allow, missing input, over-limit amount, out-of-range purpose and the caller identity in the response.
+The caller contract is a body of `{data: {...}, request: {caller, purpose, amount, no_resale}}`, and omitting
+no_resale or exceeding the purpose range means no answer rather than a conclusion.
+
+Step two, changing the interface so enabling a slice offers approved programs to pick from, is not yet done.
