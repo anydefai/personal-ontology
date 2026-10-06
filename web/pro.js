@@ -207,13 +207,14 @@ function poHasFramework(fw) {
             }).join("") : "<div>" + input("", 'data-w-val="' + n + ':weight"') + "</div>") +
             "<div>" + del("weights:" + n) + "</div>";
         }).join("") + "</div>" : hint("还没有行业。")) +
+        (dimList.length ? "" : '<div class="panel-caption" style="margin-top:8px">这张表要先有「维度」才能填：请到上面【我观察什么】在每个信号末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里，就会出现对应的列。</div>') +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<div style="margin-top:12px">' +
-        '<div class="field-label">数据里的写法 → 表里的行业（一般不用填）</div>' +
-        hint('只有当标的数据里写的行业与上表的行名不一样时才要填。例如上表写「科技/互联网」而数据里写「新能源」，就填：新能源 → 科技/互联网。一样就不用填。') +
+        '<details style="margin-top:10px"><summary class="panel-caption" style="cursor:pointer">可选：只有当数据里的写法与上表的行业不一致时才需要填这里</summary><div style="margin-top:6px">' +
+        hint('一行一条：数据里的写法 → 上表里的行业。写法一致就不用填。') +
         '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="数据里的写法 → 表里的行业">' +
         Object.keys(f.industry_map || {}).map(function (k) { return esc(k) + " → " + esc(f.industry_map[k]); }).join("\n") +
-        '</textarea></div>' +
+        '</textarea></div></details>' +
       '<button class="button" data-add="weight-cat">＋ 加一个行业</button>' +
       '<button class="button" data-add="weight-dim">＋ 加一个侧重维度</button>' +
       '<span class="panel-caption" style="margin:0">数值加起来是 1 就行；没把握就先平均。</span></div></section>';

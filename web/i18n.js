@@ -1049,6 +1049,11 @@
   "科技/互联网。一样就不用填": "科技/互联网。一样就不用填",
   "表里的行业": "表里的行业",
   "加一个行业": "加一个行业",
+  "可选：只有当数据里的写法与上表的行业不一致时才需要填这里": "Optional: fill this only when your data spells an industry differently from the table",
+  "这张表要先有「维度」才能填：请到上面【我观察什么】在每个信号末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里，就会出现对应的列": "This table needs dimensions first: go to \"what I observe\" above and add a dimension to each signal (for example | finance); save and return, and the matching columns appear here.",
+  "一行一条：数据里的写法": "One per line: how your data spells it",
+  "上表里的行业。写法一致就不用填": "→ the industry in the table. Skip it when they match",
+  "这张表要先有「维度」才能填": "This table needs dimensions first",
   };
 
 
