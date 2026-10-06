@@ -1,8 +1,3 @@
-/* Interface build marker, deliberately OUTSIDE the IIFE below: polishPanels lives outside it too, and an
- * IIFE-scoped constant is invisible there (which would break the page the moment it rendered).
- */
-var PO_UI_BUILD = "UI 20261006x";
-
 /* Visible error net.
  *
  * A synchronous throw inside a click handler (as opposed to a rejected promise) is NOT caught by
@@ -1212,16 +1207,11 @@ function polishPanels(view) {
   // View switch: authoring line by line, or reviewing the tables. Both write the same data.
   var mine = window.poEntryView === "tables" ? "tables" : "lines";
   document.body.dataset.poEntry = mine;
-  var build = document.createElement("div");
-  build.className = "pro-build";
-  build.textContent = PO_UI_BUILD;
-  toc.appendChild(build);
   var sw = document.createElement("div");
   sw.className = "pro-viewswitch";
-  sw.innerHTML = '<button class="button' + (mine === "lines" ? " primary" : "") + '" data-view="lines">录入 · 一行一条</button>' +
-                 '<button class="button' + (mine === "tables" ? " primary" : "") + '" data-view="tables">核对 · 表格</button>' +
-                 '<div class="panel-caption" style="margin:2px 0 0">两种视图改的是同一份数据：' +
-                 '「录入」只留一行一条的输入框；「核对」把判断模型逐个面板展开（每行折叠条都带面板名与条数）。</div>';
+  sw.innerHTML = '<button class="button' + (mine === "lines" ? " primary" : "") + '" data-view="lines">一行一条</button>' +
+                 '<button class="button' + (mine === "tables" ? " primary" : "") + '" data-view="tables">表格</button>' +
+                 '<div class="panel-caption" style="margin:2px 0 0">两种视图改的是同一份数据</div>';
   sw.querySelectorAll("[data-view]").forEach(function (b) {
     b.onclick = function () { window.poEntryView = b.dataset.view; render(); };
   });
@@ -1262,7 +1252,6 @@ function polishPanels(view) {
     var sum = document.createElement("summary");
     // Each folded line shows its own panel name and item count.
     sum.textContent = title + (count ? " · " + count + " 条" : " · 还没填");
-    sum.dataset.build = PO_UI_BUILD;
     if (t) t.style.display = "none";
     sec.parentNode.insertBefore(d, sec);
     d.appendChild(sum);            // Without this line the browser draws its own label for <details>.
