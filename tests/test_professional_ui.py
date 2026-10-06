@@ -23,6 +23,9 @@ check("专业模式在切片页提前分流", re.search(r"if\(professionalMode\)
 check("专业模式在实例页提前分流", re.search(r"if\(professionalMode\)\{return renderProfessionalInstances", app) is not None)
 check("模式选择会被记住（刷新/切页不丢）", "po.professionalMode" in app and "localStorage.setItem(\"po.professionalMode\"" in app.replace(" ", ""))
 check("日常预演页也有模式切换（否则切不过去）", app.count("proModeButtons()") >= 5, str(app.count("proModeButtons()")))
+check("日常侧不显示专业切片（列表/实例/预演/仪表盘四处过滤）",
+      app.count("!isProSlice(x)") >= 4, str(app.count("!isProSlice(x)")))
+check("专业切片判定口径统一", "const isProSlice=x=>" in app)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

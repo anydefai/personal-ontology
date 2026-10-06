@@ -280,6 +280,7 @@ function roleSummaryHtml(a,status){
 }
 // ===== Professional track (R2): mode switch, scenario definitions, judgment entries =====
 // The daily path is left untouched: professional mode lives in its own functions and shares one ontology core.
+const isProSlice=x=>((x&&x.scenario_profile)||{}).kind==="professional";   // 专业切片不参与日常侧的列表与计数
 let professionalMode = (() => { try { return localStorage.getItem("po.professionalMode") === "1"; } catch (e) { return false; } })();
 let proSliceId = null;
 
@@ -369,7 +370,7 @@ function premiseText(premise){if(!premise)return"";if(typeof premise==="string")
 
 async function renderScenarios(view){
  if(professionalMode){return renderProfessionalSlices(view)}
- const [rows,provider]=await Promise.all([load("scenario-slices"),api("/v1/scenario-slices/provider"),load("principals")]);
+ const [rows,provider]=await Promise.all([load("scenario-slices").then(r=>r.filter(x=>!isProSlice(x))),api("/v1/scenario-slices/provider"),load("principals")]);
  // "场景草稿"只列未确认的：已确认的场景已写入本体，不该继续留在草稿清单里（侧栏计数仍是全部）。
  const drafts=rows.filter(x=>String(x.status||"")!=="confirmed");
  document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(rows.length));
@@ -463,7 +464,7 @@ async function renderProfessionalInstances(view){
 
 async function renderScenarioInstances(view){
  if(professionalMode){return renderProfessionalInstances(view)}
- const rows=await load("scenario-slices");
+ const rows=(await load("scenario-slices")).filter(x=>!isProSlice(x));
  document.querySelector('[data-count="scenario-instances"]')?.replaceChildren(document.createTextNode(rows.length));
  const selected=rows.find(x=>x.id===activeInstanceId)||null;const a=selected?.analysis||{};const scope=a.scope||{};
  if(!selected){const allRules=await load("authorizations");const ruleStats=id=>{const mine=allRules.filter(r=>String(r.source||"")==="scenario-slice:"+id);return{total:mine.length,active:mine.filter(r=>r.policy_status==="active").length}};view.innerHTML=`${titleBlock("ONTOLOGY INSTANCES","场景实例","统一查看和维护由场景切片确认写入本体的实例。场景范围和每次执行必须提供的信息都在这里管理。")}<section class="panel" style="padding:18px"><div class="panel-title">已有场景实例 · ${rows.length}</div>${rows.length?`<div style="display:grid;gap:8px;margin-top:12px">${rows.map(x=>`<div style="display:flex;gap:8px;align-items:center"><button class="button" style="flex:1;justify-content:flex-start;height:auto;padding:12px;text-align:left" data-open-instance="${esc(x.id)}"><strong>${esc(x.analysis?.title||x.original_text?.slice(0,80)||"场景实例")}</strong><span class="muted" style="margin-left:auto">${x.status==="confirmed"?"已写入本体":"分析草稿"} · ${esc(formatTime(x.updated_at))}</span></button>${(()=>{const s=ruleStats(x.id);if(x.status!=="confirmed"||!s.total)return "";return `<span class="badge ${s.active?"active":"pending"}" style="white-space:nowrap">${s.active?`${s.active} 条生效中`:`${s.total} 条未生效`}</span><button class="button" data-review-policy="${esc(x.id)}" style="white-space:nowrap">审核并启用</button>`})()}<button class="button danger" data-remove-instance="${esc(x.id)}">删除</button></div>`).join("")}</div>`:`<div class="empty-state">还没有保存的场景。先到“场景切片”创建并确认一个场景。</div>`}</section>`;$$('[data-open-instance]').forEach(b=>b.onclick=()=>{activeInstanceId=b.dataset.openInstance;render()});$$('[data-remove-instance]').forEach(b=>b.onclick=()=>deleteScenario(b.dataset.removeInstance));$$('[data-review-policy]').forEach(b=>b.onclick=()=>openPolicyReview(b.dataset.reviewPolicy));return}
@@ -642,7 +643,7 @@ async function renderProfessionalPreview(view){
 
 async function renderScenarioPreview(view){
  if(professionalMode){return renderProfessionalPreview(view)}
- const all=await load("scenario-slices");const rows=all.filter(x=>x.status==="confirmed");
+ const all=await load("scenario-slices");const rows=all.filter(x=>x.status==="confirmed"&&!isProSlice(x));
  if(!rows.length){view.innerHTML=`${proModeButtons()}${titleBlock("SAFE DRY RUN","场景预演",labels["scenario-preview"].subtitle)}<section class="panel empty-state"><div class="empty-icon">▷</div><strong>还没有可预演的场景实例</strong><p>先在“场景切片”分析并确认一个场景，然后回来填写模拟输入。</p><button class="button primary" id="go-to-scenes">打开场景切片</button></section>`;$("#go-to-scenes").onclick=()=>navigate("scenario-slices");return}
  const selectedId=new URLSearchParams(location.search).get("scenario")||rows[0].id;const selected=rows.find(x=>x.id===selectedId)||rows[0];const a=selected.analysis||{};const scope=a.scope||{mode:"global"};const segmentation=a.segmentation||{mode:"global",dimensions:[],global_preferences:[],variants:[]};if(segmentation.mode==="segmented"){scope.mode="by_dimension";scope.dimension=(segmentation.dimensions||[]).map(d=>d.label||d.field).join(" + ");scope.value="按请求匹配分组"}
  const dimensions=segmentation.mode==="segmented"?(segmentation.dimensions||[]):[];let required=Array.isArray(a.required_inputs)?[...a.required_inputs]:[];for(const d of dimensions)if(!required.some(x=>x.name===d.field))required.push({name:d.field,label:d.label||d.field,type:d.type||"string",required:true});let prefs=Array.isArray(a.instance_preferences)?a.instance_preferences:[];
@@ -683,7 +684,7 @@ async function renderDashboard(view){
  // 本体对象（资源类型/动作/授权）由场景自动生成，只在末尾作为一行说明，不再占卡片位。
  let scenes=[],rules=[],decisions=[],principals=[],resourceTypes=[],actions=[],provider={configured:true},offline=false;
  try{
-  [scenes,rules,decisions,principals,resourceTypes,actions]=await Promise.all([load("scenario-slices"),load("authorizations"),load("decisions"),load("principals"),load("resource-types"),load("actions")]);
+  [scenes,rules,decisions,principals,resourceTypes,actions]=await Promise.all([load("scenario-slices").then(r=>r.filter(x=>!isProSlice(x))),load("authorizations"),load("decisions"),load("principals"),load("resource-types"),load("actions")]);
   try{provider=await api("/v1/scenario-slices/provider")}catch{provider={configured:true}}
  }catch(error){offline=true}
  const published=scenes.filter(s=>s.status==="confirmed");

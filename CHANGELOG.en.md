@@ -727,3 +727,26 @@ All **24 suites green**; the server is confirmed to serve the new files (`pro.js
 app.js delegates).
 
 ### Deploy and tests
+
+### Fix: daily-life and professional scenarios were mixed together
+
+The user reported that unconfirmed drafts from the professional side **appeared among the daily-life
+scenarios**. The cause: the daily side never excluded professional slices — the professional side filtered
+on `scenario_profile.kind === "professional"` while the daily side filtered on nothing at all.
+
+The fix adds one shared predicate and applies it in four daily places: the scenario-slice draft list (which
+also corrects the sidebar count), the scenario-instance page, the preview page, and the dashboard's "my
+scenarios", to-dos and counts.
+
+**Existing data needs no migration**: professional slices already carry `scenario_profile`; only the
+interface failed to filter them.
+
+The UI test gained two assertions (**26/26**): the daily side must carry `!isProSlice(x)` in all four
+places, and the predicate is shared.
+
+This was also the first time I drew the boundary between the two profiles at the **list-filtering** level;
+previously only the professional side filtered, one-directionally, which was a design oversight.
+
+All **24 suites green**; asset version → **20261004i**.
+
+### Deploy and tests
