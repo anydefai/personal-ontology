@@ -35,6 +35,7 @@ def http_client_error():
 SERVER_INFO = {"name": "personal-ontology", "version": "1.0.0"}
 TOOLS = [
     {"name": "get_governance_catalog", "description": "读取本机个人本体的资源类型、动作和已确认的场景实例（含范围、偏好、每次执行必填信息、最近演进记录，以及授权规则的启用状态）。执行场景时必须逐项检查必填输入和偏好；缺失或含糊时先向用户询问。只把明确表示今后也适用的偏好，在用户明确同意后写回实例。主体名称只有在管理员启用对应数据范围后才可读取。关于授权：authorization_state 为 draft/suspended 的规则不参与判定，check_authorization 会返回默认拒绝；只有 active 规则参与判定。policies 字段是分析阶段的草稿，判定实际使用的是 authorization_rules；需要判断能否放行时以 authorization_rules 的 policy_status 与 conditions 为准。first_request_summary 只是首次描述的摘要（可能含那一次的时间、地点、人数），不要把它当成场景定义或长期偏好；长期偏好看 preferences，每次执行必须向用户收集的字段看 required_inputs。authorization_rules 的 grantor_id / grantee_id 是主体 ID；只有在管理员允许提供主体目录时，才能通过 principals 把它们解析成名称，且名称如何显示由管理员的隐私设置决定（principal_display_mode：neutral 中性名 / full 真实名 / id_only 仅 ID）。", "inputSchema": {"type": "object", "properties": {"include_principals": {"type": "boolean", "description": "请求读取主体名称；需要管理员预先允许。"}}, "additionalProperties": False}, "annotations": {"title": "读取治理目录", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}},
+    {"name": "judge_professional_slice", "description": "调用某条专业技能切片给出专业判断。参数 slice_id 是切片 ID；data 按该切片的调用说明逐项填写（全部必填，缺一项只会返回信息不足）；request 里给 caller（调用方名称）、purpose（本次用途）、amount（涉及金额，如适用）、no_resale（true 表示承诺不得转售）。切片必须已在控制台确认并启用；返回结论、严重度、分数、依据、命中的信号与判定记录号。", "inputSchema": {"type": "object", "properties": {"slice_id": {"type": "string"}, "data": {"type": "object"}, "request": {"type": "object"}}, "required": ["slice_id"]}},
     {"name": "check_authorization", "description": "调用本机授权引擎检查主体对资源执行动作是否允许；只返回判定并写入审计记录，不会执行该动作。", "inputSchema": {"type": "object", "properties": {"principal_id": {"type": "string"}, "action_id": {"type": "string"}, "resource_type_id": {"type": "string"}, "resource_id": {"type": "string"}, "context": {"type": "object"}, "phase": {"type": "string", "enum": ["pre_planning", "pre_execution"]}}, "required": ["principal_id", "action_id", "resource_type_id", "resource_id"], "additionalProperties": False}, "annotations": {"title": "检查授权", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}},
     {"name":"preview_scenario_instance","description":"预演某个已保存场景：提交本次用户输入和候选资源，返回缺失的必填信息及已有约束检查结果。发现缺项或重要约束未定义时，必须先向用户说明并询问；预演不执行真实动作、不修改实例。","inputSchema":{"type":"object","properties":{"scenario_id":{"type":"string"},"request_inputs":{"type":"object"},"candidate":{"type":"object"}},"required":["scenario_id"],"additionalProperties":False},"annotations":{"title":"预演场景实例","readOnlyHint":True,"destructiveHint":False,"idempotentHint":True,"openWorldHint":False}},
     {"name":"record_scenario_feedback","description":"将场景执行中用户提供的信息写入可查记录。mode=run_input 仅作为本次执行输入留档，不改变长期偏好。mode=instance_preference 会更新可复用实例；分组场景必须提供 variant_id。只有在用户明确同意该偏好今后继续适用后才可调用；user_input 必须填写用户原话，user_confirmed 必须为 true。每次调用都会保留时间、执行 ID、前后值和实例版本。","inputSchema":{"type":"object","properties":{"scenario_id":{"type":"string"},"run_id":{"type":"string"},"mode":{"type":"string","enum":["run_input","instance_preference"]},"field":{"type":"string"},"label":{"type":"string"},"value":{"type":["string","number","boolean"]},"operator":{"type":"string","enum":["equals","lte","gte","exists"]},"scope":{"type":"string","enum":["global","by_dimension"]},"variant_id":{"type":"string"},"dimension_value":{"type":"string"},"user_input":{"type":"string"},"user_confirmed":{"type":"boolean"},"actor":{"type":"string"}},"required":["scenario_id","mode","field","label","value","user_input"],"additionalProperties":False},"annotations":{"title":"记录场景反馈","readOnlyHint":False,"destructiveHint":False,"idempotentHint":False,"openWorldHint":False}},
@@ -212,6 +213,15 @@ class MCPServer:
                 analysis = scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
                 segmentation = analysis.get("segmentation") if isinstance(analysis.get("segmentation"), dict) else {"mode":"global","dimensions":[],"global_preferences":analysis.get("instance_preferences", analysis.get("facts", [])),"variants":[]}
                 instances.append({"id":scene.get("id"),"name":analysis.get("title"),"first_request_summary":analysis.get("intent"),"first_request_summary_note":"仅是对首次自然语言描述的摘要，可能包含那一次的时间、地点和人数；场景的可复用名称是 name，长期偏好看 preferences，每次执行要收集的字段看 required_inputs。","scope":analysis.get("scope", {"mode":"global"}),"segmentation":segmentation,"revision":analysis.get("instance_revision", 1),"required_inputs":analysis.get("required_inputs", []),"preferences":analysis.get("instance_preferences", analysis.get("facts", [])),"evolution_log":(analysis.get("evolution_log", []) or [])[-20:],"resource_types":analysis.get("resource_types", []),"actions":analysis.get("actions", []),"policies":analysis.get("policies", []),**self._authorization_state(str(scene.get("id")))})
+                if str((scene.get("scenario_profile") or {}).get("kind") or "") == "professional":
+                    # Professional skill slice: hand the agent the call contract (what to send, in what shape, what
+                    # comes back). The contract carries no framework, weights or thresholds.
+                    instances[-1]["kind"] = "professional"
+                    instances[-1]["kind_label"] = "专业技能场景"
+                    try:
+                        instances[-1]["professional"] = self._api("GET", "/v1/scenario-slices/" + str(scene.get("id")) + "/contract")
+                    except RuntimeError as exc:
+                        instances[-1]["professional"] = {"error": str(exc)}
             result: dict[str, Any] = {"resource_types":resources, "actions":actions, "scenario_instances":instances}
             if args.get("include_principals"):
                 settings_path = DATA_DIR / "mcp-settings.json"
@@ -225,6 +235,18 @@ class MCPServer:
                 principals = self._api("GET", "/v1/principals").get("items", [])
                 result["principals"] = [self._present_principal(item, mode) for item in principals]
                 result["principal_display_mode"] = mode
+            self._write_session(name)
+            return result
+        if name == "judge_professional_slice":
+            sid = str(args.get("slice_id") or "")
+            if not sid:
+                raise RuntimeError("需要切片 ID。可先调用 get_governance_catalog 查看专业技能场景列表。")
+            contract = self._api("GET", "/v1/scenario-slices/" + sid + "/contract")
+            if not contract.get("enabled"):
+                raise RuntimeError("这条专业技能还没有在控制台确认并启用，现在不能调用。"
+                                   "请在控制台的场景切片页选中它并点确认并启用。")
+            result = self._api("POST", "/v1/scenario-slices/" + sid + "/judge",
+                               {"data": args.get("data") or {}, "request": args.get("request") or {}})
             self._write_session(name)
             return result
         if name == "check_authorization":
