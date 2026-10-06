@@ -933,3 +933,30 @@ All **26 suites green**; asset version → **20261004q**; **the backend was rest
 needed.**
 
 ### Deploy and tests
+
+### Fix (second attempt): the scenario-instance page still lacked the professional switch in daily mode
+
+The user reported that the previous fix **did not take effect**. Investigation showed the page ids were
+correct (`scenario-slices`, `scenario-instances`, `scenario-preview` all match the router), so my guess about
+a wrong id was wrong, and although the router fallback did run against that list, the buttons still did not
+appear.
+
+**This round stops relying on the fallback**: the switch is now drawn **inside the daily instance renderer
+itself**, in both of its `view.innerHTML` assignments (the empty state and the populated state), matching what
+the preview page already did. The router fallback stays as a second line of defence.
+
+**More importantly, the "structural assertion" I added last round was vacuous**: it looked for the daily
+function by a name mapping (`renderProfessionalInstances -> renderInstances`) while the real name is
+`renderScenarioInstances`, so it checked nothing and **always passed** — worse than having no test, because it
+gave me false confidence. The criterion is now taken from the function body itself: any render function whose
+body contains the professional-mode branch must also contain `proModeButtons()`, with an assertion that at
+least three such renderers were inspected, so it can never go vacuous again.
+
+**And it was verified in reverse**, which is the most important lesson here: removing the buttons from the
+instance page makes the test fail with `['renderScenarioInstances']` (33/34), and restoring them passes
+(34/34). The test genuinely catches this bug.
+
+All **26 suites green**; front-end only, so **no restart and no re-login**; asset version → **20261004r** —
+and please do a hard reload (`Cmd+Shift+R`), since a single-page app will not swap app.js without one.
+
+### Deploy and tests

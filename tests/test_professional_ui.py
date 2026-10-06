@@ -39,6 +39,28 @@ check("路由器兜底：三个页面缺模式切换会自动补（防同类漏�
       and 'view.querySelector("[data-pro-mode]")' in app
       and '"scenario-slices","scenario-instances","scenario-preview"' in app)
 check("交付说明面板存在（洞察/资历/有效期）", all(k in _pro for k in ("data-dlv-insight", "data-dlv-cred", "data-dlv-days")))
+def _renderers_missing_switch(src):
+    """凡函数体内含「专业模式分流」的渲染函数，必须自己画模式切换按钮。
+
+    判据用函数体本身（分流的那个 if 就在这个函数里），不靠名字映射 —— 名字猜错会让测试空转。
+    """
+    import re as _re
+    missing, checked = [], 0
+    for m in _re.finditer(r"(?:async )?function (render[A-Za-z]+)\(view\)\{", src):
+        name = m.group(1)
+        nxt = _re.search(r"\n(?:async )?function ", src[m.end():])
+        body = src[m.end():m.end() + (nxt.start() if nxt else len(src))]
+        if "if(professionalMode){return render" not in body:
+            continue
+        checked += 1
+        if "proModeButtons()" not in body:
+            missing.append(name)
+    return missing, checked
+
+
+_missing, _checked = _renderers_missing_switch(app)
+check("分流页面至少有 3 个（确保这条检查不是空转）", _checked >= 3, str(_checked))
+check("按模式分流的页面里，渲染函数都自带模式切换", not _missing, str(_missing))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
