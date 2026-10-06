@@ -458,6 +458,17 @@ async function renderProfessionalInstances(view){
    <div class="panel-caption">调用方反馈：${Number((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).feedback_total||0)} 次 · 置信度：${esc((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).confidence_status||"unverified")}</div>
    <div class="panel-caption">真实调用交付时还会附上：审计号 · 有效期至 · 内容指纹 · 数字签名状态（预演不产生这些）</div>
    <div class="panel-caption">反馈由调用方通过接口提交；满 10 次升为「初步置信度」，满 100 次升为「稳定置信度」</div>
+   <div style="margin-top:12px;border-top:1px solid #e6e9ef;padding-top:12px">
+    <div class="panel-caption" style="margin:0 0 8px">计费演示：演示数据，不写记录；价格由你在场景切片页设定</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+     <select class="select" id="bill-demo-tier" style="max-width:260px">
+      <option value="basic">基础层</option><option value="standard">标准层</option>
+      <option value="professional">专业层</option><option value="audit">审计层</option>
+     </select>
+     <button class="button" data-bill-demo>模拟一次调用</button>
+     <span class="panel-caption" style="margin:0" id="bill-demo-out"></span>
+    </div>
+   </div>
   </section>
  ${titleBlock("PROFESSIONAL INSTANCE","已启用的判断规则集","这是你的专业判断在对外可用时的形态——只列已启用的条目，并显示各自的前提与依据")}
  <section class="panel collection-panel">
@@ -817,4 +828,5 @@ async function deleteRecord(collection,id){if(!confirm(`确定删除记录“${i
 async function runCheck(e){e.preventDefault();const form=new FormData(e.currentTarget);const button=e.currentTarget.querySelector("button[type=submit]");button.disabled=true;button.textContent="正在判定…";try{const result=await api("/v1/decisions/evaluate",{method:"POST",body:JSON.stringify({principal_id:form.get("principal_id"),action_id:form.get("action_id"),resource_type_id:form.get("resource_type_id"),resource_id:form.get("resource_id"),context:{source_trust:$("#check-trust").value},phase:"pre_planning"})});const kind=result.result_id==="allow"?"allow":result.result_id==="deny"?"deny":"ask";$("#check-output").innerHTML=`<div class="decision-result ${kind}"><strong>${({allow:"✓ 允许执行",deny:"⊘ 拒绝执行",ask:"◷ 暂停并确认"})[kind]}</strong>${esc(result.reason_key)}<div class="decision-id">${esc(result.decision_id||"")}</div></div>`;delete cache.decisions;document.querySelector('[data-count="decisions"]')&&(document.querySelector('[data-count="decisions"]').textContent="·")}catch(error){$("#check-output").innerHTML=`<div class="decision-result deny">${esc(error.message)}</div>`}finally{button.disabled=false;button.innerHTML="检查授权 <span>→</span>"}}
 $$('.nav-item').forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.page)));
 // 模式切换用事件委托：无论按钮由哪个渲染函数画出（日常页或专业页）都能响应。
+document.addEventListener("click",event=>{const bd=event.target.closest?.("[data-bill-demo]");if(!bd)return;const dn=(document.querySelector("#bill-demo-tier")||{}).value||"basic";const list=(typeof cache!=="undefined"&&cache["scenario-definitions"])||[];const dd=list[0]||{};const dp=((dd.boundaries||{}).pricing)||{};const dt=(dp.tiers||{})[dn];const du=dp.mode==="monthly"?"元/月":"元/次";const dl={basic:"基础层",standard:"标准层",professional:"专业层",audit:"审计层"}[dn];const out=document.querySelector("#bill-demo-out");if(out)out.textContent=(dt==null)?"这个层级还没有定价（到场景切片页的「对外交付时附上的说明」里填）":("应收 "+dt+" "+du+" · 调用方：示例调用方（"+dl+"）");});
 document.addEventListener("click",event=>{const b=event.target.closest?.("[data-pro-mode]");if(!b)return;professionalMode=b.dataset.proMode==="professional";try{localStorage.setItem("po.professionalMode",professionalMode?"1":"0")}catch(e){}render()});$("#refresh").onclick=reloadAll;$("#token-button").onclick=()=>navigate("account-security");refreshService();render();

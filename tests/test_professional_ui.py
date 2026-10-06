@@ -70,6 +70,8 @@ check("切片页有常驻底部保存栏（改动不会自动保存）", "pro-sa
 check("预演页不再展示交付身份信息，改为预演说明", "proPreviewNote" in app and "pe-feedback-panel" not in app)
 check("分层设置移到切片页（默认交付层级）", "data-dlv-tier" in _pro and "pe-tier" not in app)
 check("场景实例页接住对外交付与反馈统计", "对外交付与调用方反馈" in app)
+check("四层价格由用户自己填（切片页）", _pro.count("data-price-tier") >= 2 and "data-price-mode" in _pro and "pricing" in _pro)
+check("场景实例页有计费演示（读本人定价）", "data-bill-demo" in app and "bill-demo-tier" in app and "pricing" in app)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

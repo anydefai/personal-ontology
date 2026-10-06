@@ -1039,3 +1039,31 @@ All **26 suites green**; front-end only, so **no restart and no re-login**; asse
 delivery identity (audit id, expiry, fingerprint, signature) — it is currently only in the API response.
 
 ### Deploy and tests
+
+### Billing: the four tier prices are entered by the user, plus a billing demo
+
+The user clarified that prices are entered by the end user in the interface, not supplied during development.
+
+**The scenario-slice page's delivery note gained a pricing area**: a billing mode (per call or monthly) and a
+unit price for each of the four tiers, left blank meaning "not priced yet" and editable at any time. It is
+stored in `boundaries.pricing`, so **no backend change and no restart** are needed.
+
+**The scenario-instance page gained a billing demo**, matching the earlier agreement that billing would be
+demonstrative first: choose a tier, press "simulate one call", and it shows the amount due, the unit and an
+example caller, or states that the tier has no price yet. It is explicitly labelled demo data that records
+nothing and produces no real invoice. The button is handled by **event delegation** rather than by inserting a
+handler into the long template, which is the trap hit in earlier rounds.
+
+The `billing` field in the audit log (section eight of the design) stays deferred to the network stage, since
+adding it now would be billing a dry run — the same class of mistake the user pointed out before.
+
+**Two mistakes this round, both recorded**: the delegation listener **missed its closing brace** and broke
+app.js's syntax, repaired with git and redone correctly — the lesson being to run `node --check` immediately,
+and, worse, that three suites were "green" at the time because they read app.js as **text** and never execute
+it, which is a genuine blind spot. Second, in the previous command a failing `node --check` broke the `&&`
+chain so **the i18n insert never ran**, and I failed to notice the missing line in the output, which is why the
+uncovered count would not fall; it is now added.
+
+All **26 suites green**; asset version → **20261004w**; front-end only, so no restart and no re-login.
+
+### Deploy and tests

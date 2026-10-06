@@ -86,6 +86,19 @@
         input(d.valid_days == null ? 1 : d.valid_days, 'data-dlv-days type="number" step="1" placeholder="1"') +
         '<span class="muted">判定包会带上到期时间；签名需要密钥对，尚未实现</span>') +
       '</section>';
+      row('<span class="field-label" style="min-width:120px">计费方式</span>' +
+        '<select class="select" data-price-mode>' +
+          [["per_call", "按次"], ["monthly", "包月"]].map(function (x) {
+            return '<option value="' + x[0] + '"' + (((d.pricing || {}).mode || "per_call") === x[0] ? " selected" : "") + ">" + x[1] + "</option>";
+          }).join("") + "</select>" +
+        '<span class="muted">按次或包月；具体价格由你设定</span>') +
+      ["basic", "standard", "professional", "audit"].map(function (t) {
+        var label = { basic: "基础层", standard: "标准层", professional: "专业层", audit: "审计层" }[t];
+        var price = ((d.pricing || {}).tiers || {})[t];
+        return row('<span class="field-label" style="min-width:120px">' + label + '</span>' +
+          input(price, 'data-price-tier="' + t + '" type="number" step="any" placeholder="单价，留空表示未定价"') +
+          '<span class="muted">元</span>');
+      }).join("")
   }
 
   // -- 0 / Boundaries for outside calls (layer one: may it be called at all) --
@@ -494,7 +507,15 @@
         allowed_scenarios: ((host.querySelector("[data-bnd-scenarios]") || {}).value || "")
           .split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean),
         confidentiality: ((host.querySelector("[data-bnd-conf]") || {}).value || "").trim(),
-        default_tier: ((host.querySelector("[data-dlv-tier]") || {}).value || "audit")
+        default_tier: ((host.querySelector("[data-dlv-tier]") || {}).value || "audit"),
+        pricing: (function () {
+          var tiers = {};
+          host.querySelectorAll("[data-price-tier]").forEach(function (el) {
+            var v = parseFloat(el.value);
+            if (!isNaN(v)) tiers[el.dataset.priceTier] = v;
+          });
+          return { mode: ((host.querySelector("[data-price-mode]") || {}).value || "per_call"), tiers: tiers };
+        })()
       };
       var dvDays = ((host.querySelector("[data-dlv-days]") || {}).value || "").trim();
       await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({

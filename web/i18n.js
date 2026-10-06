@@ -784,6 +784,23 @@
   "默认交付层级": "Default delivery tier",
   "调用方没有单独指定时，按这一层交付": "Delivered at this tier unless the caller specifies otherwise",
   "改动不会自动保存": "Changes are not saved automatically",
+  "计费方式": "Billing mode",
+  "按次": "per call",
+  "包月": "monthly",
+  "按次或包月；具体价格由你设定": "per call or monthly; you set the prices",
+  "基础层": "Basic tier",
+  "标准层": "Standard tier",
+  "专业层": "Professional tier",
+  "审计层": "Audit tier",
+  "单价，留空表示未定价": "unit price; leave blank if not priced yet",
+  "默认交付层级：": "Default delivery tier: ",
+  "计费演示：演示数据，不写记录；价格由你在场景切片页设定": "Billing demo: demo data only, nothing is recorded; you set the prices on the scenario-slice page",
+  "模拟一次调用": "Simulate one call",
+  "元/月": "CNY/month",
+  "元/次": "CNY/call",
+  "应收": "Amount due",
+  "这个层级还没有定价（到场景切片页的「对外交付时附上的说明」里填": "This tier has no price yet (set it in the delivery note on the scenario-slice page",
+  "这个层级还没有定价（到场景切片页的「对外交付时附上的说明」里填）": "This tier has no price yet (set it in the delivery note on the scenario-slice page)",
   };
 
 
