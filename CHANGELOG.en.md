@@ -1103,3 +1103,36 @@ choose or create my slice" interface, and migrating the existing framework autom
 All **27 suites green**; the model change coexists safely without a restart.
 
 ### Deploy and tests
+
+### Second cut: judgment endpoints become slice-scoped, with one-click migration
+
+**Six new slice-layer endpoints**: evaluate, draft, backtest, judgment-feedback and authorize all scoped to
+`/v1/scenario-slices/{slice_id}/…`, plus `migrate-from-definitions`. The definition-layer endpoints are
+unchanged and remain for templates and backwards compatibility.
+
+**Migration** creates a slice for every definition that has a framework but no slice carrying one, moves the
+framework, boundaries, insight, credentials, validity and confidence onto it, and then **clears those personal
+fields from the definition** so the shareable layer stays clean. Built-in definitions have no framework and
+are untouched.
+
+**New `tests/test_slice_api.py` (18/18)**: judgment reads the slice's framework, returns slice_id and source
+definition, takes the default tier from the slice's boundaries, authorises against the slice's boundaries
+(over-limit becomes confirm), writes backtest and feedback results to the slice, and the migration creates,
+moves, clears and is idempotent on a second call.
+
+**Two real bugs fixed this round**: `slice_id` was being dropped by the tier filter because the `ALWAYS`
+whitelist lacked it; and the slice feedback route was **shadowed** by the pre-existing daily route
+`/v1/scenario-slices/{id}/feedback`, which FastAPI matches first, so the new endpoint never ran — it now lives
+at `/judgment-feedback`. The lesson, caught here by a test, is to check for an existing path of the same shape
+before adding a route.
+
+**One assertion of mine was wrong while the code was right**: the `professional` tier deliberately does not
+include credentials or an audit id, since the design places those in the audit tier; the assertion now reads
+them from the audit tier, with an extra assertion pinning that rule.
+
+**Stated plainly**: the interface is **not yet** the two-level selector (scenario template, then my slice), so
+what you see is unchanged; that plus slice-scoped preview is next.
+
+All **28 suites green**.
+
+### Deploy and tests

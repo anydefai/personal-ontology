@@ -1889,6 +1889,41 @@ if(["scenario-slices","scenario-instances","scenario-preview"].includes(currentP
 
 全量回归 **27 套全绿** ✓ 模型改动无需重启也能安全共存 ✓
 
+### 第二刀：判定接口改为「按切片」+ 旧框架一键迁移
+
+**① 新增切片层接口（6 条）**：
+```
+POST /v1/scenario-slices/{slice_id}/evaluate      用这一条切片的框架判定
+POST /v1/scenario-slices/{slice_id}/draft         为这一条切片起草框架
+POST /v1/scenario-slices/{slice_id}/backtest      回测并把置信度写回切片
+POST /v1/scenario-slices/{slice_id}/judgment-feedback   调用方反馈（写回切片）
+POST /v1/scenario-slices/{slice_id}/authorize     用这一条切片的边界做授权判定
+POST /v1/scenario-slices/migrate-from-definitions 把定义上的个人资产搬到切片（幂等）
+```
+（**定义层的旧接口保持不变** ✓ 仅用于模板与兼容 ✓）
+
+**② 迁移**：为「有框架但还没有对应切片」的定义建一条切片 ✓ 把框架/边界/洞察/资历/有效期/置信度搬过去 ✓
+然后**清空定义上的这些个人字段** ✓ 让可共享的定义保持干净 ✓ 内置定义没有框架 ✓ 不受影响 ✓
+
+**新增 `tests/test_slice_api.py`（18/18 ✓）**：判定取自切片 ✓ 回带 slice_id 与来源定义 ✓
+默认层级取切片的 `boundaries.default_tier` ✓ 授权用切片边界（超上限 → 需确认 ✓）✓
+回测与反馈都写回切片 ✓ 迁移创建切片/搬走洞察/清空定义/幂等 ✓
+
+**本轮修掉的两个真 bug**：
+1. **`slice_id` 被分层裁剪掉了** ✗ —— `apply_tier` 的白名单 `ALWAYS` 里没有它 ✓ 已加 ✓
+2. **切片反馈路由被既有的日常路由遮蔽** ✗ —— `/v1/scenario-slices/{id}/feedback` 早已存在 ✓
+   FastAPI 匹配先注册者 ✓ 于是我的新接口永远不执行 ✓ → 改为专属路径 `/judgment-feedback` ✓
+   （**教训：新增路由前要先查同形路径是否已存在** ✓ 我这次是测试抓到的 ✓）
+
+**同时确认了一条"我的测试写错、代码是对的"** ✓：`professional` 层本来就**不含**资历与审计号 ✓
+（你文档里那是**审计层**的内容 ✓）→ 已把断言改成用 `audit` 层取身份信息 ✓
+并补一条断言锁住这个口径 ✓
+
+**如实说明**：界面**还没改成两级选择** ✗（选场景模板 + 选/建我的切片 ✓）
+所以你现在看到的界面仍然没有变化 ✗ —— 下一步是 `pro.js` 的两级界面与预演页按切片判定 ✓
+
+全量回归 **28 套全绿** ✓
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并

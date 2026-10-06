@@ -247,7 +247,7 @@ TIERS = {
                      "owner_credentials", "owner_signature",
                      "signature_status", "audit_id", "valid_until", "content_fingerprint"],
 }
-ALWAYS = ["definition_id", "tier"]
+ALWAYS = ["definition_id", "slice_id", "tier"]
 
 
 def content_fingerprint(package: dict[str, Any]) -> str:

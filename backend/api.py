@@ -1831,3 +1831,189 @@ app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.api:app", host=HOST, port=PORT, reload=False, access_log=False)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 切片层判定接口：框架 / 边界 / 置信度 / 反馈 都属于**个人切片**
+# （上面的定义层接口保持不变，仅用于模板与兼容旧数据）
+# ══════════════════════════════════════════════════════════════════════════
+
+def _slice_or_404(slice_id: str) -> dict[str, Any]:
+    item = store.get("scenario-slices", slice_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=messages.detail("slice_not_found"))
+    return item
+
+
+def _slice_framework(slice_item: dict[str, Any]) -> dict[str, Any]:
+    fw = slice_item.get("framework")
+    if not isinstance(fw, dict) or not fw:
+        raise HTTPException(status_code=409, detail=messages.detail("framework_not_configured"))
+    return fw
+
+
+def _slice_identity(package: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+    import datetime as _dt, uuid as _uuid
+    now = _dt.datetime.now()
+    try:
+        days = float(item.get("valid_days")) if item.get("valid_days") is not None else 1.0
+    except (TypeError, ValueError):
+        days = 1.0
+    skill_framework.package_identity(
+        package, insight=item.get("insight") or "",
+        credentials=item.get("owner_credentials") or "",
+        audit_id="AUDIT-" + now.strftime("%Y%m%d") + "-" + _uuid.uuid4().hex[:6].upper(),
+        valid_until=(now + _dt.timedelta(days=days)).isoformat(timespec="seconds"))
+    return package
+
+
+@app.post("/v1/scenario-slices/{slice_id}/evaluate", dependencies=[Depends(require_session)])
+async def evaluate_slice(slice_id: str, body: dict[str, Any]) -> Any:
+    """用**这一条切片**的判断框架判定一组输入。"""
+    item = _slice_or_404(slice_id)
+    framework = _slice_framework(item)
+    data = (body or {}).get("data")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    tier = (body or {}).get("tier") or ((item.get("boundaries") or {}).get("default_tier")) or "audit"
+    if tier not in skill_framework.TIERS:
+        raise HTTPException(status_code=422, detail=messages.detail("tier_invalid"))
+    try:
+        package = skill_framework.judge(
+            framework, data, confidence=item.get("confidence"),
+            confidence_status=item.get("confidence_status") or "unverified",
+            confidence_basis=item.get("confidence_basis") or "")
+    except Exception as exc:
+        raise HTTPException(status_code=422,
+                            detail=messages.detail("framework_evaluation_failed", reason=str(exc)[:200]))
+    _slice_identity(package, item)
+    package["slice_id"] = slice_id
+    package["definition_id"] = item.get("scenario_definition_id")
+    return skill_framework.apply_tier(package, tier)
+
+
+@app.post("/v1/scenario-slices/{slice_id}/draft", dependencies=[Depends(require_session)])
+async def draft_slice_framework(slice_id: str, body: dict[str, Any]) -> Any:
+    """为**这一条切片**起草框架（草稿仍需本人逐项调整）。"""
+    item = _slice_or_404(slice_id)
+    description = (body or {}).get("description")
+    if not isinstance(description, str) or len(description.strip()) < 10:
+        raise HTTPException(status_code=422, detail=messages.detail("draft_description_required"))
+    try:
+        result = skill_draft.draft(description)
+    except skill_draft.DraftError as exc:
+        raise HTTPException(status_code=503, detail=messages.detail("draft_failed", reason=str(exc)[:200]))
+    result["slice_id"] = slice_id
+    result["definition_id"] = item.get("scenario_definition_id")
+    return result
+
+
+@app.post("/v1/scenario-slices/{slice_id}/backtest", dependencies=[Depends(require_session)])
+async def backtest_slice(request: Request, slice_id: str, body: dict[str, Any]) -> Any:
+    """回测**这一条切片**的框架，并把置信度写回切片。"""
+    item = _slice_or_404(slice_id)
+    framework = _slice_framework(item)
+    cases = (body or {}).get("cases")
+    if not isinstance(cases, list):
+        raise HTTPException(status_code=422, detail=messages.detail("backtest_cases_invalid"))
+    try:
+        report = skill_backtest.run_backtest(framework, cases)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=messages.detail("backtest_case_invalid", reason=str(exc)[:160]))
+    if (body or {}).get("persist") and report["total"]:
+        basis = messages.msg_for("backtest_basis", messages.current_language(), total=report["total"],
+                                 matched=report["matched"], accuracy=f"{report['accuracy']:.0%}")
+        updated = dict(item)
+        updated["confidence"] = report["accuracy"]
+        updated["confidence_status"] = "backtested"
+        updated["confidence_basis"] = basis
+        store.put("scenario-slices", slice_id, updated)
+        report["persisted"] = {"confidence": report["accuracy"], "confidence_status": "backtested",
+                               "confidence_basis": basis}
+    report["slice_id"] = slice_id
+    return report
+
+
+@app.post("/v1/scenario-slices/{slice_id}/judgment-feedback", dependencies=[Depends(require_session)])
+async def record_slice_feedback(slice_id: str, body: dict[str, Any]) -> Any:
+    """调用方反馈闭环（写回**切片**）：≥10 初步 / ≥100 稳定。"""
+    item = _slice_or_404(slice_id)
+    verdict = (body or {}).get("verdict")
+    if verdict not in ("accurate", "inaccurate"):
+        raise HTTPException(status_code=422, detail=messages.detail("feedback_verdict_invalid"))
+
+    def _int(v, default=0):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    total = _int(item.get("feedback_total")) + 1
+    accurate = _int(item.get("feedback_accurate")) + (1 if verdict == "accurate" else 0)
+    result = skill_backtest.confidence_from_feedback(total, accurate)
+    updated = dict(item)
+    updated["feedback_total"] = total
+    updated["feedback_accurate"] = accurate
+    updated["confidence_status"] = result["confidence_status"]
+    if result["accuracy_from_feedback"] is not None:
+        updated["confidence"] = result["accuracy_from_feedback"]
+        updated["confidence_basis"] = messages.msg_for(
+            "feedback_basis", messages.current_language(), total=total, accurate=accurate,
+            accuracy=f"{result['accuracy_from_feedback']:.0%}")
+    store.put("scenario-slices", slice_id, updated)
+    result["slice_id"] = slice_id
+    return result
+
+
+@app.post("/v1/scenario-slices/{slice_id}/authorize", dependencies=[Depends(require_session)])
+async def authorize_slice_call(slice_id: str, body: dict[str, Any]) -> Any:
+    """第一层授权判定：用**这一条切片**的边界。"""
+    item = _slice_or_404(slice_id)
+    result = authorization.authorize(item.get("boundaries"), body)
+    result["slice_id"] = slice_id
+    return result
+
+
+@app.post("/v1/scenario-slices/migrate-from-definitions", dependencies=[Depends(require_session)])
+async def migrate_frameworks_to_slices() -> Any:
+    """把目前挂在**场景定义**上的个人资产搬到他自己的**切片**上（幂等，可反复调用）。
+
+    只为「有框架但还没有对应切片」的定义建切片；搬完把定义上的个人字段清空，
+    让可共享的定义保持干净。内置定义没有框架，因此不受影响。
+    """
+    moved = []
+    for definition in store.list("scenario-definitions"):
+        if not definition.get("framework"):
+            continue
+        did = definition.get("id")
+        existing = [s for s in store.list("scenario-slices")
+                    if s.get("scenario_definition_id") == did and s.get("framework")]
+        if existing:
+            continue
+        name = definition.get("display_name_zh") or did
+        slice_id = "slice." + str(did).replace("legal.", "").replace("custom.", "") + ".mine"
+        if store.get("scenario-slices", slice_id):
+            continue
+        record = {"original_text": "我的" + str(name), "status": "analyzed",
+                  "scenario_definition_id": did, "scenario_profile": {"kind": "professional"},
+                  "analysis": {"title": "我的" + str(name)}, "updated_at": _now_iso(),
+                  "framework": definition.get("framework"),
+                  "boundaries": definition.get("boundaries"),
+                  "insight": definition.get("insight"), "owner_credentials": definition.get("owner_credentials"),
+                  "valid_days": definition.get("valid_days"),
+                  "confidence": definition.get("confidence"),
+                  "confidence_status": definition.get("confidence_status"),
+                  "confidence_basis": definition.get("confidence_basis")}
+        store.put("scenario-slices", slice_id, record)
+        cleaned = dict(definition)
+        for key in ("framework", "boundaries", "insight", "owner_credentials", "valid_days",
+                    "confidence", "confidence_status", "confidence_basis"):
+            cleaned.pop(key, None)
+        store.put("scenario-definitions", did, cleaned)
+        moved.append({"definition_id": did, "slice_id": slice_id})
+    return {"moved": moved, "count": len(moved)}
+
+
+def _now_iso() -> str:
+    import datetime as _dt
+    return _dt.datetime.now().isoformat(timespec="seconds")
