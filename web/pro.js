@@ -192,8 +192,8 @@ function poHasFramework(fw) {
         }).join("") + "</div>" : hint("还没有行业类别。")) +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<div style="margin-top:12px">' +
-        '<div class="field-label">我的行业归类</div>' +
-        hint('一行一条：标的里的行业 → 上表的行业类别。填了它，打分才算得出来。') +
+        '<div class="field-label">我的行业归类（只填对应关系，不填权重）</div>' +
+        hint('这里只填对应关系：行业名 → 上面的类别名。权重请填在上面的表格里。填了对应关系，打分才算得出来。') +
         '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="行业名 → 类别名">' +
         Object.keys(f.industry_map || {}).map(function (k) { return esc(k) + " → " + esc(f.industry_map[k]); }).join("\n") +
         '</textarea></div>' +
@@ -495,6 +495,22 @@ function poHasFramework(fw) {
           // Use the imported result when there is one: collect() would read the not-yet-re-rendered
           // panels and overwrite the framework that was just saved with an empty one.
           var f = importedFw || collect();
+          // Never silently drop input: if the industry-mapping box contains lines we could not read, say so.
+          var imBox = view.querySelector("[data-im-lines]");
+          if (imBox && (imBox.value || "").trim()) {
+            var badIm = [], looksTable = false;
+            (imBox.value || "").split("\n").forEach(function (ln) {
+              var t = ln.trim(); if (!t || t.charAt(0) === "#") return;
+              if (t.indexOf("|") >= 0) looksTable = true;
+              if (t.split(/→|->/).length < 2) badIm.push(t);
+            });
+            if (looksTable) {
+              alert("「我的行业归类」里像是粘贴了一张表格。\n权重请填在上面的「不同行业的侧重」表格里；\n这里只填对应关系，例如：行业名 → 类别名");
+            } else if (badIm.length) {
+              alert("「我的行业归类」里有 " + badIm.length + " 行没看懂（缺少 →）：\n" +
+                    badIm.slice(0, 5).join("\n") + "\n正确的写法：行业名 → 类别名");
+            }
+          }
         var bndRaw = ((view.querySelector("[data-bnd-amount]") || {}).value || "").trim();
         var bnd = {
           max_amount: bndRaw === "" ? null : Number(bndRaw),

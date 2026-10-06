@@ -1017,6 +1017,21 @@
   "上表的行业类别。填了它，打分才算得出来": "上表的行业类别。填了它，打分才算得出来",
   "行业名": "行业名",
   "类别名": "类别名",
+  "我的行业归类（只填对应关系，不填权重）": "My industry mapping (relations only, no weights)",
+  "这里只填对应关系：行业名 → 上面的类别名。权重请填在上面的表格里。填了对应关系，打分才算得出来。": "Enter relations only here: industry → the category above. Weights go in the table above. The score needs these relations.",
+  "「我的行业归类」里像是粘贴了一张表格。\\n权重请填在上面的「不同行业的侧重」表格里；\\n这里只填对应关系，例如：新能源 → 科技/互联网": "The mapping box looks like a pasted table. Put weights in the industry-weight table above; enter relations only here, for example: industry → category",
+  "「我的行业归类」里有 ": "The industry-mapping box has ",
+  " 行没看懂（缺少 →）：\\n": " lines that could not be read (missing →):\\n",
+  "\\n正确的写法：新能源 → 科技/互联网": "\\nThe correct form: industry → category",
+  "权重请填在上面的「不同行业的侧重」表格里；": "Put weights in the industry-weight table above;",
+  "我的行业归类（只填对应关系，不填权重": "我的行业归类（只填对应关系，不填权重",
+  "这里只填对应关系：行业名": "这里只填对应关系：行业名",
+  "上面的类别名。权重请填在上面的表格里。填了对应关系，打分才算得出来": "上面的类别名。权重请填在上面的表格里。填了对应关系，打分才算得出来",
+  "我的行业归类」里像是粘贴了一张表格": "我的行业归类」里像是粘贴了一张表格",
+  "这里只填对应关系，例如：行业名": "这里只填对应关系，例如：行业名",
+  "我的行业归类」里有": "我的行业归类」里有",
+  "行没看懂（缺少": "行没看懂（缺少",
+  "正确的写法：行业名": "正确的写法：行业名",
   };
 
 
