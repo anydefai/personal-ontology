@@ -438,7 +438,9 @@ function poHasFramework(fw) {
     view.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
-        state = collect();          // collect() reads the DOM, so it must run BEFORE appending the new row
+        // Capture in-progress edits first, but never let a collect() failure block the append:
+        // a synchronous throw here would abort the click with no message at all.
+        try { state = collect(); } catch (e) { /* keep whatever is already in state */ }
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
         else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
@@ -455,7 +457,7 @@ function poHasFramework(fw) {
     });
     view.querySelectorAll("[data-del]").forEach(function (b) {
       b.onclick = function () {
-        state = collect();
+        try { state = collect(); } catch (e) {}
         var parts = b.dataset.del.split(":"), what = parts[0], n = parseInt(parts[1], 10);
         if (what === "input") state.inputs.splice(n, 1);
         else if (what === "weights") delete state.industry_weights[Object.keys(state.industry_weights)[n]];
@@ -779,7 +781,9 @@ function poHasFramework(fw) {
     host.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
-        state = collect();          // collect() reads the DOM, so it must run BEFORE appending the new row
+        // Capture in-progress edits first, but never let a collect() failure block the append:
+        // a synchronous throw here would abort the click with no message at all.
+        try { state = collect(); } catch (e) { /* keep whatever is already in state */ }
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
         else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
@@ -796,7 +800,7 @@ function poHasFramework(fw) {
     });
     host.querySelectorAll("[data-del]").forEach(function (b) {
       b.onclick = function () {
-        state = collect();
+        try { state = collect(); } catch (e) {}
         var parts = b.dataset.del.split(":"), what = parts[0], n = parseInt(parts[1], 10);
         if (what === "input") state.inputs.splice(n, 1);
         else if (what === "weights") delete state.industry_weights[Object.keys(state.industry_weights)[n]];
