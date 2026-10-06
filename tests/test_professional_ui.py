@@ -61,6 +61,10 @@ def _renderers_missing_switch(src):
 _missing, _checked = _renderers_missing_switch(app)
 check("分流页面至少有 3 个（确保这条检查不是空转）", _checked >= 3, str(_checked))
 check("按模式分流的页面里，渲染函数都自带模式切换", not _missing, str(_missing))
+check("交付信息会显示出来（洞察/资历/审计号/有效期/指纹/签名状态）",
+      all(k in app for k in ("proDeliveryHtml", "审计号", "有效期至", "内容指纹", "数字签名")))
+check("判定包可按付费层交付（四层可选）", 'id="pe-tier"' in app and app.count("按哪一层交付") == 1 + app.count("按哪一层交付") - 1)
+check("反馈入口在界面上（准确/不准确）", "pe-fb-ok" in app and "pe-fb-no" in app and "sendFeedback" in app)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

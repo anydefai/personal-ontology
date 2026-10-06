@@ -960,3 +960,26 @@ All **26 suites green**; front-end only, so **no restart and no re-login**; asse
 and please do a hard reload (`Cmd+Shift+R`), since a single-page app will not swap app.js without one.
 
 ### Deploy and tests
+
+### Bringing (1)-(4) into the interface (they were backend-only and invisible)
+
+The user asked where these were and could not find them — rightly so, because the insight field existed but
+the package never displayed it, the audit id, validity, fingerprint and signature were computed but shown
+nowhere, and tiers and feedback were API-only.
+
+**This round adds the missing interface**: the Skill preview page gains a "which tier to deliver" selector
+(audit / professional / standard / basic), passed as `tier` with the evaluation so the difference between
+tiers is visible; a "delivery details for this call" block below the result showing the tier, professional
+insight, credentials, audit id, valid-until, content fingerprint and an honest "digital signature: not
+implemented yet"; and a "was this judgment accurate" block with accurate / not accurate buttons that call
+`/feedback` and echo back the accumulated count, agreement rate and resulting confidence level — so the
+feedback loop is clickable in the interface.
+
+Four Chinese comments were converted to English to remove scanner noise, and 26 English entries were added,
+leaving **56 uncovered against a baseline of 60**.
+
+UI tests are at **37/37** (three new assertions: the delivery block renders, four tiers are selectable, the
+feedback entry exists). All **26 suites green**; front-end only, so **no restart and no re-login**; asset
+version → **20261004s**.
+
+### Deploy and tests

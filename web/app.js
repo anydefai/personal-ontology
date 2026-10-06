@@ -102,7 +102,7 @@ function badge(value){const v=String(value??"").toLowerCase();const kind=["allow
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
   else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
- if(["scenario-slices","scenario-instances","scenario-preview"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // 兜底：这三个页面无论哪个渲染分支都要有模式切换
+ if(["scenario-slices","scenario-instances","scenario-preview"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
 async function renderAgentIntegration(view){
  const [configs,status]=await Promise.all([api("/manager/agent-configs"),api("/manager/status")]);
  const sessions=status.agent_sessions||[];
@@ -281,7 +281,7 @@ function roleSummaryHtml(a,status){
 }
 // ===== Professional track (R2): mode switch, scenario definitions, judgment entries =====
 // The daily path is left untouched: professional mode lives in its own functions and shares one ontology core.
-const isProSlice=x=>((x&&x.scenario_profile)||{}).kind==="professional";   // 专业切片不参与日常侧的列表与计数
+const isProSlice=x=>((x&&x.scenario_profile)||{}).kind==="professional";   // Professional slices stay out of the daily-side lists and counts.
 let professionalMode = (() => { try { return localStorage.getItem("po.professionalMode") === "1"; } catch (e) { return false; } })();
 let proSliceId = null;
 
@@ -295,7 +295,7 @@ function proModeButtons(){return `<div class="collection-toolbar" style="margin-
 const PRO_AUTHORITY = {statute:"法条", interpretation:"司法解释", precedent:"判例", experience:"个人经验"};
 
 async function renderProfessionalSlices(view){
- if(window.POPro&&window.POPro.renderSlices){return window.POPro.renderSlices(view)}   // 新界面（web/pro.js）；加载失败则回退旧界面
+ if(window.POPro&&window.POPro.renderSlices){return window.POPro.renderSlices(view)}   // New UI (web/pro.js); falls back to the old one if it failed to load.
  const [defs,slices,allEntries]=await Promise.all([load("scenario-definitions"),load("scenario-slices"),load("knowledge-entries")]);
  document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(slices.length));
  const mine=slices.filter(x=>(x.scenario_profile||{}).kind==="professional");
@@ -372,7 +372,7 @@ function premiseText(premise){if(!premise)return"";if(typeof premise==="string")
 async function renderScenarios(view){
  if(professionalMode){return renderProfessionalSlices(view)}
  const [rows,provider]=await Promise.all([load("scenario-slices").then(r=>r.filter(x=>!isProSlice(x))),api("/v1/scenario-slices/provider"),load("principals")]);
- // "场景草稿"只列未确认的：已确认的场景已写入本体，不该继续留在草稿清单里（侧栏计数仍是全部）。
+ // The draft list shows unconfirmed scenes only; confirmed ones are already in the ontology (the sidebar count still shows all).
  const drafts=rows.filter(x=>String(x.status||"")!=="confirmed");
  document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(rows.length));
  const scene=activeScenario;const a=scene?.analysis||{};
@@ -532,6 +532,23 @@ function proInputField(f){
     <input class="input" data-pro-input="${name}"></label>`;
 }
 
+function proDeliveryHtml(pkg){
+  if(!pkg) return "";
+  const fp=String(pkg.content_fingerprint||"");
+  const signed=pkg.signature_status!=="not_implemented"&&pkg.owner_signature;
+  return `<section class="panel" style="padding:16px;margin-bottom:16px">
+   <div class="panel-title">本次交付信息</div>
+   <div class="panel-caption" style="margin-top:6px">交付层级：<strong>${esc(pkg.tier||"—")}</strong>（按调用方付费层裁剪）</div>
+   ${pkg.professional_insight?`<div style="margin-top:10px"><div class="panel-caption" style="margin:0">专业洞察</div><div>${esc(pkg.professional_insight)}</div></div>`:""}
+   ${pkg.owner_credentials?`<div style="margin-top:10px"><div class="panel-caption" style="margin:0">资历</div><div>${esc(pkg.owner_credentials)}</div></div>`:""}
+   <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px">
+    <div><div class="panel-caption" style="margin:0">审计号</div><div class="mono">${esc(pkg.audit_id||"—")}</div></div>
+    <div><div class="panel-caption" style="margin:0">有效期至</div><div>${esc(pkg.valid_until||"—")}</div></div>
+    <div><div class="panel-caption" style="margin:0">内容指纹</div><div class="mono">${fp?esc(fp.slice(0,16))+"…":"—"}</div></div>
+    <div><div class="panel-caption" style="margin:0">数字签名</div><div>${signed?esc(String(pkg.owner_signature)):'<span class="muted">尚未实现</span>'}</div></div>
+   </div></section>`;
+}
+
 function proPackageHtml(pkg){
   if(!pkg) return "";
   const sev=({"低":"低","中":"中","高":"高","极高":"极高"})[pkg.severity]||pkg.severity||"—";
@@ -604,7 +621,16 @@ async function renderProfessionalPreview(view){
    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
     ${(fw.inputs||[]).map(proInputField).join("")||'<div class="panel-caption" style="margin:0">框架没有声明输入字段</div>'}
    </div>
-   <div style="margin-top:14px"><button class="button primary" id="pe-run">判定</button></div>
+   <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <label class="field" style="max-width:260px"><span class="field-label">按哪一层交付</span>
+     <select class="select" id="pe-tier">
+      <option value="audit">审计层（完整判定包）</option>
+      <option value="professional">专业层（结论+证据+推理路径）</option>
+      <option value="standard">标准层（结论+证据）</option>
+      <option value="basic">基础层（只有结论）</option>
+     </select></label>
+    <button class="button primary" id="pe-run">判定</button>
+   </div>
   </section>`:""}
   ${fw?`<section class="panel" style="padding:18px;margin-bottom:16px">
    <div class="panel-title">置信度与回测</div>
@@ -619,7 +645,16 @@ async function renderProfessionalPreview(view){
    </div>
    <div id="pe-backtest-result">${proBacktestHtml(proBacktest)}</div>
   </section>`:""}
-  <div id="pe-result">${proPackageHtml(proEvalResult)}</div>`;
+  <div id="pe-result">${proPackageHtml(proEvalResult)}${proDeliveryHtml(proEvalResult)}</div>
+  <section class="panel" style="padding:16px;margin-bottom:16px" id="pe-feedback-panel">
+   <div class="panel-title">这次判断准确吗</div>
+   <div class="panel-caption" style="margin-top:6px">你的反馈会累积成这个场景的置信度：满 10 次给「初步置信度」，满 100 次给「稳定置信度」。</div>
+   <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="button" id="pe-fb-ok">判断准确</button>
+    <button class="button" id="pe-fb-no">判断不准确</button>
+    <span class="panel-caption" style="margin:0" id="pe-fb-hint"></span>
+   </div>
+  </section>`;
   document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";proEvalResult=null;render()});
   const sel=$("#pe-def"); if(sel) sel.onchange=()=>{proEvalDefId=sel.value;proEvalResult=null;render()};
   const saveFw=$("#pe-save-framework"); if(saveFw) saveFw.onclick=async()=>{
@@ -628,6 +663,13 @@ async function renderProfessionalPreview(view){
     await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}`,{method:"PATCH",body:JSON.stringify({framework:parsed})});
     cache["scenario-definitions"]=null; render(); };
   const parseCases=()=>{ try{ return JSON.parse($("#pe-cases").value); }catch(e){ alert("案例 JSON 解析失败："+e.message); return null; } };
+  const sendFeedback=async(verdict)=>{
+    const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/feedback`,{method:"POST",body:JSON.stringify({verdict})});
+    const h=$("#pe-fb-hint");
+    if(h) h.textContent=out&&out.confidence_status?("已记录：共 "+out.feedback_total+" 次反馈，一致率 "+Math.round((out.accuracy_from_feedback||0)*100)+"%，置信度 "+out.confidence_status):"反馈未记录";
+    cache["scenario-definitions"]=null; };
+  const fbOk=$("#pe-fb-ok"); if(fbOk) fbOk.onclick=()=>sendFeedback("accurate");
+  const fbNo=$("#pe-fb-no"); if(fbNo) fbNo.onclick=()=>sendFeedback("inaccurate");
   const bt=$("#pe-backtest"); if(bt) bt.onclick=async()=>{
     const cases=parseCases(); if(!cases) return;
     const rep=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/backtest`,{method:"POST",body:JSON.stringify({cases})});
@@ -648,8 +690,9 @@ async function renderProfessionalPreview(view){
     const mult={}; document.querySelectorAll("[data-pro-multi]").forEach(c=>{
       const k=c.dataset.proMulti; if(!mult[k])mult[k]=[]; if(c.checked)mult[k].push(c.value); });
     Object.keys(mult).forEach(k=>{ if(mult[k].length)data[k]=mult[k]; });
-    const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data})});
-    if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out); }
+    const tier=(document.querySelector("#pe-tier")||{}).value||"audit";
+    const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data,tier})});
+    if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out)+proDeliveryHtml(out); }
     else { proEvalResult=null; $("#pe-result").innerHTML=`<section class="panel empty-state">判定未完成：${esc((out&&(out.detail||out.error))||"框架或输入有问题")}</section>`; } };
 }
 
