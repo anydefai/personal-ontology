@@ -297,6 +297,12 @@
       return (x.scenario_profile || {}).kind === "professional" && x.scenario_definition_id === defId;
     });
     if (!sliceId || !mine.some(function (x) { return x.id === sliceId; })) sliceId = mine[0] ? mine[0].id : null;
+    // 未归属切片：所属场景已被删除（或从未归属）—— 不该消失，应当能捞回来
+    var defIds = defs.map(function (d) { return d.id; });
+    var orphans = allSlices.filter(function (x) {
+      return (x.scenario_profile || {}).kind === "professional"
+        && (!x.scenario_definition_id || defIds.indexOf(x.scenario_definition_id) < 0);
+    });
     var slice = mine.filter(function (x) { return x.id === sliceId; })[0] || null;
     if (!state || state.__slice !== sliceId) {
       state = ensureShape(slice && slice.framework ? slice.framework : emptyFramework());
@@ -345,6 +351,7 @@
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
       sliceTable(mine, sliceId, nameOfSlice) +
+      orphanPanel(orphans, defs, nameOfSlice) +
       '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
@@ -405,6 +412,24 @@
         render();
       };
     });
+    view.querySelectorAll("[data-orphan-attach]").forEach(function (b) {
+      b.onclick = async function () {
+        var sid = b.dataset.orphanAttach;
+        var target = (view.querySelector('[data-orphan-target="' + sid + '"]') || {}).value;
+        if (!target) { alert("请先选择要挂到哪个场景。"); return; }
+        await api("/v1/scenario-slices/" + encodeURIComponent(sid), { method: "PATCH",
+          body: JSON.stringify({ scenario_definition_id: target }) });
+        cache["scenario-slices"] = null; render();
+      };
+    });
+    view.querySelectorAll("[data-orphan-del]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!confirm("删除这条未归属切片？它的框架与定价会一并删除。")) return;
+        await api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.orphanDel), { method: "DELETE" });
+        cache["scenario-slices"] = null; render();
+      };
+    });
+
     var sliceSel = view.querySelector("#pro-slice");
     if (sliceSel) sliceSel.onchange = function () { sliceId = sliceSel.value; state = null; render(); };
     var addSlice = view.querySelector("#pro-add-slice");
@@ -624,6 +649,33 @@
 
   window.POPro = { renderSlices: renderSlices };
 })();
+
+
+  // -- Unassigned slices: their scenario was deleted, so they must be recoverable --
+  function orphanPanel(orphans, defs, nameOf) {
+    if (!orphans.length) return "";
+    var options = defs.map(function (d) {
+      return '<option value="' + esc(d.id) + '">' + esc(fieldLabel(d, "display_name_zh", "display_name_en")) + "</option>";
+    }).join("");
+    var rows = orphans.map(function (x) {
+      var conf = x.confidence_status && x.confidence_status !== "unverified" ? x.confidence_status : "未验证";
+      var action = defs.length
+        ? '<select class="select" data-orphan-target="' + esc(x.id) + '" style="max-width:180px">' + options + "</select>" +
+          '<button class="button primary" data-orphan-attach="' + esc(x.id) + '">挂过去</button>'
+        : '<span class="muted">先建一个场景才能挂</span>';
+      return "<tr><td>" + esc(nameOf(x)) + "</td>" +
+        "<td>" + (x.framework ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
+        "<td>" + esc(conf) + "</td>" +
+        '<td style="text-align:right;white-space:nowrap">' + action +
+        ' <button class="button" data-orphan-del="' + esc(x.id) + '">删除</button></td></tr>';
+    }).join("");
+    return '<section class="panel collection-panel" style="margin-top:12px">' +
+      '<div class="collection-toolbar"><span class="record-count"><span>未归属切片</span> ' + orphans.length +
+      ' <span>条</span></span><span class="toolbar-spacer"></span>' +
+      '<span class="panel-caption" style="margin:0">这些切片所属的场景已被删除 —— 数据还在，挂回一个场景就能继续用</span></div>' +
+      '<div class="table-wrap"><table><thead><tr><th>名称</th><th>框架</th><th>置信度</th><th style="text-align:right">操作</th></tr></thead>' +
+      "<tbody>" + rows + "</tbody></table></div></section>";
+  }
 
 
   // -- My slices: the draft-like list for the selected scenario (professional side) --

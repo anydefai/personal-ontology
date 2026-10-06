@@ -883,6 +883,15 @@
   "请先新建或选择一个场景（切片必须挂在某个场景下）。": "Create or choose a scenario first (a slice must belong to one).",
   "请先新建或选择一个场景（切片必须挂在某个场景下）": "Create or choose a scenario first (a slice must belong to one)",
   "请先新建或选择一个场景（切片必须挂在某个场景下": "Create or choose a scenario first (a slice must belong to one",
+  "未归属切片": "Unassigned slices",
+  "这些切片所属的场景已被删除 —— 数据还在，挂回一个场景就能继续用": "The scenario these slices belonged to was deleted — the data is still here, so attach them to a scenario to keep using it",
+  "先建一个场景才能挂": "create a scenario first to attach",
+  "挂过去": "Attach",
+  "请先选择要挂到哪个场景。": "Choose which scenario to attach it to first.",
+  "删除这条未归属切片？它的框架与定价会一并删除。": "Delete this unassigned slice? Its framework and pricing go with it.",
+  "删除这条未归属切片？它的框架与定价会一并删除": "Delete this unassigned slice? Its framework and pricing go with it",
+  "请先选择要挂到哪个场景": "Choose which scenario to attach it to first",
+  "未归属切片：所属场景已被删除（或从未归属）—— 不该消失，应当能捞回来": "Unassigned slices: their scenario was deleted or never set; they should be recoverable rather than vanish",
   };
 
 
