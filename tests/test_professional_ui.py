@@ -107,6 +107,10 @@ check("两种生成方式在页面上一眼可辨（方式一/方式二 + 第三
       all(k in _pro for k in ("方式一 · 让模型起草", "方式二 · 一行一条自己写", "第三步 · 核对与微调", "两种方式随时可以混用")))
 check("顶部的保存按钮已删除（保存入口不再重复）",
       _pro.count("data-save-framework>保存我的框架</button>") == 1)
+check("切片可确认并启用 / 退回草稿（状态闭环）",
+      all(k in _pro for k in ("data-confirm-slice", "data-unconfirm-slice", 'status: "confirmed"', 'status: "analyzed"')))
+check("场景实例页显示已启用的专业切片（含框架摘要与退回草稿）",
+      all(k in app for k in ("function proEnabledSlicesHtml", "已启用的切片", "框架摘要", "data-unconfirm-slice")))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

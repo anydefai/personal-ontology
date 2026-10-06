@@ -444,6 +444,20 @@
         render();
       };
     });
+    view.querySelectorAll("[data-confirm-slice]").forEach(function (b) {
+      b.onclick = async function () {
+        await api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.confirmSlice),
+          { method: "PATCH", body: JSON.stringify({ status: "confirmed" }) });
+        cache["scenario-slices"] = null; render();
+      };
+    });
+    view.querySelectorAll("[data-unconfirm-slice]").forEach(function (b) {
+      b.onclick = async function () {
+        await api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.unconfirmSlice),
+          { method: "PATCH", body: JSON.stringify({ status: "analyzed" }) });
+        cache["scenario-slices"] = null; render();
+      };
+    });
     view.querySelectorAll("[data-orphan-attach]").forEach(function (b) {
       b.onclick = async function () {
         var sid = b.dataset.orphanAttach;
@@ -782,12 +796,16 @@
       var priced = Object.keys(tiers).length;
       var conf = x.confidence_status && x.confidence_status !== "unverified" ? x.confidence_status : "未验证";
       return '<tr>' +
-        '<td>' + esc(nameOf(x)) + (x.id === currentId ? ' <span class="badge">当前</span>' : "") + "</td>" +
+        '<td>' + esc(nameOf(x)) + (x.id === currentId ? ' <span class="badge">当前</span>' : "") +
+        (x.status === "confirmed" ? ' <span class="badge">已启用</span>' : ' <span class="muted">草稿</span>') + "</td>" +
         "<td>" + (hasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
         "<td>" + esc(conf) + "</td>" +
         "<td>" + (priced ? ("已设 " + priced + " 项") : '<span class="muted">未设</span>') + "</td>" +
         '<td style="text-align:right;white-space:nowrap">' +
           '<button class="button" data-pick-slice="' + esc(x.id) + '">选中</button> ' +
+          (x.status === "confirmed"
+            ? '<button class="button" data-unconfirm-slice="' + esc(x.id) + '">退回草稿</button> '
+            : '<button class="button primary" data-confirm-slice="' + esc(x.id) + '">确认并启用</button> ') +
           '<button class="button" data-drop-slice="' + esc(x.id) + '">删除</button>' +
         "</td></tr>";
     }).join("");

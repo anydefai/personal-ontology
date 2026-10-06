@@ -453,7 +453,8 @@ async function renderProfessionalInstances(view){
  const active=entries.filter(e=>e.review_state==="active");
  view.innerHTML=`${proModeButtons()}
   
- ${titleBlock("PROFESSIONAL INSTANCE","已启用的判断规则集","这是你的专业判断在对外可用时的形态——只列已启用的条目，并显示各自的前提与依据")}
+ ${proEnabledSlicesHtml(defs, mine)}
+  ${titleBlock("PROFESSIONAL INSTANCE","已启用的判断条目","这是你的专业判断在对外可用时的形态——只列已启用的条目，并显示各自的前提与依据")}
  <section class="panel collection-panel">
   <div class="collection-toolbar"><span class="record-count"><span>已启用</span> ${active.length} <span>条</span> · <span>全部</span> ${entries.length} <span>条</span></span></div>
   <div class="table-wrap"><table><thead><tr><th>所属场景</th><th>前提</th><th>结论</th><th>依据</th><th>权威级别</th></tr></thead>
@@ -933,3 +934,40 @@ async function renderDecisions(view){
   const rel=view.querySelector("#dr-reload"); if(rel) rel.onclick=()=>{cache["decisions"]=null;render()};
   view.querySelectorAll("[data-pro-mode]").forEach(b=>{b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";try{localStorage.setItem("po.professionalMode",professionalMode?"1":"0")}catch(e){}render()}});
 }
+
+// -- Enabled professional slices: the form in which your judgment is available outside --
+function proEnabledSlicesHtml(defs, slices) {
+  const enabled = (slices || []).filter(x => x.status === "confirmed");
+  if (!enabled.length) {
+    return `<section class="panel" style="padding:16px;margin-bottom:14px">
+     <div class="panel-caption" style="margin:0">还没有已启用的切片。到「场景切片」页把写好框架的切片点「确认并启用」，它就会出现在这里</div>
+    </section>`;
+  }
+  const nameOf = x => (x.analysis && x.analysis.title) || x.original_text || x.id;
+  const defName = id => ((defs || []).find(d => d.id === id) || {}).display_name_zh || "—";
+  const summary = x => {
+    const f = x.framework || {}, th = f.thresholds || {}, b = x.boundaries || {}, pr = b.pricing || {};
+    return `输入 ${(f.inputs || []).length} · 信号 ${(f.signals || []).length} · 组合 ${(f.combination_rules || []).length} · 例外 ${(f.exception_rules || []).length} · 阈值 ${th.base == null ? "—" : th.base}`
+      + `　|　默认层级 ${b.default_tier || "audit"} · 已定价 ${Object.keys(pr.tiers || {}).length} 项`;
+  };
+  const rows = enabled.map(x => `<tr>
+    <td>${esc(nameOf(x))}</td>
+    <td>${esc(defName(x.scenario_definition_id))}</td>
+    <td>${esc(summary(x))}</td>
+    <td>${esc(x.confidence_status || "unverified")}</td>
+    <td style="text-align:right"><button class="button" data-unconfirm-slice="${esc(x.id)}">退回草稿</button></td>
+  </tr>`).join("");
+  return `<section class="panel collection-panel" style="margin-bottom:14px">
+   <div class="collection-toolbar"><span class="record-count"><span>已启用的切片</span> ${enabled.length} <span>条</span></span>
+    <span class="toolbar-spacer"></span><span class="panel-caption" style="margin:0">已启用 = 对外可用；退回草稿即暂停对外</span></div>
+   <div class="table-wrap"><table><thead><tr><th>我的切片</th><th>场景</th><th>框架摘要</th><th>置信度</th><th style="text-align:right">操作</th></tr></thead>
+   <tbody>${rows}</tbody></table></div></section>`;
+}
+document.addEventListener("click", event => {
+  const b = event.target.closest?.("[data-unconfirm-slice]");
+  if (!b) return;
+  api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.unconfirmSlice),
+    { method: "PATCH", body: JSON.stringify({ status: "analyzed" }) })
+    .then(() => { cache["scenario-slices"] = null; render(); })
+    .catch(err => alert("退回草稿失败：" + (err && err.message ? err.message : err)));
+});
