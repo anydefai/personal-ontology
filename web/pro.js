@@ -171,6 +171,7 @@ function poHasFramework(fw) {
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>我要知道的信息</span></div>' +
       hint('每次做判断之前都要先问清楚的信息，一条一行。') +
+      hint('调用这条判断的人必须提供下面这些值；少任何一项，判定会返回「信息不足，无法判断」。') +
       f.inputs.map(function (i, n) {
         var t = (i.type === "number" && i.__money) ? "money" : (i.type || "string");
         return row('<div style="min-width:150px">' + input(i.name, 'data-in-name="' + n + '" placeholder="叫什么，例如：标的行业"') + "</div>" +

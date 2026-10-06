@@ -1075,6 +1075,9 @@
   "对外": "对外",
   "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束": "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束",
   "这一组是调用方看得到、必须遵守的：要传什么值、不许做什么、交付时附上什么说明": "这一组是调用方看得到、必须遵守的：要传什么值、不许做什么、交付时附上什么说明",
+  "调用这条判断的人必须提供下面这些值；少任何一项，判定会返回「信息不足，无法判断」。": "Anyone calling this judgment must supply the values below; with any of them missing the result is \"insufficient information, cannot judge\".",
+  "调用这条判断的人必须提供下面这些值；少任何一项，判定会返回「信息不足，无法判断」": "Anyone calling this judgment must supply the values below; with any of them missing the result is \"insufficient information, cannot judge\"",
+  "调用这条判断的人必须提供下面这些值": "Anyone calling this judgment must supply the values below",
   };
 
 
