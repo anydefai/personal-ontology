@@ -1232,6 +1232,40 @@ function polishPanels(view) {
   if (!sections.length) return;
   // Two audiences: my own judgment model, and what the caller must supply and obey. Grouping the panels by
   // audience answers at a glance which parts are written for the caller.
+  // ── D/E：调用说明与交付说明的文本化 ──
+  // The contract comes from the API so there is one source of truth; these two turn it into text a person
+  // can read or paste into a delivery note.
+  function contractLines(c) {
+    var out = [];
+    out.push("调用说明 · " + (c.title || c.slice_id || ""));
+    out.push("调用方式：" + ((c.how_to_call || {}).method || "POST") + " " + ((c.how_to_call || {}).path || ""));
+    out.push("");
+    out.push("需要提供的值（全部必填，少一项不会有结论）：");
+    (c.fields || []).forEach(function (f, i) {
+      var bits = [f.name, "类型：" + (f.type || "string")];
+      if (f.unit) bits.push("单位：" + f.unit);
+      if (f.options) bits.push("可选值：" + (f.options || []).join("/"));
+      if (f.example) bits.push("示例：" + f.example);
+      if (f.note) bits.push(f.note);
+      out.push("  " + (i + 1) + ". " + bits.join(" · "));
+    });
+    out.push("");
+    out.push("每次调用还要说明：调用方、本次用途" + (c.max_amount ? "、金额（上限 " + c.max_amount + "）" : "") +
+             (c.no_resale_required ? "，并承诺不得转售" : "") + "。");
+    if ((c.allowed_purposes || []).length) out.push("允许的用途：" + c.allowed_purposes.join("、"));
+    out.push("缺少必填项时：只返回「信息不足，无法判断」并列出缺哪几项。");
+    out.push("");
+    out.push("你会收到：" + (c.you_will_receive || []).join("、"));
+    var bill = c.billing || {};
+    if (bill.unit_price) out.push("计费（演示）：每次 " + bill.unit_price + " " + (bill.currency || "CNY"));
+    return out;
+  }
+
+  function contractHtml(c) {
+    return '<div class="panel-caption" style="margin-top:8px">调用说明（可直接发给调用方）：</div>' +
+      '<pre class="pro-copy">' + esc(contractLines(c).join("\n")) + "</pre>";
+  }
+
   var isCallerPanel = function (title) {
     if (title.indexOf("计费") >= 0) { return true; }
     return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
@@ -1274,6 +1308,45 @@ function polishPanels(view) {
     // counts in the index come from the same place as before.
     if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0 ||
         title.indexOf("我的依据") >= 0) { sec.classList.add("pro-rules"); }
+    // D/E: put the call contract next to the delivery note, and compose the two into one pasteable page.
+    if (title.indexOf("对外交付时附上的说明") >= 0 && !sec.querySelector("[data-contract-btn]")) {
+      var bar = document.createElement("div");
+      bar.className = "pro-contract-bar";
+      bar.innerHTML = '<button class="button" data-contract-btn="view">查看调用说明</button>' +
+                      '<button class="button primary" data-contract-btn="compose">生成交付说明（含调用说明）</button>' +
+                      '<span class="panel-caption" data-contract-note></span>';
+      sec.appendChild(bar);
+      var box = document.createElement("div");
+      sec.appendChild(box);
+      bar.querySelectorAll("[data-contract-btn]").forEach(function (btn) {
+        btn.onclick = async function () {
+          var note = bar.querySelector("[data-contract-note]");
+          var sid = (window.poProSlice ? window.poProSlice.id : (typeof sliceId !== "undefined" ? sliceId : ""));
+          if (!sid) { alert("请先在上面选一条我的切片。"); return; }
+          note.textContent = "读取中…";
+          var c = null;
+          try { c = await api("/v1/scenario-slices/" + encodeURIComponent(sid) + "/contract"); }
+          catch (e) { note.textContent = ""; alert("取调用说明失败：" + (e && e.message ? e.message : e)); return; }
+          note.textContent = "";
+          if (btn.dataset.contractBtn === "view") {
+            box.innerHTML = contractHtml(c);
+            return;
+          }
+          // compose: the owner's own delivery note first, then the call contract
+          var fwk = (window.poProSlice && window.poProSlice.framework) || {};
+          var dv = fwk.delivery || {};
+          var head = [];
+          head.push("交付说明 · " + (c.title || sid));
+          if (dv.insight) head.push("这套判断强在哪：" + dv.insight);
+          if (dv.owner_credentials) head.push("出具人资历：" + dv.owner_credentials);
+          if (dv.default_tier) head.push("交付档位：" + dv.default_tier);
+          if (dv.valid_days) head.push("有效期：" + dv.valid_days + " 天");
+          head.push("");
+          box.innerHTML = '<div class="panel-caption" style="margin-top:8px">交付说明（你自己的话 ＋ 调用说明）：</div>' +
+            '<pre class="pro-copy">' + esc(head.concat(contractLines(c)).join("\n")) + "</pre>";
+        };
+      });
+    }
     var g = groups[isCallerPanel(title) ? 1 : 0];
     g.host.appendChild(sec);
     var link = document.createElement("a");
