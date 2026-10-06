@@ -351,7 +351,12 @@ function poHasFramework(fw) {
     });
     var slice = mine.filter(function (x) { return x.id === sliceId; })[0] || null;
     if (!state || state.__slice !== sliceId) {
-      state = ensureShape(slice && slice.framework ? slice.framework : emptyFramework());
+      // Only reload from the server when switching slices. Overwriting unconditionally wiped anything the
+      // add/remove buttons had just put into state, which made those buttons look dead.
+      if (!state || state.__slice !== sliceId) {
+        state = ensureShape(slice && slice.framework ? slice.framework : emptyFramework());
+        state.__slice = sliceId;
+      }
       state.__slice = sliceId;
     }
     var opts = defs.map(function (d) {
