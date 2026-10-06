@@ -1107,6 +1107,8 @@
   " —— 补齐后再判定。": " - fill them in and judge again.",
   "还缺这些必须提供的信息": "Still missing these required values",
   "补齐后再判定。": "fill them in and judge again.",
+  "一行一条": "Line by line",
+  "表格核对": "Review tables",
   };
 
 

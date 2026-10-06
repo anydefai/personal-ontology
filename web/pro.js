@@ -1020,7 +1020,7 @@ function poHasFramework(fw) {
       ["citations", "我的依据", "依据名　或　依据名 → 信号1 且 信号2（全部命中才附上）", "反垄断法第二十六条 → 团队流失高 且 现金流危机\n证券法第七十八条"],
       ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"]
     ];
-    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+    return '<section class="panel" id="pro-lines" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>方式二 · 一行一条自己写</span></div>' +
       '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>两种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补</div>' +
       parts.map(function (p, i) {
@@ -1151,6 +1151,17 @@ function polishPanels(view) {
   };
   var toc = document.createElement("div");
   toc.className = "pro-toc";
+  // View switch: authoring line by line, or reviewing the tables. Both write the same data.
+  var mine = window.poEntryView === "tables" ? "tables" : "lines";
+  document.body.dataset.poEntry = mine;
+  var sw = document.createElement("div");
+  sw.className = "pro-viewswitch";
+  sw.innerHTML = '<button class="button' + (mine === "lines" ? " primary" : "") + '" data-view="lines">一行一条</button>' +
+                 '<button class="button' + (mine === "tables" ? " primary" : "") + '" data-view="tables">表格核对</button>';
+  sw.querySelectorAll("[data-view]").forEach(function (b) {
+    b.onclick = function () { window.poEntryView = b.dataset.view; render(); };
+  });
+  toc.appendChild(sw);
   var groups = [
     { title: "我的判断模型",
       caption: "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束。",
@@ -1204,6 +1215,8 @@ function polishPanels(view) {
     if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0) {
       d.classList.add("pro-rules");
     }
+    // The weights table has no line-box equivalent, so it stays visible in both views.
+    if (title.indexOf("不同行业的侧重") >= 0) { d.classList.add("pro-keep"); }
     g.host.appendChild(d);
     var link = document.createElement("a");
     link.href = "#";
