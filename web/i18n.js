@@ -941,6 +941,14 @@
   "保存会先把上面的内容变成下面面板里的内容，再存进这条切片": "Saving first turns what is written above into the panels below, then stores it in this slice",
   "请先新建或选择一条「我的切片」，框架保存在切片上。": "Create or choose a slice first; the framework is stored on a slice.",
   "请先新建或选择一条「我的切片」，框架保存在切片上": "Create or choose a slice first; the framework is stored on a slice",
+  "第一步 · 先选场景，再选我的切片": "Step 1 · Choose a scenario, then your slice",
+  "方式一 · 让模型起草": "Method 1 · Let the model draft it",
+  "用平时说话的方式讲你的判断，模型起草后你再到下面逐条核对": "Describe your judgment in your own words; after the model drafts, review each part below",
+  "方式二 · 一行一条自己写": "Method 2 · Write it yourself, one line at a time",
+  "两种方式随时可以混用": "The two methods can be mixed at any time",
+  "：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补": ": let the model draft first and then adjust line by line here, or write a few lines and let the model fill in the rest",
+  "第三步 · 核对与微调": "Step 3 · Review and fine-tune",
+  "先让模型起草再用这里逐条改，或只写几条、剩下的让模型补": "先让模型起草再用这里逐条改，或只写几条、剩下的让模型补",
   };
 
 

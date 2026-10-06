@@ -103,6 +103,10 @@ check("未选切片时保存会给提示（不再静默无反应）", "请先新
 check("导入失败不再静默（会弹出来）", "catch (err)" in _pro and "导入失败：" in _pro)
 check("保存我的框架会先导入逐行框（不会默默丢掉输入）",
       "function hasFramework" in _pro and "lineTexts" in _pro and "save: true" in _pro)
+check("两种生成方式在页面上一眼可辨（方式一/方式二 + 第三步 + 混用提示）",
+      all(k in _pro for k in ("方式一 · 让模型起草", "方式二 · 一行一条自己写", "第三步 · 核对与微调", "两种方式随时可以混用")))
+check("顶部的保存按钮已删除（保存入口不再重复）",
+      _pro.count("data-save-framework>保存我的框架</button>") == 1)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

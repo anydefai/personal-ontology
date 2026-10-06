@@ -335,7 +335,7 @@
     view.innerHTML = proModeButtons() +
       titleBlock("SKILL FRAMEWORK", "技能框架", "先用一段话讲清你的判断方式，让模型起草；再逐条改成你自己的说法。改的过程就是这套框架的价值所在。") +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-        '<div class="panel-title"><span>先选场景，再选我的切片</span></div>' +
+        '<div class="panel-title"><span>第一步 · 先选场景，再选我的切片</span></div>' +
         '<div class="panel-caption" style="margin:6px 0 10px">场景是<strong>可共享的模板</strong>，不含你的判断；切片是<strong>你的个人判断资产</strong>，同一个场景可以建多条（例如互联网版、制造业版）</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">' +
           '<span class="field-label" style="min-width:56px">场景</span>' +
@@ -356,16 +356,17 @@
             esc((slice.analysis && slice.analysis.title) || slice.original_text || slice.id) + "</strong> · 置信度 " +
             esc(slice.confidence_status || "未验证") + " · 保存与起草都写在这条切片上</div>"
           : '<div class="panel-caption" style="margin:10px 0 0">先新建一条「我的切片」，框架保存在切片上</div>') +
-        '<textarea class="input" id="pro-desc" rows="4" style="width:100%;margin-top:10px" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
+        '<div class="panel-title" style="margin-top:8px"><span>方式一 · 让模型起草</span></div><div class="panel-caption" style="margin:2px 0 6px">用平时说话的方式讲你的判断，模型起草后你再到下面逐条核对</div><textarea class="input" id="pro-desc" rows="4" style="width:100%;margin-top:10px" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
         '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
           '<button class="button primary" id="pro-gen">让模型起草框架</button>' +
-          '<button class="button" data-save-framework>保存我的框架</button>' +
+          '' +
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
       sliceTable(mine, sliceId, nameOfSlice) +
       orphanPanel(orphans, defs, nameOfSlice) +
       lineImportPanel() +
-      '<div id="pro-editor">' +
+      '<div class="panel-title" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
+        '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
@@ -725,8 +726,8 @@
       ["priority", "哪个更重要", "更重要的 > 次重要的（> 两边留空格）", "现金流危机 > 团队流失高"]
     ];
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span>一行一条录入（推荐）</span></div>' +
-      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行</div>' +
+      '<div class="panel-title"><span>方式二 · 一行一条自己写</span></div>' +
+      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>两种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补</div>' +
       parts.map(function (p, i) {
         return '<div style="margin-top:10px">' +
           '<div class="field-label">' + p[1] + '</div>' +

@@ -1326,3 +1326,32 @@ re-login**; version → **20261005e**.
 **Left over**: `doImport` is now uncalled dead code, harmless and to be cleaned up later.
 
 ### Deploy and tests
+
+### A (first layer): the two ways of generating a framework are now obvious on the page
+
+The user confirmed option A and pointed out that "let the model draft it" and "enter one line at a time" are two
+ways of generating a framework, which the layout did not convey.
+
+**This round does the layout layer** (small, low-risk, front-end only): the description box is titled
+"Method 1 - let the model draft it" with a subtitle saying to review each part afterwards; the line panel is
+titled "Method 2 - write it yourself, one line at a time"; a line notes that **the two methods can be mixed at
+any time**; the scenario and slice selection is labelled "Step 1" and the review panels "Step 3 - review and
+fine-tune", since they previously had no hierarchy and the user could not tell results from input methods; and
+the top "Save my framework" button is removed, leaving two instances of the same save action (one labelled
+Save inside Method 2, one on the persistent bottom bar) instead of three.
+
+**A lesson worth recording**: my first attempt at this change had a **syntax error** - a full-width `②` landed
+in code position - so the script failed at parse time and **never touched the file**, the third time this
+workflow has stopped one of my own mistakes. The redo used plain whole-text replacements with assertions on
+match counts, no line lists and no nested quotes, and passed first time.
+
+UI tests **60/60** (two new: the two methods are distinguishable, the top save is gone); all **31 suites
+green**; 60 uncovered, level with the baseline; version → **20261005f**; front-end only, so **no restart and
+no re-login**.
+
+**Next round covers layers two and three of A** (backend, one restart): saving as draft, confirming and
+enabling, and disabling; and enabling compiles the boundaries into an authorisation rule with
+`source = skill-slice:<id>`, after I first establish the required constraints on `authorizations` (including
+whether `grantor_id` needs a principal).
+
+### Deploy and tests
