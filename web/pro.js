@@ -456,11 +456,35 @@ function poHasFramework(fw) {
     view.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
-        // Capture in-progress edits first, but never let a collect() failure block the append:
-        // a synchronous throw here would abort the click with no message at all.
-        try { state = collect(); } catch (e) { /* keep whatever is already in state */ }
+        // Capture this panel's typed values only. The previous version called the full collect() inside a
+        // try/catch that swallowed failures, so a collect() error silently discarded what the user had typed.
+        try {
+          var typed = {};
+          view.querySelectorAll("[data-w-cat]").forEach(function (el, i) {
+            var key = (el.value || "").trim() || ("行业" + (i + 1));
+            typed[key] = typed[key] || {};
+            view.querySelectorAll('[data-w-val^="' + i + ':"]').forEach(function (v) {
+              var dim = String(v.dataset.wVal || "").split(":")[1];
+              var num = parseFloat(v.value);
+              if (dim && !isNaN(num)) typed[key][dim] = num;
+            });
+          });
+          if (Object.keys(typed).length) state.industry_weights = typed;
+        } catch (e) {
+          alert("读取权重表出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
+          return;
+        }
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
-        else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
+        else if (kind === "weight-cat") {
+          var dims = {};
+          Object.keys(state.industry_weights).forEach(function (c) {
+            Object.keys(state.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; });
+          });
+          var blank = {};
+          Object.keys(dims).forEach(function (d) { blank[d] = 0; });
+          if (!Object.keys(blank).length) blank["侧重"] = 0;
+          state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = blank;
+        }
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
           var w = state.industry_weights[c]; w["维度" + (Object.keys(w).length + 1)] = 0;
         });
@@ -805,11 +829,35 @@ function poHasFramework(fw) {
     host.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
-        // Capture in-progress edits first, but never let a collect() failure block the append:
-        // a synchronous throw here would abort the click with no message at all.
-        try { state = collect(); } catch (e) { /* keep whatever is already in state */ }
+        // Capture this panel's typed values only. The previous version called the full collect() inside a
+        // try/catch that swallowed failures, so a collect() error silently discarded what the user had typed.
+        try {
+          var typed = {};
+          view.querySelectorAll("[data-w-cat]").forEach(function (el, i) {
+            var key = (el.value || "").trim() || ("行业" + (i + 1));
+            typed[key] = typed[key] || {};
+            view.querySelectorAll('[data-w-val^="' + i + ':"]').forEach(function (v) {
+              var dim = String(v.dataset.wVal || "").split(":")[1];
+              var num = parseFloat(v.value);
+              if (dim && !isNaN(num)) typed[key][dim] = num;
+            });
+          });
+          if (Object.keys(typed).length) state.industry_weights = typed;
+        } catch (e) {
+          alert("读取权重表出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
+          return;
+        }
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
-        else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
+        else if (kind === "weight-cat") {
+          var dims = {};
+          Object.keys(state.industry_weights).forEach(function (c) {
+            Object.keys(state.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; });
+          });
+          var blank = {};
+          Object.keys(dims).forEach(function (d) { blank[d] = 0; });
+          if (!Object.keys(blank).length) blank["侧重"] = 0;
+          state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = blank;
+        }
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
           var w = state.industry_weights[c]; w["维度" + (Object.keys(w).length + 1)] = 0;
         });

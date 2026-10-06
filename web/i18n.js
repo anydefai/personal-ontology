@@ -1054,6 +1054,8 @@
   "一行一条：数据里的写法": "One per line: how your data spells it",
   "上表里的行业。写法一致就不用填": "→ the industry in the table. Skip it when they match",
   "这张表要先有「维度」才能填": "This table needs dimensions first",
+  "读取权重表出错，已中止本次操作（你的输入没有被丢弃）：": "Could not read the weights table, so this action was cancelled - your input was not discarded: ",
+  "读取权重表出错，已中止本次操作（你的输入没有被丢弃）": "Could not read the weights table, so this action was cancelled - your input was not discarded",
   };
 
 
