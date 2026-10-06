@@ -197,6 +197,9 @@ function poHasFramework(fw) {
       // Always offer one editable row: entering weights must not depend on the add button working.
       if (!cats.length) cats = ["新行业1"];
     var dims = {};
+    // Dimensions come from the signals, which is where they are authored; the weights table only adds
+    // extra ones. Deriving them from the table alone made an empty table claim there were none.
+    (f.signals || []).forEach(function (sg) { if (sg && sg.dimension) dims[sg.dimension] = 1; });
     cats.forEach(function (c) { Object.keys(f.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; }); });
     var dimList = Object.keys(dims);
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +

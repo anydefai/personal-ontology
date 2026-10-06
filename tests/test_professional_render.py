@@ -78,7 +78,8 @@ FW_FULL = json.loads((ROOT / "tests" / "_render_fixture.json").read_text(encodin
         "industry_weights": {"keji": {"jishu": 0.35}},
         "industry_map": {"x": "keji"},
         "thresholds": {"base": 1.3, "adjustments": [{"condition": {"a": "b"}, "delta": 0.1}]},
-        "signals": [{"name": "s1", "when": {"a": {"op": "gt", "value": 1}}}],
+        "signals": [{"name": "s1", "dimension": "jishu", "when": {"a": {"op": "gt", "value": 1}}},
+                   {"name": "s2", "dimension": "caiwu", "when": {"a": {"op": "gt", "value": 2}}}],
         "combination_rules": [{"all_of": ["s1"], "conclusion": "c", "severity": "高"}],
         "exception_rules": [{"condition": {"all_signals": ["s1"]},
                              "override": {"kind": "reduce_weight", "target": "jishu", "factor": 0.5}}],
@@ -128,6 +129,12 @@ console.log([h.indexOf('data-add="weight-cat"')>=0, h.indexOf('data-w-cat="0"')>
 """, encoding="utf-8")
 r = subprocess.run(["node", str(tmp)], capture_output=True, text=True)
 flags = (r.stdout or "").strip().split("\n")[-1].split(",")
+check("权重表的列名来自信号维度（表为空时也不例外，否则会误说\u201c还没标维度\u201d）",
+      "sg.dimension" in SRC and SRC.index("sg.dimension") > SRC.index("function weightsPanel"))
+
+check("权重表在为空时也有一行可填（不依赖\u201c加一个行业\u201d按钮）",
+      "cats = [\"新行业1\"]" in SRC)
+
 check("折叠块真的插入了 summary（否则浏览器会显示它自己的默认文字）",
       "d.appendChild(sum)" in SRC and SRC.index("d.appendChild(sum)") < SRC.index("d.appendChild(sec)"))
 check("权重面板真的吐出了：加行业按钮 · 行名输入 · 权重输入 · 归类框",
