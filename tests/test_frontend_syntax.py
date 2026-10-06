@@ -68,6 +68,26 @@ def check_iife_scope():
     if bad:
         return False, f"这些 IIFE 内部名字在 IIFE 之外被使用：{sorted(set(bad))}"
     return True, f"IIFE 之外没有使用 IIFE 内部名字（内部共 {len(inner)} 个函数）"
+def check_no_dangling_letter_var():
+    """抓"删一半留一半"：删掉某段代码后，里面定义的单字母变量仍被后面的语句引用。
+
+    真实事故：删掉折叠（details）后，`d` 的声明没了，但 `d.open = true;` 与
+    `if (... ) { d = d; }` 还留着 —— node --check 不报错，一打开场景切片页就报 "d is not defined"。
+    """
+    src = (ROOT / "web" / "pro.js").read_text(encoding="utf-8")
+    i = src.find("function polishPanels")
+    if i < 0:
+        return True, "没有 polishPanels（跳过）"
+    seg = src[i:i + 6000]
+    import re as _re
+    bad = [m.group(0) for m in _re.finditer(r'(?<![\w.$"\'`])d(?![\w$])', seg)]
+    if bad:
+        return False, "polishPanels 里出现悬空的 d（声明已删）：%d 处" % len(bad)
+    return True, "polishPanels 里没有悬空的单字母变量"
+
+
+check("polishPanels 里没有悬空的单字母变量（删一半留一半）", *check_no_dangling_letter_var())
+
 check("IIFE 作用域没被切开（IIFE 外不调用内部函数）", *check_iife_scope())
 
 

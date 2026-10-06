@@ -1274,7 +1274,6 @@ function polishPanels(view) {
     // counts in the index come from the same place as before.
     if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0 ||
         title.indexOf("我的依据") >= 0) { sec.classList.add("pro-rules"); }
-    if (title.indexOf("计费") >= 0) { d = d; }
     var g = groups[isCallerPanel(title) ? 1 : 0];
     g.host.appendChild(sec);
     var link = document.createElement("a");
@@ -1282,7 +1281,6 @@ function polishPanels(view) {
     link.textContent = title + (count ? " · " + count : "");
     link.onclick = function (ev) {
       ev.preventDefault();
-      d.open = true;
       if (sec.scrollIntoView) sec.scrollIntoView({ behavior: "smooth", block: "start" });
     };
     g.tocBox.appendChild(link);
