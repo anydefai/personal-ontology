@@ -1239,33 +1239,12 @@ function polishPanels(view) {
     var t = sec.querySelector(".panel-title");
     var title = t ? t.textContent.trim() : "面板";
     var count = sec.querySelectorAll("[data-del]").length;
-    var d = document.createElement("details");
-    d.open = count > 0;
-    var sum = document.createElement("summary");
-    // Each folded line shows its own panel name and item count.
-    sum.textContent = title + (count ? " · " + count + " 条" : " · 还没填");
-    if (t) t.style.display = "none";
-    sec.parentNode.insertBefore(d, sec);
-    d.appendChild(sum);            // Without this line the browser draws its own label for <details>.
-    d.appendChild(sec);
-    // Number every item inside this panel (1, 2, 3 …) so the panel and its index entry agree at a glance.
-    Array.prototype.slice.call(sec.querySelectorAll(".pro-row")).forEach(function (r, i) {
-      if (r.querySelector(".pro-num")) return;
-      var badge = document.createElement("span");
-      badge.className = "pro-num";
-      badge.textContent = String(i + 1);
-      r.insertBefore(badge, r.firstChild);
-    });
+    // No folding: every panel stays visible. The left index still scrolls to them, and the view
+    // counts in the index come from the same place as before.
+    if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0 ||
+        title.indexOf("我的依据") >= 0) { sec.classList.add("pro-rules"); }
     var g = groups[isCallerPanel(title) ? 1 : 0];
-    // These panels are "when all of these hold → conclusion", so a rule is a two-part card:
-    // its checkbox set spans the first line and the conclusion controls sit on the second.
-    if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0) {
-      d.classList.add("pro-rules");
-    }
-    // The weights table has no line-box equivalent, so it stays visible in both views.
-    if (title.indexOf("不同行业的侧重") >= 0) { d.classList.add("pro-keep"); }
-    if (title.indexOf("我的依据") >= 0) { d.classList.add("pro-rules"); }
-    g.host.appendChild(d);
+    g.host.appendChild(sec);
     var link = document.createElement("a");
     link.href = "#";
     link.textContent = title + (count ? " · " + count : "");
