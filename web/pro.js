@@ -1265,6 +1265,7 @@ function polishPanels(view) {
     sum.dataset.build = PO_UI_BUILD;
     if (t) t.style.display = "none";
     sec.parentNode.insertBefore(d, sec);
+    d.appendChild(sum);            // Without this line the browser draws its own label for <details>.
     d.appendChild(sec);
     // Number every item inside this panel (1, 2, 3 …) so the panel and its index entry agree at a glance.
     Array.prototype.slice.call(sec.querySelectorAll(".pro-row")).forEach(function (r, i) {

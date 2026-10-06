@@ -128,6 +128,8 @@ console.log([h.indexOf('data-add="weight-cat"')>=0, h.indexOf('data-w-cat="0"')>
 """, encoding="utf-8")
 r = subprocess.run(["node", str(tmp)], capture_output=True, text=True)
 flags = (r.stdout or "").strip().split("\n")[-1].split(",")
+check("折叠块真的插入了 summary（否则浏览器会显示它自己的默认文字）",
+      "d.appendChild(sum)" in SRC and SRC.index("d.appendChild(sum)") < SRC.index("d.appendChild(sec)"))
 check("权重面板真的吐出了：加行业按钮 · 行名输入 · 权重输入 · 归类框",
       flags == ["true", "true", "true", "true"], str(flags))
 
