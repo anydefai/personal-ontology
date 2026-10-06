@@ -2250,5 +2250,6 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
         raise HTTPException(status_code=503, detail={"error": "audit_write_failed",
                                                      "message": "判定记录写入失败，已拒绝给出结论。",
                                                      "detail": str(exc)}) from exc
+    # 递给调用方的是"可以给"的版本：结论与说明齐全，作者的权重与阈值不在其中。
     return {"slice_id": slice_id, "caller": who, "authorize": authz,
-            "judgment": pkg, "decision_id": decision_id}
+            "judgment": skill_framework.for_caller(pkg), "decision_id": decision_id}

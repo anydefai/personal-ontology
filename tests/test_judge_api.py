@@ -73,6 +73,20 @@ async def main():
     hit = [x for x in items if str(x.get("id") or x.get("decision_id") or "") == str(did)]
     check("该记录能在判定记录里查到，且标注了切片与调用方",
           bool(hit) and "s.j" in json.dumps(hit[0], ensure_ascii=False), f"找到 {len(hit)} 条")
+    # 设计文档第七步的实测版：判定包里不能出现作者的权重、阈值、组合条件与置信度理由
+    st, rr = await call("POST", "/v1/scenario-slices/s.j/judge", body={"data": DATA, "request": REQ}, token=token)
+    raw = json.dumps(rr, ensure_ascii=False)
+    leaked = [k for k in ("industry_weights", "thresholds", "dynamic_threshold", "benchmark",
+                          "matched_rules", "all_of", "confidence_basis", "adjustment_log", "framework")
+              if k in raw]
+    check("调用方拿不到权重/阈值/组合条件/置信度理由（第七步）", not leaked, "泄露字段：" + str(leaked))
+    jj = rr.get("judgment") or {}
+    check("但结论/分数/依据/命中信号仍给到调用方",
+          jj.get("decision") == "偏高" and "basis" in jj and "signals" in jj, str(sorted(jj)))
+    steps_ok = bool(jj.get("reasoning_steps")) and all(set(x) <= {"step", "name"} for x in jj["reasoning_steps"])
+    check("推理步骤只保留步骤与名称，不含数字算法", steps_ok, str(jj.get("reasoning_steps"))[:120])
+
+
 
 # 设计文档第七步：调用方拿不到作者的知识产权（框架/权重/原始描述/置信度理由），但要拿得到边界
 from backend.api import _without_author_only, AUTHOR_ONLY_SLICE_FIELDS

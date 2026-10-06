@@ -338,3 +338,36 @@ def package_identity(package: dict[str, Any], *, insight: str = "", credentials:
     package["valid_until"] = valid_until or ""
     package["content_fingerprint"] = content_fingerprint(package)
     return package
+
+
+# Keys a caller may receive. Everything else (the framework itself) stays inside.
+CALLER_KEYS = ("definition_id", "slice_id", "tier", "decision", "severity", "score",
+               "basis", "evidence", "confidence", "confidence_status",
+               "required_inputs", "missing_inputs", "signals", "matched_rules", "fallback_used")
+
+
+def for_caller(package: dict[str, Any]) -> dict[str, Any]:
+    """把判定包整理成可以递给调用方的版本。
+
+    调用方要拿到的是**结论**与**可追溯的说明**，不是作者的计算方法：
+      · 保留 结论/严重度/分数/依据/命中信号/置信度/必填与缺项/档位
+      · 去掉 置信度理由（那是作者自己的话）
+      · 推理步骤只保留"第几步、做了什么"，去掉其中写着的权重表与阈值算术
+    设计文档第七步：调用方拿不到框架、权重与阈值。
+    """
+    out = {k: package.get(k) for k in CALLER_KEYS if k in package}
+    # matched_rules carries the author's combination conditions; the caller only needs to know which of the
+    # signals fired, which is already in `signals`.
+    out.pop("matched_rules", None)
+    # evidence keeps the caller's own numbers and where they came from, but not the author's benchmark
+    # expression or the threshold that was computed from the framework.
+    if isinstance(out.get("evidence"), list):
+        out["evidence"] = [{k: v for k, v in row.items() if k in ("factor", "value", "source")}
+                           for row in out["evidence"] if isinstance(row, dict)]
+    out["reasoning_steps"] = [
+        {"step": step.get("step"), "name": step.get("name")}
+        for step in (package.get("reasoning_path") or [])
+    ] or None
+    if out["reasoning_steps"] is None:
+        out.pop("reasoning_steps")
+    return out
