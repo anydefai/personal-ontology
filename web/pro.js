@@ -1,3 +1,40 @@
+/* The contract text helpers below are used by polishPanels, which lives OUTSIDE the IIFE further down,
+ * so they must live outside it too; they only rely on the global esc().
+ */
+  // The contract comes from the API so there is one source of truth; these two turn it into text a person
+  // can read or paste into a delivery note.
+function contractLines(c) {
+  var out = [];
+  out.push("调用说明 · " + (c.title || c.slice_id || ""));
+  out.push("调用方式：" + ((c.how_to_call || {}).method || "POST") + " " + ((c.how_to_call || {}).path || ""));
+  out.push("");
+  out.push("需要提供的值（全部必填，少一项不会有结论）：");
+  (c.fields || []).forEach(function (f, i) {
+    var bits = [f.name, "类型：" + (f.type || "string")];
+    if (f.unit) bits.push("单位：" + f.unit);
+    if (f.options) bits.push("可选值：" + (f.options || []).join("/"));
+    if (f.example) bits.push("示例：" + f.example);
+    if (f.note) bits.push(f.note);
+    out.push("  " + (i + 1) + ". " + bits.join(" · "));
+  });
+  out.push("");
+  out.push("每次调用还要说明：调用方、本次用途" + (c.max_amount ? "、金额（上限 " + c.max_amount + "）" : "") +
+           (c.no_resale_required ? "，并承诺不得转售" : "") + "。");
+  if ((c.allowed_purposes || []).length) out.push("允许的用途：" + c.allowed_purposes.join("、"));
+  out.push("缺少必填项时：只返回「信息不足，无法判断」并列出缺哪几项。");
+  out.push("");
+  out.push("你会收到：" + (c.you_will_receive || []).join("、"));
+  var bill = c.billing || {};
+  if (bill.unit_price) out.push("计费（演示）：每次 " + bill.unit_price + " " + (bill.currency || "CNY"));
+  return out;
+}
+
+function contractHtml(c) {
+  return '<div class="panel-caption" style="margin-top:8px">调用说明（可直接发给调用方）：</div>' +
+    '<pre class="pro-copy">' + esc(contractLines(c).join("\n")) + "</pre>";
+}
+
+
 /* Visible error net.
  *
  * A synchronous throw inside a click handler (as opposed to a rejected promise) is NOT caught by
@@ -1232,40 +1269,6 @@ function polishPanels(view) {
   if (!sections.length) return;
   // Two audiences: my own judgment model, and what the caller must supply and obey. Grouping the panels by
   // audience answers at a glance which parts are written for the caller.
-  // ── D/E：调用说明与交付说明的文本化 ──
-  // The contract comes from the API so there is one source of truth; these two turn it into text a person
-  // can read or paste into a delivery note.
-  function contractLines(c) {
-    var out = [];
-    out.push("调用说明 · " + (c.title || c.slice_id || ""));
-    out.push("调用方式：" + ((c.how_to_call || {}).method || "POST") + " " + ((c.how_to_call || {}).path || ""));
-    out.push("");
-    out.push("需要提供的值（全部必填，少一项不会有结论）：");
-    (c.fields || []).forEach(function (f, i) {
-      var bits = [f.name, "类型：" + (f.type || "string")];
-      if (f.unit) bits.push("单位：" + f.unit);
-      if (f.options) bits.push("可选值：" + (f.options || []).join("/"));
-      if (f.example) bits.push("示例：" + f.example);
-      if (f.note) bits.push(f.note);
-      out.push("  " + (i + 1) + ". " + bits.join(" · "));
-    });
-    out.push("");
-    out.push("每次调用还要说明：调用方、本次用途" + (c.max_amount ? "、金额（上限 " + c.max_amount + "）" : "") +
-             (c.no_resale_required ? "，并承诺不得转售" : "") + "。");
-    if ((c.allowed_purposes || []).length) out.push("允许的用途：" + c.allowed_purposes.join("、"));
-    out.push("缺少必填项时：只返回「信息不足，无法判断」并列出缺哪几项。");
-    out.push("");
-    out.push("你会收到：" + (c.you_will_receive || []).join("、"));
-    var bill = c.billing || {};
-    if (bill.unit_price) out.push("计费（演示）：每次 " + bill.unit_price + " " + (bill.currency || "CNY"));
-    return out;
-  }
-
-  function contractHtml(c) {
-    return '<div class="panel-caption" style="margin-top:8px">调用说明（可直接发给调用方）：</div>' +
-      '<pre class="pro-copy">' + esc(contractLines(c).join("\n")) + "</pre>";
-  }
-
   var isCallerPanel = function (title) {
     if (title.indexOf("计费") >= 0) { return true; }
     return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
@@ -1321,7 +1324,7 @@ function polishPanels(view) {
       bar.querySelectorAll("[data-contract-btn]").forEach(function (btn) {
         btn.onclick = async function () {
           var note = bar.querySelector("[data-contract-note]");
-          var sid = (window.poProSlice ? window.poProSlice.id : (typeof sliceId !== "undefined" ? sliceId : ""));
+          var sid = (window.poProSlice && window.poProSlice.id) || "";
           if (!sid) { alert("请先在上面选一条我的切片。"); return; }
           note.textContent = "读取中…";
           var c = null;
