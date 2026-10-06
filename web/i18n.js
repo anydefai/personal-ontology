@@ -1116,6 +1116,23 @@
   "两种视图改的是同一份数据": "Both views edit the same data",
   "「录入」只留一行一条的输入框；「核对」把判断模型逐个面板展开（每行折叠条都带面板名与条数）": "\"Enter\" leaves only the line-by-line boxes; \"Review\" opens the judgment model panel by panel, and every folded row carries its panel name and item count",
   "录入」只留一行一条的输入框；「核对」把判断模型逐个面板展开（每行折叠条都带面板名与条数": "\"Enter\" leaves only the line-by-line boxes; \"Review\" opens the judgment-model panels one by one, each folded row carrying its panel name and item count",
+  "一行一条依据：写依据名；如果这条依据只在某些观察点都成立时才适用，就把它们勾上。": "One line per citation: give its name, and tick the signals when it applies only if all of them hold.",
+  "依据名，例如：某法第二十六条": "Citation name",
+  "＋ 加一条依据": "+ Add a citation",
+  "打分线": "Score bands",
+  "分数 = 命中的观察点各取其维度的权重之和。这里定分数怎么变成结论。": "The score is the sum of the weights of the dimensions whose signals fired. Here you decide how the score becomes a conclusion.",
+  "读取当前输入出错，已中止本次操作（你的输入没有被丢弃）：": "Could not read the current input, so this action was cancelled - your input was not discarded: ",
+  "读取当前输入出错，已中止本次操作（你的输入没有被丢弃）": "Could not read the current input, so this action was cancelled - your input was not discarded",
+  "一行一条依据：写依据名；如果这条依据只在某些观察点都成立时才适用，就把它们勾上": "One line per citation: give its name, and tick the signals when it applies only if all of them hold",
+  "加一条依据": "+ Add a citation",
+  "分数": "Score",
+  "命中的观察点各取其维度的权重之和。这里定分数怎么变成结论": "The score is the sum of the weights of the dimensions whose signals fired. Here you decide how the score becomes a conclusion",
+  "打分": "Score",
+  "若这两个表格已经渲染在上面，就以表格里的内容为准（": "若这两个表格已经渲染在上面，就以表格里的内容为准（",
+  "仍然可用，两者改的是同一份数据": "仍然可用，两者改的是同一份数据",
+  "我的依据（第 7 部分）与打分线（第 8 部分）的表格界面": "我的依据（第 7 部分）与打分线（第 8 部分）的表格界面",
+  "这两个部分过去只能用": "这两个部分过去只能用",
+  "填；这里补上与其它面板同款的表格，好核对": "填；这里补上与其它面板同款的表格，好核对",
   };
 
 

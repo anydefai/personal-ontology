@@ -1606,3 +1606,23 @@ checks that it is authorised for that program, and the boundaries check amount, 
 conclusion is returned.
 
 Render tests 10/10, all 34 suites green, 59 uncovered which is below the baseline, and the version is 20261006p.
+
+### Table editors for citations and score bands
+
+Until now both of these could be filled in only line by line; my earlier claim that every part has a folded panel
+was wrong and is corrected here.
+
+Two new panels, matching the others and front-end only: citations, one row each with its name, the signals it
+applies to as tick boxes meaning "only when all of them hold", and a delete, plus an add button wired to the
+append and remove handlers; and score bands as three fixed rows - above a score, below a score, and otherwise -
+each with a conclusion and a severity. Both automatically gain a folded row carrying their panel name and item
+count, plus numbering, and both are filed under the judgment-model group.
+
+On saving, collect() reads these two tables and they win, while the line boxes keep working on the same data: the
+original fields are preserved first and then overwritten by the tables, so nothing is lost.
+
+A related hazard was also fixed: appending used to read only the weights table, and now the whole form is
+collected before appending, with a failure reported and the action aborted rather than silently discarding input.
+
+Render tests 10/10, since both new panels render, and all 34 suites pass with 60 uncovered, level with the
+baseline. Version to 20261006u.

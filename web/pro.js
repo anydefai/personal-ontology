@@ -433,7 +433,8 @@ function poHasFramework(fw) {
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
-        rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
+        rulesPanel(state) + exceptionsPanel(state) + citationsPanel(state) +
+        scoreBandsPanel(state) + tailPanels(state) +
       "</div>";
     bind(view);
     polishPanels(view);
@@ -508,22 +509,12 @@ function poHasFramework(fw) {
     view.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
-        // Capture this panel's typed values only. The previous version called the full collect() inside a
-        // try/catch that swallowed failures, so a collect() error silently discarded what the user had typed.
+        // Capture everything the user has typed before appending. collect() reads the DOM, so it must run
+        // first; if it fails we report and abort rather than silently discarding their input.
         try {
-          var typed = {};
-          view.querySelectorAll("[data-w-cat]").forEach(function (el, i) {
-            var key = (el.value || "").trim() || ("行业" + (i + 1));
-            typed[key] = typed[key] || {};
-            view.querySelectorAll('[data-w-val^="' + i + ':"]').forEach(function (v) {
-              var dim = String(v.dataset.wVal || "").split(":")[1];
-              var num = parseFloat(v.value);
-              if (dim && !isNaN(num)) typed[key][dim] = num;
-            });
-          });
-          if (Object.keys(typed).length) state.industry_weights = typed;
+          state = collect();
         } catch (e) {
-          alert("读取权重表出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
+          alert("读取当前输入出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
           return;
         }
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
@@ -545,6 +536,7 @@ function poHasFramework(fw) {
         else if (kind === "rule") state.combination_rules.push({ all_of: [], conclusion: "", severity: "中" });
         else if (kind === "exception") state.exception_rules.push({ condition: { all_signals: [] }, override: { kind: "adjust_threshold" }, reason: "" });
         else if (kind === "priority") state.signal_priority.push({ signal: state.signals[0] ? state.signals[0].name : "", priority: state.signal_priority.length + 1 });
+        else if (kind === "citation") state.citations = (state.citations || []).concat([{ text: "", signals: [] }]);
         else if (kind === "log") state.adjustment_log.push({ step: "", reason: "" });
         render();
       };
@@ -560,6 +552,7 @@ function poHasFramework(fw) {
         else if (what === "rule") state.combination_rules.splice(n, 1);
         else if (what === "exception") state.exception_rules.splice(n, 1);
         else if (what === "priority") state.signal_priority.splice(n, 1);
+        else if (what === "citation") state.citations.splice(n, 1);
         else if (what === "log") state.adjustment_log.splice(n, 1);
         render();
       };
@@ -750,6 +743,29 @@ function poHasFramework(fw) {
       var kept = (state && state[key] !== undefined) ? state[key] : f[key];
       if (kept !== undefined) f[key] = clone(kept);
     });
+    // When these two tables are on screen, their contents win; the line boxes still work and edit the same data.
+    if (document.querySelector("[data-cit-text]") || document.querySelector("[data-sb-conc]")) {
+      var cit = [];
+      q("[data-cit-text]").forEach(function (el, n) {
+        var text = el.value.trim(); if (!text) return;
+        var sigs = [];
+        q('[data-cit-sig="' + n + '"]').forEach(function (c) { if (c.checked) sigs.push(c.value); });
+        cit.push({ text: text, signals: sigs });
+      });
+      f.citations = cit;
+      var num = function (v) { var x = parseFloat(v); return isNaN(x) ? null : x; };
+      var bandsOut = {};
+      var hs = document.querySelector('[data-sb-min]'), ls = document.querySelector('[data-sb-max]');
+      var hc = document.querySelector('[data-sb-conc="high"]'), lc = document.querySelector('[data-sb-conc="low"]');
+      var mc = document.querySelector('[data-sb-conc="mid"]');
+      if (hs && hc) bandsOut.high = { min: num(hs.value), conclusion: hc.value.trim(),
+                                      severity: (document.querySelector('[data-sb-sev="high"]') || {}).value || "中" };
+      if (ls && lc) bandsOut.low = { max: num(ls.value), conclusion: lc.value.trim(),
+                                     severity: (document.querySelector('[data-sb-sev="low"]') || {}).value || "低" };
+      if (mc) bandsOut.mid = { conclusion: mc.value.trim(),
+                               severity: (document.querySelector('[data-sb-sev="mid"]') || {}).value || "中" };
+      f.score_bands = bandsOut;
+    }
     var q = function (a) { return document.querySelectorAll(a); };
     f.inputs = [];
     q("[data-in-name]").forEach(function (el) {
@@ -903,22 +919,12 @@ function poHasFramework(fw) {
     host.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
-        // Capture this panel's typed values only. The previous version called the full collect() inside a
-        // try/catch that swallowed failures, so a collect() error silently discarded what the user had typed.
+        // Capture everything the user has typed before appending. collect() reads the DOM, so it must run
+        // first; if it fails we report and abort rather than silently discarding their input.
         try {
-          var typed = {};
-          view.querySelectorAll("[data-w-cat]").forEach(function (el, i) {
-            var key = (el.value || "").trim() || ("行业" + (i + 1));
-            typed[key] = typed[key] || {};
-            view.querySelectorAll('[data-w-val^="' + i + ':"]').forEach(function (v) {
-              var dim = String(v.dataset.wVal || "").split(":")[1];
-              var num = parseFloat(v.value);
-              if (dim && !isNaN(num)) typed[key][dim] = num;
-            });
-          });
-          if (Object.keys(typed).length) state.industry_weights = typed;
+          state = collect();
         } catch (e) {
-          alert("读取权重表出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
+          alert("读取当前输入出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
           return;
         }
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
@@ -940,6 +946,7 @@ function poHasFramework(fw) {
         else if (kind === "rule") state.combination_rules.push({ all_of: [], conclusion: "", severity: "中" });
         else if (kind === "exception") state.exception_rules.push({ condition: { all_signals: [] }, override: { kind: "adjust_threshold" }, reason: "" });
         else if (kind === "priority") state.signal_priority.push({ signal: state.signals[0] ? state.signals[0].name : "", priority: state.signal_priority.length + 1 });
+        else if (kind === "citation") state.citations = (state.citations || []).concat([{ text: "", signals: [] }]);
         else if (kind === "log") state.adjustment_log.push({ step: "", reason: "" });
         render();
       };
@@ -955,6 +962,7 @@ function poHasFramework(fw) {
         else if (what === "rule") state.combination_rules.splice(n, 1);
         else if (what === "exception") state.exception_rules.splice(n, 1);
         else if (what === "priority") state.signal_priority.splice(n, 1);
+        else if (what === "citation") state.citations.splice(n, 1);
         else if (what === "log") state.adjustment_log.splice(n, 1);
         render();
       };
@@ -1003,7 +1011,52 @@ function poHasFramework(fw) {
     if (tierSel) tierSel.onchange = function () { state.__tier = tierSel.value; };
   }
 
-  window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
+  // ── Table editors for citations (part 7) and score bands (part 8) ──
+// These two used to be editable only line by line; these panels match the others so they can be reviewed here.
+function citationsPanel(f) {
+  var list = f.citations || [];
+  var names = (f.signals || []).map(function (x) { return x.name; });
+  var checks = function (selected, n) {
+    return names.map(function (nm) {
+      var on = (selected || []).indexOf(nm) >= 0;
+      return '<label class="pro-check"><input type="checkbox" data-cit-sig="' + n + '" value="' + esc(nm) + '"' +
+             (on ? " checked" : "") + ">" + esc(nm) + "</label>";
+    }).join("") || '<span class="muted">先在上面加观察点</span>';
+  };
+  return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+    '<div class="panel-title"><span>我的依据</span></div>' +
+    hint('一行一条依据：写依据名；如果这条依据只在某些观察点都成立时才适用，就把它们勾上。') +
+    list.map(function (c, n) {
+      return row('<div class="pro-checks" style="min-width:260px">' + checks(c.signals, n) + "</div>" +
+        input(c.text, 'data-cit-text="' + n + '" placeholder="依据名，例如：某法第二十六条"') +
+        del("citation:" + n));
+    }).join("") +
+    '<button class="button" data-add="citation">＋ 加一条依据</button></section>';
+}
+
+function scoreBandsPanel(f) {
+  var bands = f.score_bands || {};
+  var rowFor = function (key, label, field, value) {
+    var b = bands[key] || {};
+    return row('<span class="pro-band">' + label + "</span>" +
+      (field ? input(value, 'data-sb-' + field + ' placeholder="0.5"') : "") +
+      input(b.conclusion || "", 'data-sb-conc="' + key + '" placeholder="结论"') +
+      '<select class="select" data-sb-sev="' + key + '">' +
+        ["低", "中", "高", "极高"].map(function (x) {
+          return "<option" + (b.severity === x ? " selected" : "") + ">" + x + "</option>";
+        }).join("") +
+      "</select>");
+  };
+  return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+    '<div class="panel-title"><span>打分线</span></div>' +
+    hint('分数 = 命中的观察点各取其维度的权重之和。这里定分数怎么变成结论。') +
+    rowFor("high", "打分", "min", (bands.high || {}).min) +
+    rowFor("low", "打分", "max", (bands.low || {}).max) +
+    rowFor("mid", "其余", null, null) +
+    '</section>';
+}
+
+window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
 })();
 
 
@@ -1219,6 +1272,7 @@ function polishPanels(view) {
     }
     // The weights table has no line-box equivalent, so it stays visible in both views.
     if (title.indexOf("不同行业的侧重") >= 0) { d.classList.add("pro-keep"); }
+    if (title.indexOf("我的依据") >= 0) { d.classList.add("pro-rules"); }
     g.host.appendChild(d);
     var link = document.createElement("a");
     link.href = "#";

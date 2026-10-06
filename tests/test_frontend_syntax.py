@@ -34,38 +34,40 @@ check("引用的脚本都在被检查之列", all((WEB / r) in files for r in re
 
 
 def check_iife_scope():
-    """node --check 查不出"作用域被切开"这类错：一个函数定义在 IIFE 里，却在 IIFE 之外被调用。
+    """node --check 查不出"作用域被切开"这类错：一个名字定义在 IIFE 里，却在 IIFE 之外被使用。
 
-    真实事故：pro.js 的 IIFE 在第 748 行就结束了，而我在文件末尾追加的渲染函数在 IIFE 之外
-    调用了 hasFramework -> 场景切片页直接报 "hasFramework is not defined"。
+    真实事故（两次）：hasFramework、enableFor —— pro.js 的 IIFE 早已结束，而追加在文件末尾的
+    渲染函数去用它，于是整页报 "xxx is not defined"。
+    注意：只认真实代码用法，先剥掉注释与字符串，否则注释里的英文单词会被误判（假警报比没有检查更糟）。
     """
     src = (ROOT / "web" / "pro.js").read_text(encoding="utf-8")
     lines = src.split("\n")
-    close = next((i for i, l in enumerate(lines) if l.strip() == "})();"), None)
+    close = next((k for k, l in enumerate(lines) if l.strip() == "})();"), None)
     if close is None:
         return True, "没有 IIFE（无需检查）"
-    inner = set()
+    inner, declared = set(), set()
     for l in lines[:close]:
         m = re.match(r"^  (?:async )?function ([A-Za-z_$][\w$]*)", l)
         if m:
             inner.add(m.group(1))
-    outer = "\n".join(lines[close + 1:])
-    bad = sorted(n for n in inner if re.search(r"\b" + re.escape(n) + r"\s*\(", outer))
-    # 变量同理：只在 IIFE 内用 var 声明的名字，IIFE 外不能裸用
-    declared = set()
-    for l in lines[:close]:
-        m = re.match(r"^  var ([A-Za-z_$][\w$]*)", l)
-        if m:
-            declared.add(m.group(1))
+        m2 = re.match(r"^  var ([A-Za-z_$][\w$]*)", l)
+        if m2:
+            declared.add(m2.group(1))
+    bad = []
     for l in lines[close + 1:]:
+        code = re.sub(r"//.*$", "", l)
+        code = re.sub(r'"(?:[^"\\]|\\.)*"', '""', code)
+        code = re.sub(r"'(?:[^'\\]|\\.)*'", "''", code)
+        code = re.sub(r"`(?:[^`\\]|\\.)*`", "``", code)
+        for name in inner:
+            if re.search(r"\b" + re.escape(name) + r"\s*\(", code):
+                bad.append(name)
         for name in declared:
-            if re.search(r"(?<![\w.])" + re.escape(name) + r"\b", l):
+            if re.search(r"(?<![\w.$])" + re.escape(name) + r"\s*(?=\(|=|\.|\[|\)|,|;|\?|\|\|)", code):
                 bad.append(name + "(变量)")
     if bad:
-        return False, f"这些 IIFE 内部函数在 IIFE 之外被调用：{bad}"
-    return True, f"IIFE 之外没有调用 IIFE 内部函数（内部共 {len(inner)} 个函数）"
-
-
+        return False, f"这些 IIFE 内部名字在 IIFE 之外被使用：{sorted(set(bad))}"
+    return True, f"IIFE 之外没有使用 IIFE 内部名字（内部共 {len(inner)} 个函数）"
 check("IIFE 作用域没被切开（IIFE 外不调用内部函数）", *check_iife_scope())
 
 
