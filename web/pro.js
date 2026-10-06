@@ -1204,18 +1204,7 @@ function polishPanels(view) {
   };
   var toc = document.createElement("div");
   toc.className = "pro-toc";
-  // View switch: authoring line by line, or reviewing the tables. Both write the same data.
-  var mine = window.poEntryView === "tables" ? "tables" : "lines";
-  document.body.dataset.poEntry = mine;
-  var sw = document.createElement("div");
-  sw.className = "pro-viewswitch";
-  sw.innerHTML = '<button class="button' + (mine === "lines" ? " primary" : "") + '" data-view="lines">一行一条</button>' +
-                 '<button class="button' + (mine === "tables" ? " primary" : "") + '" data-view="tables">表格</button>' +
-                 '<div class="panel-caption" style="margin:2px 0 0">两种视图改的是同一份数据</div>';
-  sw.querySelectorAll("[data-view]").forEach(function (b) {
-    b.onclick = function () { window.poEntryView = b.dataset.view; render(); };
-  });
-  toc.appendChild(sw);
+
   var groups = [
     { title: "我的判断模型",
       caption: "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束。",

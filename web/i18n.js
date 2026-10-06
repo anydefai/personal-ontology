@@ -1104,7 +1104,6 @@
   " —— 补齐后再判定。": " - fill them in and judge again.",
   "还缺这些必须提供的信息": "Still missing these required values",
   "补齐后再判定。": "fill them in and judge again.",
-  "一行一条": "Line by line",
   "表格核对": "Review tables",
   "「录入」只留一行一条的输入框；「核对」把判断模型逐个面板展开（每行折叠条都带面板名与条数）": "\"Enter\" leaves only the line-by-line boxes; \"Review\" opens the judgment model panel by panel, and every folded row carries its panel name and item count",
   "录入」只留一行一条的输入框；「核对」把判断模型逐个面板展开（每行折叠条都带面板名与条数": "\"Enter\" leaves only the line-by-line boxes; \"Review\" opens the judgment-model panels one by one, each folded row carrying its panel name and item count",
@@ -1125,8 +1124,6 @@
   "我的依据（第 7 部分）与打分线（第 8 部分）的表格界面": "我的依据（第 7 部分）与打分线（第 8 部分）的表格界面",
   "这两个部分过去只能用": "这两个部分过去只能用",
   "填；这里补上与其它面板同款的表格，好核对": "填；这里补上与其它面板同款的表格，好核对",
-  "两种视图改的是同一份数据": "Both views edit the same data",
-  "表格": "Tables",
   };
 
 
