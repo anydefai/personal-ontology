@@ -1034,6 +1034,12 @@
   "正确的写法：行业名": "正确的写法：行业名",
   "页面出错：": "Page error: ",
   " @ ": " @ ",
+  "数据里的写法 → 表里的行业（一般不用填）": "How your data spells it → the industry in the table (usually not needed)",
+  "只有当标的数据里写的行业与上表的行名不一样时才要填。例如上表写「科技/互联网」而数据里写「新能源」，就填：新能源 → 科技/互联网。一样就不用填。": "Fill this only when your data spells an industry differently from the table row. For example, if the table says one thing and your data another, write: what your data says → the table row. If they match, leave it empty.",
+  "数据里的写法 → 表里的行业": "How your data spells it → the industry in the table",
+  "＋ 加一个行业": "+ Add an industry",
+  "一行一个行业。": "One industry per row.",
+  "行业": "Industry",
   };
 
 

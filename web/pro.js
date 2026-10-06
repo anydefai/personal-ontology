@@ -197,24 +197,24 @@ function poHasFramework(fw) {
     var dimList = Object.keys(dims);
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>不同行业的侧重</span></div>' +
-      hint('同样是并购，科技公司更看技术、传统制造更看财务。一行一个行业类别。') +
+      hint('同样是并购，科技公司更看技术、传统制造更看财务。一行一个行业。') +
       (cats.length ? '<div class="pro-grid" style="grid-template-columns:1.2fr repeat(' + Math.max(dimList.length, 1) + ',1fr) 0.6fr">' +
-        "<div>行业类别</div>" + (dimList.length ? dimList.map(function (d) { return "<div>" + esc(d) + "</div>"; }).join("") : "<div>侧重</div>") + "<div></div>" +
+        "<div>行业</div>" + (dimList.length ? dimList.map(function (d) { return "<div>" + esc(d) + "</div>"; }).join("") : "<div>侧重</div>") + "<div></div>" +
         cats.map(function (c, n) {
           return "<div>" + input(c, 'data-w-cat="' + n + '"') + "</div>" +
             (dimList.length ? dimList.map(function (d) {
               return "<div>" + input((f.industry_weights[c] || {})[d], 'data-w-val="' + n + ":" + esc(d) + '"') + "</div>";
             }).join("") : "<div>" + input("", 'data-w-val="' + n + ':weight"') + "</div>") +
             "<div>" + del("weights:" + n) + "</div>";
-        }).join("") + "</div>" : hint("还没有行业类别。")) +
+        }).join("") + "</div>" : hint("还没有行业。")) +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<div style="margin-top:12px">' +
-        '<div class="field-label">我的行业归类（只填对应关系，不填权重）</div>' +
-        hint('这里只填对应关系：行业名 → 上面的类别名。权重请填在上面的表格里。填了对应关系，打分才算得出来。') +
-        '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="行业名 → 类别名">' +
+        '<div class="field-label">数据里的写法 → 表里的行业（一般不用填）</div>' +
+        hint('只有当标的数据里写的行业与上表的行名不一样时才要填。例如上表写「科技/互联网」而数据里写「新能源」，就填：新能源 → 科技/互联网。一样就不用填。') +
+        '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="数据里的写法 → 表里的行业">' +
         Object.keys(f.industry_map || {}).map(function (k) { return esc(k) + " → " + esc(f.industry_map[k]); }).join("\n") +
         '</textarea></div>' +
-      '<button class="button" data-add="weight-cat">＋ 加一个行业类别</button>' + +
+      '<button class="button" data-add="weight-cat">＋ 加一个行业</button>' + +
       '<button class="button" data-add="weight-dim">＋ 加一个侧重维度</button>' +
       '<span class="panel-caption" style="margin:0">数值加起来是 1 就行；没把握就先平均。</span></div></section>';
   }
@@ -676,6 +676,12 @@ function poHasFramework(fw) {
     });
     f.industry_weights = {};
     f.industry_map = {};
+    // The weights table's own row names are industries: treat them as usable as-is, so the mapping box is only
+    // needed when the data spells an industry differently from the table row.
+    try {
+      var mapFromState = state && state.industry_weights ? state.industry_weights : {};
+      Object.keys(mapFromState).forEach(function (cat) { if (cat) f.industry_map[cat] = cat; });
+    } catch (e) {}
     var imEl = document.querySelector("[data-im-lines]");
     if (imEl) {
       (imEl.value || "").split("\n").forEach(function (ln) {
