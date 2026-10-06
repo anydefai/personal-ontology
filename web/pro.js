@@ -50,7 +50,8 @@ function poHasFramework(fw) {
              ["eq", "等于"], ["neq", "不等于"], ["in", "属于"], ["not_in", "不属于"], ["contains", "包含"]];
   var OP_LABEL = {}; OPS.forEach(function (o) { OP_LABEL[o[0]] = o[1]; });
 
-  var enableFor = null;      // 正在为哪条切片选择授权对象（确认并启用 → 选调用方）
+  // NOTE: kept on window on purpose - the renderers near the end of this file live OUTSIDE the
+  // IIFE, so an IIFE-scoped variable would be undefined there (this broke the page once).
 
   var EX_KINDS = [["reduce_weight", "降低某个维度的重要性"], ["adjust_threshold", "调整基准线"],
                   ["force_conclusion", "直接给出结论"]];
@@ -402,19 +403,19 @@ function poHasFramework(fw) {
     bind(view);
     // Override the handlers bound earlier: saving and drafting write to my slice.
     view.querySelectorAll("[data-confirm-slice]").forEach(function (b) {
-      b.onclick = function () { enableFor = b.dataset.confirmSlice; render(); };
+      b.onclick = function () { window.poEnableFor = b.dataset.confirmSlice; render(); };
     });
     view.querySelectorAll("[data-cancel-enable]").forEach(function (b) {
-      b.onclick = function () { enableFor = null; render(); };
+      b.onclick = function () { window.poEnableFor = null; render(); };
     });
     view.querySelectorAll("[data-do-enable]").forEach(function (b) {
       b.onclick = async function () {
         var g = view.querySelector("[data-enable-grantor]"), e = view.querySelector("[data-enable-grantee]");
         if (!g || !e || !g.value || !e.value) { alert("请先选择授权方与被授权方。"); return; }
         try {
-          var out = await api("/v1/scenario-slices/" + encodeURIComponent(enableFor) + "/enable",
+          var out = await api("/v1/scenario-slices/" + encodeURIComponent(window.poEnableFor) + "/enable",
             { method: "POST", body: JSON.stringify({ grantor_id: g.value, grantee_id: e.value }) });
-          enableFor = null; cache["scenario-slices"] = null; render();
+          window.poEnableFor = null; cache["scenario-slices"] = null; render();
           alert("已启用并生成授权规则：" + ((out && out.authorization_id) || "已生成"));
         } catch (err) {
           alert("启用失败：" + (err && err.message ? err.message : err));
@@ -859,7 +860,7 @@ function poHasFramework(fw) {
           (x.status === "confirmed"
             ? '<button class="button" data-unconfirm-slice="' + esc(x.id) + '">退回草稿</button> '
             : '<button class="button primary" data-confirm-slice="' + esc(x.id) + '">确认并启用…</button> ') +
-          (enableFor === x.id ? granteePicker(principals) : "") +
+          (window.poEnableFor === x.id ? granteePicker(principals) : "") +
           '<button class="button" data-drop-slice="' + esc(x.id) + '">删除</button>' +
         "</td></tr>";
     }).join("");

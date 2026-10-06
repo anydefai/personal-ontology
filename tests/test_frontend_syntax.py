@@ -51,6 +51,16 @@ def check_iife_scope():
             inner.add(m.group(1))
     outer = "\n".join(lines[close + 1:])
     bad = sorted(n for n in inner if re.search(r"\b" + re.escape(n) + r"\s*\(", outer))
+    # 变量同理：只在 IIFE 内用 var 声明的名字，IIFE 外不能裸用
+    declared = set()
+    for l in lines[:close]:
+        m = re.match(r"^  var ([A-Za-z_$][\w$]*)", l)
+        if m:
+            declared.add(m.group(1))
+    for l in lines[close + 1:]:
+        for name in declared:
+            if re.search(r"(?<![\w.])" + re.escape(name) + r"\b", l):
+                bad.append(name + "(变量)")
     if bad:
         return False, f"这些 IIFE 内部函数在 IIFE 之外被调用：{bad}"
     return True, f"IIFE 之外没有调用 IIFE 内部函数（内部共 {len(inner)} 个函数）"

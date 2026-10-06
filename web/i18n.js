@@ -997,6 +997,16 @@
   "这条切片已启用，改动会影响对外调用。确定保存吗": "This slice is enabled, so changes affect external calls. Save anyway",
   "请先点上面的「＋ 新建我的切片」建一条切片，框架保存在切片上。": "Create a slice first with the + New slice of mine button above; the framework is stored on a slice.",
   "请先点上面的「＋ 新建我的切片」建一条切片，框架保存在切片上": "Create a slice first with the + New slice of mine button above; the framework is stored on a slice.",
+  "还没有主体。请先到「主体」菜单建两个：本人 与 调用方（例如 法智AI），类型选 person": "No principals yet. Create two under the Principals menu first - yourself and the caller (for example Fazhi AI) - with type person",
+  "授权方": "Grantor",
+  "被授权方（调用方": "Licensee (the caller",
+  "确认启用": "Confirm and enable",
+  "请先选择授权方与被授权方。": "Choose both the grantor and the licensee first.",
+  "请先选择授权方与被授权方": "Choose both the grantor and the licensee first",
+  "已启用并生成授权规则：": "Enabled, and an authorisation rule was created: ",
+  "启用失败：": "Enabling failed: ",
+  "确认并启用…": "Confirm and enable...",
+  "已生成": "created",
   };
 
 
