@@ -489,7 +489,7 @@ function poHasFramework(fw) {
           if (hit) { mirrorId = hit.id; }
           else {
             var made = await api("/v1/principals", { method: "POST",
-              body: JSON.stringify({ display_name_zh: agentName, display_name_en: agentName, principal_type: "person" }) });
+              body: JSON.stringify({ display_name_zh: agentName, display_name_en: agentName, principal_type: "agent" }) });   // a program is an agent, not a person
             mirrorId = (made || {}).id;
           }
         } catch (err) {

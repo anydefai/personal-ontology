@@ -5,7 +5,7 @@
 
 po:PrincipalShape a sh:NodeShape ; sh:targetClass po:Principal ;
   sh:property [ sh:path po:principalId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
-  sh:property [ sh:path po:principalType ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ("person"^^xsd:string "agent"^^xsd:string "group"^^xsd:string "role"^^xsd:string "org"^^xsd:string) ] ;
+  sh:property [ sh:path po:principalType ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ("person"^^xsd:string "agent"^^xsd:string "group"^^xsd:string "role"^^xsd:string "org"^^xsd:string "service"^^xsd:string) ] ;
   sh:property [ sh:path po:displayNameZh ; sh:minCount 1 ; sh:datatype xsd:string ] ;
   sh:property [ sh:path po:hasParent ; sh:maxCount 1 ; sh:class po:Principal ] .
 
