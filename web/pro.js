@@ -306,6 +306,7 @@
       return '<option value="' + esc(d.id) + '"' + (d.id === defId ? " selected" : "") + ">" +
         esc(fieldLabel(d, "display_name_zh", "display_name_en")) + "</option>";
     }).join("");
+    var nameOfSlice = function (x) { return (x.analysis && x.analysis.title) || x.original_text || x.id; };
     var sliceOpts = mine.map(function (x) {
       var st = x.framework
         ? ("已有框架" + (x.confidence_status && x.confidence_status !== "unverified" ? " · 置信度 " + x.confidence_status : ""))
@@ -343,6 +344,7 @@
           '<button class="button" data-save-framework>保存我的框架</button>' +
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
+      sliceTable(mine, sliceId, nameOfSlice) +
       '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
@@ -391,6 +393,18 @@
       if (out && out.framework) { state = ensureShape(out.framework); state.__slice = sliceId; render(); }
       else if (h2) { h2.textContent = "起草失败：" + ((out && (out.detail || out.error)) || "请检查模型服务"); }
     };
+    view.querySelectorAll("[data-pick-slice]").forEach(function (b) {
+      b.onclick = function () { sliceId = b.dataset.pickSlice; state = null; render(); };
+    });
+    view.querySelectorAll("[data-drop-slice]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!confirm("删除这条切片？它的框架、定价与调整记录都会一并删除。")) return;
+        await api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.dropSlice), { method: "DELETE" });
+        cache["scenario-slices"] = null;
+        if (sliceId === b.dataset.dropSlice) { sliceId = null; state = null; }
+        render();
+      };
+    });
     var sliceSel = view.querySelector("#pro-slice");
     if (sliceSel) sliceSel.onchange = function () { sliceId = sliceSel.value; state = null; render(); };
     var addSlice = view.querySelector("#pro-add-slice");
@@ -609,3 +623,34 @@
 
   window.POPro = { renderSlices: renderSlices };
 })();
+
+
+  // -- My slices: the draft-like list for the selected scenario (professional side) --
+  function sliceTable(mine, currentId, nameOf) {
+    if (!mine.length) {
+      return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+        '<div class="panel-title"><span>我的切片</span></div>' +
+        '<div class="panel-caption" style="margin:6px 0 0">这个场景还没有我的切片。你在上面点「＋ 新建我的切片」开始一条；' +
+        '场景只是可共享的模板，判断存在切片里</div></section>';
+    }
+    var rows = mine.map(function (x) {
+      var b = x.boundaries || {}, pr = b.pricing || {}, tiers = pr.tiers || {};
+      var priced = Object.keys(tiers).length;
+      var conf = x.confidence_status && x.confidence_status !== "unverified" ? x.confidence_status : "未验证";
+      return '<tr>' +
+        '<td>' + esc(nameOf(x)) + (x.id === currentId ? ' <span class="badge">当前</span>' : "") + "</td>" +
+        "<td>" + (x.framework ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
+        "<td>" + esc(conf) + "</td>" +
+        "<td>" + (priced ? ("已设 " + priced + " 项") : '<span class="muted">未设</span>') + "</td>" +
+        '<td style="text-align:right;white-space:nowrap">' +
+          '<button class="button" data-pick-slice="' + esc(x.id) + '">选中</button> ' +
+          '<button class="button" data-drop-slice="' + esc(x.id) + '">删除</button>' +
+        "</td></tr>";
+    }).join("");
+    return '<section class="panel collection-panel">' +
+      '<div class="collection-toolbar"><span class="record-count"><span>我的切片</span> ' + mine.length +
+      ' <span>条</span></span><span class="toolbar-spacer"></span>' +
+      '<span class="panel-caption" style="margin:0">草稿就在这里：一条切片 = 一套你的判断</span></div>' +
+      '<div class="table-wrap"><table><thead><tr><th>名称</th><th>框架</th><th>置信度</th><th>定价</th><th style="text-align:right">操作</th></tr></thead>' +
+      "<tbody>" + rows + "</tbody></table></div></section>";
+  }

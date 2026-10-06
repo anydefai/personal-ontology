@@ -92,6 +92,8 @@ check("判定记录页展示交付身份信息（审计号/有效期/指纹/签�
       all(k in app for k in ("renderDecisions", "content_fingerprint", "valid_until", "signature_status")))
 check("交付页可生成正式交付（写入记录）", "dl-deliver" in app and "/deliver" in app)
 check("前端语法检查已纳入测试", pathlib.Path(__file__).resolve().parent.parent.joinpath("tests/test_frontend_syntax.py").exists())
+check("切片页有「我的切片」列表（含选中/删除与空态）",
+      all(k in _pro for k in ("function sliceTable", "data-pick-slice", "data-drop-slice", "这个场景还没有我的切片")))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

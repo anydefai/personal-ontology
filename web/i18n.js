@@ -865,6 +865,21 @@
   "交付失败：": "Delivery failed: ",
   "请检查数据与框架": "check the data and the framework",
   "标的数据不是合法 JSON：": "The case data is not valid JSON: ",
+  "这个场景还没有我的切片。你在上面点「＋ 新建我的切片」开始一条；场景只是可共享的模板，判断存在切片里": "This scenario has no slice of yours yet. Start one with New slice above; a scenario is only a shared template and your judgment lives in the slice",
+  "草稿就在这里：一条切片 = 一套你的判断": "Your drafts are here: one slice holds one set of your judgments",
+  "框架": "Framework",
+  "定价": "Pricing",
+  "已设": "priced for ",
+  " 项": " items",
+  "未设": "not set",
+  "选中": "Select",
+  "删除这条切片？它的框架、定价与调整记录都会一并删除。": "Delete this slice? Its framework, pricing and adjustment log go with it.",
+  "当前": "current",
+  "这个场景还没有我的切片。你在上面点「＋ 新建我的切片」开始一条；": "This scenario has no slice of yours yet. Start one with New slice above;",
+  "场景只是可共享的模板，判断存在切片里": "a scenario is only a shared template and your judgment lives in the slice",
+  "草稿就在这里：一条切片": "Your drafts are here: one slice",
+  "一套你的判断": "one set of your judgments",
+  "删除这条切片？它的框架、定价与调整记录都会一并删除": "Delete this slice? Its framework, pricing and adjustment log go with it",
   };
 
 

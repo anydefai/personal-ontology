@@ -1222,3 +1222,29 @@ Five new assertions in total; all **29 suites green**; 60 uncovered, level with 
 was restarted, so one more login is needed.**
 
 ### Deploy and tests
+
+### The slice page gains a "my slices" list (answering "where is the draft list")
+
+The user asked why the three built-in scenarios plus one with a framework showed no draft list, and why the
+scenario-instance list did not contain them either.
+
+**What is actually going on (not a bug, but my interface failing to explain, plus a missing list)**: the three
+built-ins (acquisition assessment, labour compliance, contract review) are **scenario templates** — shared and
+carrying nobody's judgment — so **they have no drafts by nature**; the drafts (slices) are what you create. The
+one "with a framework" is a **slice migrated** from a definition. In professional mode I had turned slices into
+a **dropdown** rather than a list, and the **scenario-instance** page lists **enabled judgment entries**
+(optional fine-grained `knowledge-entries`), not slices.
+
+**This round adds a "my slices" list** on the slice page, above the editor, with columns for name, framework
+present or not, confidence, pricing (how many tiers set) and actions (select, delete), and an empty state that
+says plainly: this scenario has no slice of yours yet — start one with New slice above; a scenario is only a
+shared template and your judgment lives in the slice. That answers the question directly.
+
+**On i18n**, this time both the **runtime full text** (the node after JS string concatenation) and the
+scanner's split fragments were added, since patching only the fragments — a trap I have hit repeatedly — makes
+the metric pass while the interface stays untranslated.
+
+**60 uncovered, level with the baseline**; UI tests **53/53**; asset version → **20261005b**; front-end only,
+so **no restart and no re-login**.
+
+### Deploy and tests
