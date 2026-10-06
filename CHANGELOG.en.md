@@ -1512,3 +1512,24 @@ that a missing principal yields 422 rather than a fabricated authorisation.
 
 The interface is not wired to these endpoints yet, so the backend was **not** restarted this round; the principal
 picker and the restart come next.
+
+### The rule layer reaches the interface: choose who may call when enabling
+
+The slice list now offers "[Confirm and enable...]", which expands that row into a picker: grantor, grantee (the
+caller) and Confirm enable / Cancel. The principal list comes from the existing Principals page via
+`GET /v1/principals`, and when there are no principals the row says to create two there first - yourself and the
+caller, type person. Confirming calls `POST /v1/scenario-slices/{id}/enable` and reports the created rule
+identifier; failures raise the original error rather than staying silent.
+
+**A latent crash was caught before release**: the template needed `principals`, which I had initially forgotten to
+load - the same shape of mistake as the earlier "hasFramework is not defined". This time it was found before
+shipping, and "no function defined inside the IIFE may be called outside it" is now a structural test, with
+`test_frontend_syntax` passing 8/8.
+
+**The backend was restarted** this round, as the rule-layer endpoints and the seeding require, so **one re-login is
+needed**. After the restart: both routes are registered, the installed store.py contains the seeding, and the
+served pro.js contains the picker.
+
+**Not done yet**: the "granted to whom" column on the scenario-instance page, which is display only, and the
+second half of option A, where editing an enabled slice regenerates its rule - today such an edit does not
+recompute the rule, it only warns.
