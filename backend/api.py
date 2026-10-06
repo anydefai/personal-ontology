@@ -2093,3 +2093,77 @@ async def import_slice_lines(slice_id: str, body: dict[str, Any]) -> Any:
         store.put("scenario-slices", slice_id, updated)
     return {"framework": fw, "report": result["report"], "error_count": errors,
             "saved": bool((body or {}).get("save")), "slice_id": slice_id}
+
+
+async def _ensure_skill_resource() -> tuple[str, str]:
+    """确保存在"专业判断调用"资源类型与动作（幂等）；沿用生活侧的做法：自己定 id + create_only。"""
+    rt_id, act_id = "skill", "skill.call"
+    if not store.get("resource-types", rt_id):
+        store.put("resource-types", rt_id, {
+            "type_name": rt_id, "display_name_zh": "专业判断调用",
+            "display_name_en": "Professional judgment call", "matcher_id": "glob",
+            "actions": [act_id], "default_priority": 0, "is_builtin": False, "params": []},
+            create_only=True)
+    if not store.get("actions", act_id):
+        store.put("actions", act_id, {
+            "action_id": act_id, "display_name_zh": "调用专业判断",
+            "display_name_en": "Call professional judgment", "applies_to": rt_id,
+            "risk_level": "low"}, create_only=True)
+    rt = store.get("resource-types", rt_id) or {}
+    if act_id not in (rt.get("actions") or []):
+        rt = dict(rt); rt["actions"] = list(rt.get("actions") or []) + [act_id]
+        store.put("resource-types", rt_id, rt)
+    return rt_id, act_id
+
+
+def _skill_rules(slice_id: str) -> list[dict[str, Any]]:
+    return [x for x in store.list("authorizations") if str(x.get("source")) == f"skill-slice:{slice_id}"]
+
+
+@app.post("/v1/scenario-slices/{slice_id}/enable", dependencies=[Depends(require_session)])
+async def enable_slice(slice_id: str, body: dict[str, Any]) -> Any:
+    """确认并启用：把"这条切片对外可用"写成一条授权规则（复用生活侧同一张 authorizations 表）。
+
+    金额上限 / 允许用途 / 不转售仍在切片边界里由第一层 /authorize 逐次校验；
+    这条规则管的是"谁可以调用"。停用即撤回该规则。
+    """
+    item = _slice_or_404(slice_id)
+    grantor = str((body or {}).get("grantor_id") or "")
+    grantee = str((body or {}).get("grantee_id") or "")
+    for who in (grantor, grantee):
+        if not who or not store.get("principals", who):
+            raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    rt_id, act_id = await _ensure_skill_resource()
+    created = _skill_rules(slice_id)
+    auth_id = str(created[0].get("id")) if created else f"authorization.skill.{slice_id}"
+    record = {
+        "grantor_id": grantor, "grantee_id": grantee, "resource_type_id": rt_id,
+        "resource_pattern": "*", "pattern_type": "glob", "actions": [act_id],
+        "effect": "allow", "priority": 0, "constraints": [], "source": f"skill-slice:{slice_id}",
+        "term": "permanent", "revoked": False,
+        "created_at": (created[0].get("created_at") if created else None) or "2026-10-06T00:00:00",
+        "policy_status": "active",
+    }
+    if store.get("authorizations", auth_id):
+        record["created_at"] = (store.get("authorizations", auth_id) or {}).get("created_at", record["created_at"])
+        store.put("authorizations", auth_id, record)
+    else:
+        store.put("authorizations", auth_id, record, create_only=True)
+    updated = dict(item); updated["status"] = "confirmed"
+    store.put("scenario-slices", slice_id, updated)
+    return {"slice_id": slice_id, "status": "confirmed", "authorization_id": auth_id,
+            "grantor_id": grantor, "grantee_id": grantee, "resource_type_id": rt_id, "action_id": act_id,
+            "source": f"skill-slice:{slice_id}"}
+
+
+@app.post("/v1/scenario-slices/{slice_id}/disable", dependencies=[Depends(require_session)])
+async def disable_slice(slice_id: str) -> Any:
+    """停用：切片退回草稿，并撤回它的授权规则。"""
+    item = _slice_or_404(slice_id)
+    revoked = []
+    for rule in _skill_rules(slice_id):
+        rec = dict(rule); rec["revoked"] = True; rec["policy_status"] = "suspended"
+        store.put("authorizations", str(rule.get("id")), rec); revoked.append(str(rule.get("id")))
+    updated = dict(item); updated["status"] = "analyzed"
+    store.put("scenario-slices", slice_id, updated)
+    return {"slice_id": slice_id, "status": "analyzed", "revoked": revoked}
