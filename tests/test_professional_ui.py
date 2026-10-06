@@ -111,6 +111,8 @@ check("切片可确认并启用 / 退回草稿（状态闭环）",
       all(k in _pro for k in ("data-confirm-slice", "data-unconfirm-slice", 'status: "confirmed"', 'status: "analyzed"')))
 check("场景实例页显示已启用的专业切片（含框架摘要与退回草稿）",
       all(k in app for k in ("function proEnabledSlicesHtml", "已启用的切片", "框架摘要", "data-unconfirm-slice")))
+check("逐行录入含「我的依据」与「打分线」两个框（共 8 个）",
+      all(k in _pro for k in ('["citations"', '["score"', "我的依据", "打分线")))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

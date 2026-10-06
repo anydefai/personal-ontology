@@ -1429,3 +1429,23 @@ boxes for the two new parts, so they can currently only be supplied through the 
 backend and parser are done; the input boxes come next and need one restart.
 
 ### Deploy and tests
+
+### Line entry grows to eight boxes, adding citations and score bands
+
+The user asked for all three items; this round completes **1 and 2** (see the note on 3 below).
+
+Two new input boxes bring line entry from six to eight: **citations**, written as a name or as a name followed by
+signals joined with 且 (attached only when all of them fire), for example a statute tied to two signals plus an
+unconditional one; and **score bands**, turning the score into a conclusion with lines such as above 0.5 means
+overvalued, below 0.3 fairly valued, otherwise neutral. The user can now enter citations and their own X/Y
+directly in the interface instead of through the text-only API. The 0.5/0.3 values in the placeholders remain
+**my examples** and should be replaced with the user's own thresholds.
+
+On i18n: genuine interface labels are translated, while the line-format keywords and examples **deliberately stay
+Chinese**, since the parser only accepts Chinese keywords such as 以上, 以下 and 其余 and translating them would
+mislead. The uncovered count returns to a real 60, level with the baseline.
+
+UI tests **63/63**; all **31 suites green**; version → **20261005h**; front-end only, so **no restart and no
+re-login**.
+
+### Deploy and tests
