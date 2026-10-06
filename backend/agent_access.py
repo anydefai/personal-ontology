@@ -215,6 +215,7 @@ def authorize(key: str, scope: str) -> tuple[bool, str]:
 _SCOPE_RULES: list[tuple[str, str, str]] = [
     ('POST', '^/v1/scenario-slices/[^/]+/judge/?$', 'judgment'),
     ("GET", r"^/v1/resource-types/?$", "catalog"),
+    ("GET", r"^/v1/scenario-slices/[^/]+/contract/?$", "catalog"),   # 调用说明：接口契约，不含方法
     ("GET", r"^/v1/scenario-slices/?$", "catalog"),
     ("GET", r"^/v1/scenario-slices/[^/]+/?$", "catalog"),
     ("GET", r"^/v1/actions/?$", "catalog"),

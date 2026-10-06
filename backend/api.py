@@ -2187,6 +2187,61 @@ async def disable_slice(slice_id: str) -> Any:
     return {"slice_id": slice_id, "status": "analyzed", "revoked": revoked}
 
 
+@app.get("/v1/scenario-slices/{slice_id}/contract", dependencies=[Depends(require_session)])
+async def slice_contract(slice_id: str, request: Request) -> Any:
+    """调用说明：要传什么、什么格式、会给回什么、边界与计费。
+
+    这是【接口契约】，不是作者的方法：只给出字段清单（名称/类型/是否必填/示例）、
+    允许的用途、金额上限、是否要求承诺不转售、会收到哪些字段、计费单价。
+    框架、权重、阈值、组合规则、依据之外的方法一律不出现在这里（设计文档第七步）。
+    """
+    item = _slice_or_404(slice_id)
+    fw = item.get("framework") or {}
+    b = item.get("boundaries") or {}
+    bill = (fw.get("billing") or {}) if isinstance(fw.get("billing"), dict) else {}   # 前端把计费存在框架里
+    fields = []
+    for x in (fw.get("inputs") or []):
+        if not isinstance(x, dict):
+            continue
+        fields.append({
+            "name": x.get("name"),
+            "type": str(x.get("type") or "string"),
+            "required": True,
+            "unit": x.get("unit") or None,
+            "options": x.get("options") or None,
+            "example": x.get("example") or None,
+            "note": x.get("hint") or None,
+        })
+    language = display_language(request.headers.get("x-display-language"))
+    return {
+        "slice_id": slice_id,
+        "title": (item.get("analysis") or {}).get("title") or slice_id,
+        "enabled": str(item.get("status") or "") == "confirmed",
+        "how_to_call": {
+            "method": "POST",
+            "path": f"/v1/scenario-slices/{slice_id}/judge",
+            "body": {
+                "data": "按 fields 逐项提供（字段名即键名）",
+                "request": {"caller": "你方名称", "purpose": "本次用途",
+                            "amount": "涉及金额（如适用）", "no_resale": "true 表示承诺不得转售"},
+            },
+        },
+        "fields": fields,
+        "all_fields_required": True,
+        "on_missing": "少任何一项都不会给结论，只返回“信息不足，无法判断”并列出缺哪几项",
+        "allowed_purposes": b.get("allowed_scenarios") or [],
+        "max_amount": b.get("max_amount"),
+        "no_resale_required": bool(b.get("confidentiality")),
+        "confidentiality": b.get("confidentiality") or None,
+        "you_will_receive": ["decision", "severity", "score", "basis", "signals",
+                             "required_inputs", "missing_inputs", "confidence_status", "decision_id"],
+        "you_will_not_receive": ["framework", "weights", "thresholds", "combination_rules", "confidence_basis"],
+        "billing": {"unit_price": bill.get("unit_price"), "currency": bill.get("currency") or "CNY",
+                    "note": "演示性质：金额＝调用次数×单价，尚未接真实支付"},
+        "language": language,
+    }
+
+
 @app.post("/v1/scenario-slices/{slice_id}/judge")
 async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(require_session)) -> Any:
     """按这条已启用的切片给出判断。这是给调用方用的对外接口。
