@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from . import messages, skill_backtest, skill_framework
+from . import messages, skill_backtest, skill_draft, skill_framework
 from .origin_policy import origin_allowed
 from .config import (BACKEND_PORT, COMMON_PASSWORDS_FILE, DATA_DIR, HOST, MODEL_CONFIG_FILE, MODEL_KEY_FILE, PORT,
                      MANAGER_PORT, SESSION_TOKEN_FILE, SETTINGS_FILE, SUPPORTED_LANGUAGES, TOKEN_FILE, WEB_DIR,
@@ -1383,6 +1383,23 @@ async def activate_scenario_policies(scenario_id: str, body: dict[str, Any]):
 async def suspend_scenario_policies(scenario_id: str, body: dict[str, Any]):
     """Stop the scene's rules from participating in decisions (active -> suspended)."""
     return await _set_scenario_policy_status(scenario_id, body, "suspended")
+
+@app.post("/v1/scenario-definitions/{definition_id}/draft", dependencies=[Depends(require_session)])
+async def draft_scenario_framework(definition_id: str, body: dict[str, Any]) -> Any:
+    """第一步+第二步：用一段自然语言描述让模型起草技能框架（草稿，需专家逐项调整）。"""
+    item = store.get("scenario-definitions", definition_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=messages.detail("definition_not_found"))
+    description = (body or {}).get("description")
+    if not isinstance(description, str) or len(description.strip()) < 10:
+        raise HTTPException(status_code=422, detail=messages.detail("draft_description_required"))
+    try:
+        result = skill_draft.draft(description)
+    except skill_draft.DraftError as exc:
+        raise HTTPException(status_code=503, detail=messages.detail("draft_failed", reason=str(exc)[:200]))
+    result["definition_id"] = definition_id
+    return result
+
 
 @app.post("/v1/scenario-definitions/{definition_id}/backtest", dependencies=[Depends(require_session)])
 async def backtest_scenario_definition(request: Request, definition_id: str, body: dict[str, Any]) -> Any:

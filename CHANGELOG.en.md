@@ -661,3 +661,34 @@ for missing fields, persistence through the API, and that the **decision package
 All **23 suites green**; asset version → **20261004f**.
 
 ### Deploy and tests
+
+### Steps 1–2 backend: natural language to a skill-framework draft
+
+The model service was verified live (`deepseek-flash`; the connection test returned "connected, the model
+responded").
+
+**New `backend/skill_draft.py` (117 lines)**: per steps one and two of the design, a natural-language
+description is turned into a model-drafted framework, with the module explicitly not overstepping: the
+prompt requires that **anything the description does not mention stays empty and nothing is invented**
+(matching the design's own note that the model does not know the expert's specific judgments); the model's
+output passes through **normalisation** before being returned (only known parts kept, unknown fields
+dropped, type mismatches skipped); **an unconfigured model raises an explicit error (503)** rather than
+returning a fabricated draft; and `adjustment_log` starts empty, to be filled as the expert adjusts each
+part — step three being the real source of professionalism.
+
+**New `POST /v1/scenario-definitions/{id}/draft`** accepting `{"description": "…"}` and returning the draft
+with a note.
+
+**New `tests/test_skill_draft.py` (11/11)** replaces the model call with a stub, needing neither network
+nor real data; it covers six normalisation discards, the too-short-description error and the 404 / 422 /
+503 failure paths.
+
+**Two mistakes this round, both recorded**: (1) wrong import names (`read_model_service` /
+`model_endpoint` while the actual exports are aliases of `_read` / `endpoint`), which **took the backend
+down** until fixed to match `scenario_llm.py`; (2) **I deployed without running the tests first** — exactly
+the discipline I had written down one round earlier. Running the tests would have caught the import error
+immediately, so the workflow is now test-first, and it will be followed strictly.
+
+All **24 suites green**.
+
+### Deploy and tests

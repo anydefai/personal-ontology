@@ -120,6 +120,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "backtest_cases_invalid": {"zh": "回测案例必须是数组。", "en": "Backtest cases must be an array."},
     "backtest_case_invalid": {"zh": "回测案例格式有误：{reason}", "en": "A backtest case is malformed: {reason}"},
     "backtest_basis": {"zh": "基于 {total} 个历史案例回测，一致 {matched} 个，准确率 {accuracy}", "en": "Backtested on {total} historical cases, {matched} matching, accuracy {accuracy}"},
+    "draft_description_required": {"zh": "请先用一段话描述你的判断方式。", "en": "Describe your judgment in a sentence or two first."},
+    "draft_failed": {"zh": "框架草稿生成失败：{reason}", "en": "Could not draft the framework: {reason}"},
 }
 
 
