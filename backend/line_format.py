@@ -243,8 +243,53 @@ def apply_lines(framework: dict[str, Any], texts: dict[str, str]) -> dict[str, A
         ok, bad = parse_exceptions(lines_of("exceptions"))
         fw["exception_rules"] = ok
         report["exceptions"] = {"imported": len(ok), "errors": bad}
+    if texts.get("citations"):
+        ok, bad = parse_citations(lines_of("citations"))
+        fw["citations"] = ok
+        report["citations"] = {"imported": len(ok), "errors": bad}
+    if texts.get("fallback"):
+        fb, bad = parse_fallback(lines_of("fallback"))
+        if fb:
+            fw["fallback"] = fb
+        report["fallback"] = {"imported": 1 if fb else 0, "errors": bad}
     if texts.get("priority"):
         ok, bad = parse_priority(lines_of("priority"))
         fw["signal_priority"] = ok
         report["priority"] = {"imported": len(ok), "errors": bad}
     return {"framework": fw, "report": report}
+
+def parse_citations(lines: list[str]) -> tuple[list[dict], list[dict]]:
+    """依据：一行一条。
+       依据名                          → 始终附上
+       依据名 → 信号1 且 信号2          → 这些信号**全部命中**时才附上
+    """
+    ok, bad = [], []
+    for n, raw in enumerate(lines, 1):
+        s = _clean(raw)
+        if not s or s.startswith("#"):
+            continue
+        if "→" in raw or "->" in raw:
+            left, right = re.split(r"→|->", raw, maxsplit=1)
+            sigs = [x.strip() for x in re.split(r"且|,|、", _clean(right)) if x.strip()]
+        else:
+            left, sigs = raw, []
+        text = left.strip()
+        if not text:
+            bad.append(_err(n, raw, "格式：依据名（可写：依据名 → 信号1 且 信号2）")); continue
+        ok.append({"text": text, "signals": sigs})
+    return ok, bad
+
+
+def parse_fallback(lines: list[str]) -> tuple[dict, list[dict]]:
+    """兜底结论：都不命中时用的结论。一行一条，取第一条。格式：都不命中 → 结论（严重度）"""
+    for n, raw in enumerate(lines, 1):
+        s = _clean(raw)
+        if not s or s.startswith("#"):
+            continue
+        body = re.split(r"→|->", raw, maxsplit=1)[-1].strip() if ("→" in raw or "->" in raw) else s
+        m = re.match(r"^(.*?)[（(](低|中|高|极高)[）)]?$", body)
+        conclusion, severity = (m.group(1).strip(), m.group(2)) if m else (body, "低")
+        if not conclusion:
+            return {}, [_err(n, raw, "格式：都不命中 → 结论（严重度）")]
+        return {"conclusion": conclusion, "severity": severity}, []
+    return {}, []

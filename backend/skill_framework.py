@@ -203,7 +203,11 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
         top = matched[0]
         decision, severity = top.get("conclusion"), top.get("severity") or "中"
     else:
-        decision, severity = "无明确结论", "低"
+        fb = framework.get("fallback") or {}
+        if isinstance(fb, dict) and fb.get("conclusion"):
+            decision, severity = str(fb["conclusion"]), str(fb.get("severity") or "低")
+        else:
+            decision, severity = "无明确结论", "低"
     path.append({"step": 6, "name": "综合判定",
                  "detail": f"结论 {decision}，严重度 {severity}"
                            + ("（由例外规则直接判定）" if forced else
@@ -220,8 +224,19 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
                 item["dynamic_threshold"] = f"{round(float(data.get('行业平均市盈率') or 0) * threshold, 4)}"
             evidence.append(item)
 
+    # 依据：未写适用信号 → 始终附上；写了 → 那些信号全部命中才附上
+    basis: list[str] = []
+    for c in framework.get("citations") or []:
+        if not isinstance(c, dict):
+            continue
+        sigs = c.get("signals") or []
+        if sigs and not all(signals.get(s) for s in sigs):
+            continue
+        if c.get("text"):
+            basis.append(str(c["text"]))
+
     return {
-        "decision": decision, "severity": severity,
+        "decision": decision, "severity": severity, "basis": basis,
         "confidence": confidence, "confidence_status": confidence_status,
         "confidence_basis": confidence_basis,
         "reasoning_path": path,
@@ -239,10 +254,10 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
 # 分层来自设计：基础层只给结论；标准层加证据；专业层加推理路径；审计层给完整包。
 TIERS = {
     "basic":        ["decision", "severity"],
-    "standard":     ["decision", "severity", "evidence"],
-    "professional": ["decision", "severity", "evidence", "reasoning_path", "threshold"],
+    "standard":     ["decision", "severity", "evidence", "basis"],
+    "professional": ["decision", "severity", "evidence", "reasoning_path", "threshold", "basis"],
     "audit":        ["decision", "severity", "confidence", "confidence_status", "confidence_basis",
-                     "reasoning_path", "professional_insight", "evidence", "rule_cited", "threshold",
+                     "reasoning_path", "professional_insight", "evidence", "basis", "rule_cited", "threshold",
                      "signals", "signal_reasons", "exceptions_applied", "matched_rules",
                      "owner_credentials", "owner_signature",
                      "signature_status", "audit_id", "valid_until", "content_fingerprint"],

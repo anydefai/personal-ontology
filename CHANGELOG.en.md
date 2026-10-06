@@ -1385,3 +1385,22 @@ requires a matcher, resource-type and action chain plus a principal, and the dai
 chain automatically - so I will read that machinery first and reuse it rather than hand-rolling it.
 
 ### Deploy and tests
+
+### Added part 7, citations, and a fallback conclusion (as the user confirmed)
+
+**Part 7, citations**: frameworks gain `citations`, written one per line, either as
+`反垄断法第二十六条 → 团队流失高 且 现金流危机` (attached only when all listed signals fired) or as a bare
+`证券法第七十八条` (no signals means always attached). The decision package gains `basis`, included from the
+standard tier upwards rather than only the audit tier, since a legal judgment needs its citations to be
+credible.
+
+**Fallback conclusion**: frameworks gain `fallback` (`都不命中 → 估值合理（低）`). When no combination rule
+matches, the fallback is returned instead of the previous unconditional "no clear conclusion"; with no fallback
+configured it still falls back to that, rather than pretending to have a conclusion.
+
+Verified: on a hit the outcome is 估值偏高/高 with both citations; on a miss it is 估值合理/低 with only the
+unconditional citation. Six new tests.
+
+**On the second item, weighted scoring, I hit two gaps that only the user can define** - see the next message.
+
+### Deploy and tests

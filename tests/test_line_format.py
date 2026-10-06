@@ -7,8 +7,9 @@
 """
 import pathlib, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from backend.line_format import (apply_lines, parse_inputs, parse_priority, parse_rules,
-                                 parse_signals, parse_thresholds, parse_exceptions)
+from backend.line_format import (apply_lines, parse_citations, parse_exceptions, parse_fallback,
+                                 parse_inputs, parse_priority, parse_rules, parse_signals,
+                                 parse_thresholds)
 from backend.skill_framework import judge
 
 RESULTS = []
@@ -43,6 +44,28 @@ check("规则引用了没定义的信号 → 报错并指出名字",
       not ok and bad and "乙" in bad[0]["reason"], str(bad))
 ok, bad = parse_thresholds(["基准 一点三"])
 check("基准不是数字 → 报错", not ok or ok, str(bad)) if False else check("基准不是数字 → 报错", bool(bad), str(bad))
+
+# ── 第 7 部分「依据」与「兜底结论」──
+ok, bad = parse_citations(["反垄断法第二十六条 → 团队流失高 且 现金流危机", "证券法第七十八条"])
+check("依据：可带适用信号，也可不带（不带即始终附上）",
+      ok[0] == {"text": "反垄断法第二十六条", "signals": ["团队流失高", "现金流危机"]}
+      and ok[1] == {"text": "证券法第七十八条", "signals": []}, str(ok))
+ok, bad = parse_fallback(["都不命中 → 估值合理（低）"])
+check("兜底结论：解析出结论与严重度", ok == {"conclusion": "估值合理", "severity": "低"}, str(ok))
+
+_fw = apply_lines({}, {"signals": "团队流失高 = 核心团队流失风险 等于 高",
+                       "rules": "团队流失高 → 估值偏高（高）",
+                       "citations": "反垄断法第二十六条 → 团队流失高\n证券法第七十八条",
+                       "fallback": "都不命中 → 估值合理（低）"})["framework"]
+_hit = judge(dict(_fw), {"核心团队流失风险": "高"})
+_miss = judge(dict(_fw), {"核心团队流失风险": "低"})
+check("依据：条件命中时附上有条件的依据（且始终附上无条件的）",
+      _hit["basis"] == ["反垄断法第二十六条", "证券法第七十八条"], str(_hit["basis"]))
+check("依据：条件未命中时只附无条件的依据", _miss["basis"] == ["证券法第七十八条"], str(_miss["basis"]))
+check("兜底：都不命中时给兜底结论（不再是无明确结论）",
+      _miss["decision"] == "估值合理" and _miss["severity"] == "低", f"{_miss['decision']}/{_miss['severity']}")
+check("没有兜底时仍回落为无明确结论",
+      judge({"combination_rules": []}, {})["decision"] == "无明确结论", "回落失败")
 
 # ── 闭环：张律师那套框架，用"一行一条"写出来 ──
 T = {
