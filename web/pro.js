@@ -191,7 +191,13 @@ function poHasFramework(fw) {
             "<div>" + del("weights:" + n) + "</div>";
         }).join("") + "</div>" : hint("还没有行业类别。")) +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
-      '<button class="button" data-add="weight-cat">＋ 加一个行业类别</button>' +
+      '<div style="margin-top:12px">' +
+        '<div class="field-label">我的行业归类</div>' +
+        hint('一行一条：标的里的行业 → 上表的行业类别。填了它，打分才算得出来。') +
+        '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="行业名 → 类别名">' +
+        Object.keys(f.industry_map || {}).map(function (k) { return esc(k) + " → " + esc(f.industry_map[k]); }).join("\n") +
+        '</textarea></div>' +
+      '<button class="button" data-add="weight-cat">＋ 加一个行业类别</button>' + +
       '<button class="button" data-add="weight-dim">＋ 加一个侧重维度</button>' +
       '<span class="panel-caption" style="margin:0">数值加起来是 1 就行；没把握就先平均。</span></div></section>';
   }
@@ -629,6 +635,17 @@ function poHasFramework(fw) {
       f.inputs.push(item);
     });
     f.industry_weights = {};
+    f.industry_map = {};
+    var imEl = document.querySelector("[data-im-lines]");
+    if (imEl) {
+      (imEl.value || "").split("\n").forEach(function (ln) {
+        var t = ln.trim(); if (!t || t.charAt(0) === "#") return;
+        var parts = t.split(/→|->/);
+        if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
+          f.industry_map[parts[0].trim()] = parts[1].trim();
+        }
+      });
+    }
     q("[data-w-cat]").forEach(function (el, i) {
       var name = el.value.trim(); if (!name) return;
       var w = {};

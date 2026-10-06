@@ -1010,6 +1010,13 @@
   "字段来自这条切片里「我要知道的信息」——在「场景切片」页改动并保存后，这里会跟着变。": "The fields come from this slice's \"information I need\" - change and save them on the scenario-slice page and they follow here.",
   "字段来自这条切片里「我要知道的信息」——在「场景切片」页改动并保存后，这里会跟着变": "The fields come from this slice's \"information I need\" - change and save them on the scenario-slice page and they follow here",
   "标的数据（字段名与你在场景切片里填的一致）": "Sample data (field names as you entered them on the scenario-slice page)",
+  "我的行业归类": "My industry mapping",
+  "一行一条：标的里的行业 → 上表的行业类别。填了它，打分才算得出来。": "One per line: the industry in your data → the category in the table above. The score needs this.",
+  "一行一条：标的里的行业 → 上表的行业类别。填了它，打分才算得出来": "One per line: the industry in your data → the category in the table above. The score needs this",
+  "一行一条：标的里的行业": "一行一条：标的里的行业",
+  "上表的行业类别。填了它，打分才算得出来": "上表的行业类别。填了它，打分才算得出来",
+  "行业名": "行业名",
+  "类别名": "类别名",
   };
 
 
