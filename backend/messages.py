@@ -122,6 +122,9 @@ MESSAGES: dict[str, dict[str, str]] = {
     "backtest_basis": {"zh": "基于 {total} 个历史案例回测，一致 {matched} 个，准确率 {accuracy}", "en": "Backtested on {total} historical cases, {matched} matching, accuracy {accuracy}"},
     "draft_description_required": {"zh": "请先用一段话描述你的判断方式。", "en": "Describe your judgment in a sentence or two first."},
     "draft_failed": {"zh": "框架草稿生成失败：{reason}", "en": "Could not draft the framework: {reason}"},
+    "tier_invalid": {"zh": "分层只能是 basic / standard / professional / audit。", "en": "The tier must be basic, standard, professional or audit."},
+    "feedback_verdict_invalid": {"zh": "反馈只能是 accurate 或 inaccurate。", "en": "Feedback must be either accurate or inaccurate."},
+    "feedback_basis": {"zh": "调用方反馈 {total} 次，其中 {accurate} 次认为准确，一致率 {accuracy}", "en": "{total} caller feedbacks, {accurate} judging it accurate, agreement {accuracy}"},
 }
 
 

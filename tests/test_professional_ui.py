@@ -38,6 +38,7 @@ check("路由器兜底：三个页面缺模式切换会自动补（防同类漏�
       "insertAdjacentHTML(\"afterbegin\",proModeButtons())" in app
       and 'view.querySelector("[data-pro-mode]")' in app
       and '"scenario-slices","scenario-instances","scenario-preview"' in app)
+check("交付说明面板存在（洞察/资历/有效期）", all(k in _pro for k in ("data-dlv-insight", "data-dlv-cred", "data-dlv-days")))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

@@ -1412,6 +1412,39 @@ async def draft_scenario_framework(definition_id: str, body: dict[str, Any]) -> 
     return result
 
 
+@app.post("/v1/scenario-definitions/{definition_id}/feedback", dependencies=[Depends(require_session)])
+async def record_scenario_feedback(definition_id: str, body: dict[str, Any]) -> Any:
+    """调用方反馈闭环：累计反馈量并据此升级置信度（≥10 初步 / ≥100 稳定）。"""
+    item = store.get("scenario-definitions", definition_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=messages.detail("definition_not_found"))
+    verdict = (body or {}).get("verdict")
+    if verdict not in ("accurate", "inaccurate"):
+        raise HTTPException(status_code=422, detail=messages.detail("feedback_verdict_invalid"))
+
+    def _int(v, default=0):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    total = _int(item.get("feedback_total")) + 1
+    accurate = _int(item.get("feedback_accurate")) + (1 if verdict == "accurate" else 0)
+    result = skill_backtest.confidence_from_feedback(total, accurate)
+    updated = dict(item)
+    updated["feedback_total"] = total
+    updated["feedback_accurate"] = accurate
+    updated["confidence_status"] = result["confidence_status"]
+    if result["accuracy_from_feedback"] is not None:
+        updated["confidence"] = result["accuracy_from_feedback"]
+        updated["confidence_basis"] = messages.msg_for(
+            "feedback_basis", messages.current_language(), total=total, accurate=accurate,
+            accuracy=f"{result['accuracy_from_feedback']:.0%}")
+    store.put("scenario-definitions", definition_id, updated)
+    result["definition_id"] = definition_id
+    return result
+
+
 @app.post("/v1/scenario-definitions/{definition_id}/backtest", dependencies=[Depends(require_session)])
 async def backtest_scenario_definition(request: Request, definition_id: str, body: dict[str, Any]) -> Any:
     """用历史案例回测技能框架，返回准确率；persist=true 时把置信度写回场景定义。
@@ -1468,8 +1501,25 @@ async def evaluate_scenario_definition(definition_id: str, body: dict[str, Any])
     except Exception as exc:   # 框架结构问题要显式报出，绝不静默给出结论
         raise HTTPException(status_code=422,
                             detail=messages.detail("framework_evaluation_failed", reason=str(exc)[:200]))
+    import datetime as _dt, uuid as _uuid
+    tier = (body or {}).get("tier") or "audit"
+    if tier not in skill_framework.TIERS:
+        raise HTTPException(status_code=422, detail=messages.detail("tier_invalid"))
+    days = item.get("valid_days")
+    try:
+        days = float(days) if days is not None else 1.0
+    except (TypeError, ValueError):
+        days = 1.0
+    now = _dt.datetime.now()
+    skill_framework.package_identity(
+        package,
+        insight=item.get("insight") or "",
+        credentials=item.get("owner_credentials") or "",
+        audit_id="AUDIT-" + now.strftime("%Y%m%d") + "-" + _uuid.uuid4().hex[:6].upper(),
+        valid_until=(now + _dt.timedelta(days=days)).isoformat(timespec="seconds"),
+    )
     package["definition_id"] = definition_id
-    return package
+    return skill_framework.apply_tier(package, tier)          # 按付费层裁剪后才交出去
 
 
 @app.post("/v1/scenario-slices/{scenario_id}/preview", dependencies=[Depends(require_session)])

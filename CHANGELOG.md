@@ -1679,6 +1679,49 @@ if(["scenario-slices","scenario-instances","scenario-preview"].includes(currentP
 界面测试 **31/31** ✓（新增一条断言锁住这个兜底 ✓ 防止再退回去 ✓）
 全量回归 **25 套全绿** ✓ 纯前端改动 ✓ **无需重启、无需重新登录** ✓ 资源版本号 → **20261004p** ✓
 
+### ① professional_insight ② 签名/资历/有效期 ③ 付费分层 ④ 反馈闭环
+
+用户要求把设计里最后四块做完 ✓ 它们都落在**对外交付物（判定包）**上 ✓ 一起实现 ✓
+
+**① 专业洞察**：场景定义新增 `insight` ✓ 判定包带上 `professional_insight` ✓
+界面上新增「**对外交付时附上的说明**」面板 ✓（洞察 ✓ 资历 ✓ 有效期天数 ✓）
+
+**② 交付身份信息**：`owner_credentials` ✓ `audit_id`（`AUDIT-日期-随机` ✓）✓
+`valid_until`（按 `valid_days` 计算 ✓ 默认 1 天 ✓ 与你文档里的示例一致 ✓）✓
+`content_fingerprint`（对判定核心做 SHA-256 ✓ 可复现 ✓）
+
+⚠️ **数字签名尚未实现** ✓ —— 需要密钥对 ✓ 本轮**没有假装已签名** ✗
+判定包里明确写着 `owner_signature: null` + `signature_status: "not_implemented"` ✓
+并且指纹在字段名与文案里都标明是「内容指纹，不是签名」✓（宁可不做也不糊弄 ✓）
+
+**③ 付费分层**（`apply_tier` ✓ 口径来自你文档第十二节 ✓）：
+
+| 层 | 交付内容 |
+|---|---|
+| basic | 结论 + 严重度 |
+| standard | ＋ 证据 |
+| professional | ＋ 推理路径 + 阈值 |
+| audit | ＋ 置信度与来源 ✓ 专业洞察 ✓ 资历 ✓ 审计号 ✓ 有效期 ✓ 内容指纹 ✓ 命中规则与信号原因 ✓ |
+
+未知分层 → 按 **basic** 处理（宁少给不多给 ✓）✓ 显式传非法分层 → **422** ✓
+分层是**调用方**的概念 ✓ 所以界面上不出现 ✓（专家看到的是完整包 ✓）
+
+**④ 反馈闭环**（`confidence_from_feedback` + `POST /v1/scenario-definitions/{id}/feedback` ✓）：
+反馈量 ≥10 → `preliminary` ✓ ≥100 → `stable` ✓ 不足 → 保持 `unverified` ✓
+一致率 = 认为准确的次数 / 全部反馈 ✓ 并写回定义 ✓ 依据文案写明"反馈 N 次，其中 M 次认为准确" ✓
+（你文档里 `certified` 需第三方审计 ✓ 本项目不自行宣称 ✓）
+
+**新增 `tests/test_package_and_feedback.py`（21/21 ✓）**：四层裁剪口径 ✓ 未知分层降级 ✓
+指纹可复现 ✓ 审计层含洞察/资历/审计号/有效期 ✓ 非法分层 422 ✓ 非法反馈 422 ✓
+9 次反馈仍未验证 ✓ 第 10 次 → preliminary ✓ 写回定义且依据含量与一致率 ✓
+
+**本轮我犯的两个错（都记录）**：
+1. 分层定义**漏了 `threshold`** ✗ → 被裁掉后 `test_skill_evaluate_api` 失败 ✗ → 已补 ✓
+   （教训：裁剪清单要与既有测试的断言对齐 ✓ 我改了输出结构却忘了跑既有测试 ✗）
+2. 测试密码只有 7 位 ✗ 被接口的 ≥8 位规则拦下 ✓ → 已改 ✓
+
+全量回归 **26 套全绿** ✓ 资源版本号 → **20261004q** ✓ **后端已重启 → 需重新登录一次** ✗
+
 ### 部署与测试
 
 - 已同步 `backend/{api,store,model}.py` 与 `web/app.js` 到 `~/personal-ontology`，并

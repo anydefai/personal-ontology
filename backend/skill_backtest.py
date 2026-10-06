@@ -59,3 +59,22 @@ def run_backtest(framework: dict[str, Any], cases: list[dict[str, Any]]) -> dict
         "mismatch_detail": [r for r in rows if not r["match"]][:20],   # 明细最多列 20 条
         "comparison_rule": "结论与 actual_result 逐字相等",
     }
+
+
+def confidence_from_feedback(total: int, accurate: int) -> dict[str, Any]:
+    """调用方反馈闭环：按反馈量给出置信度分级（设计里的后三级，认证级需第三方审计）。
+
+    反馈量 ≥10 → preliminary；≥100 → stable；不足则保持 unverified。
+    准确率 = 认为准确的次数 / 全部反馈次数（口径与回测一致：单一比值，不做加权）。
+    """
+    total = int(total or 0)
+    accurate = int(accurate or 0)
+    if total >= STABLE_FEEDBACKS:
+        status = "stable"
+    elif total >= PRELIMINARY_FEEDBACKS:
+        status = "preliminary"
+    else:
+        status = "unverified"
+    rate = round(accurate / total, 4) if total else None
+    return {"confidence_status": status, "feedback_total": total, "feedback_accurate": accurate,
+            "accuracy_from_feedback": rate}

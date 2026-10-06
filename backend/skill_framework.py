@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 OPS = {
@@ -232,3 +233,50 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
         "evidence": evidence,
         "rule_cited": framework.get("framework_version") or framework.get("skill_id"),
     }
+
+
+# ── 对外交付：分层与交付物 ────────────────────────────────────────────────
+# 分层来自设计：基础层只给结论；标准层加证据；专业层加推理路径；审计层给完整包。
+TIERS = {
+    "basic":        ["decision", "severity"],
+    "standard":     ["decision", "severity", "evidence"],
+    "professional": ["decision", "severity", "evidence", "reasoning_path", "threshold"],
+    "audit":        ["decision", "severity", "confidence", "confidence_status", "confidence_basis",
+                     "reasoning_path", "professional_insight", "evidence", "rule_cited", "threshold",
+                     "signals", "signal_reasons", "exceptions_applied", "matched_rules",
+                     "owner_credentials", "owner_signature",
+                     "signature_status", "audit_id", "valid_until", "content_fingerprint"],
+}
+ALWAYS = ["definition_id", "tier"]
+
+
+def content_fingerprint(package: dict[str, Any]) -> str:
+    """内容指纹：对判定核心做 SHA-256。**这不是数字签名**（没有私钥），只用于比对内容是否被改动。"""
+    import hashlib
+    core = {k: package.get(k) for k in ("decision", "severity", "threshold", "evidence", "reasoning_path")}
+    blob = json.dumps(core, ensure_ascii=False, sort_keys=True).encode()
+    return hashlib.sha256(blob).hexdigest()[:32]
+
+
+def apply_tier(package: dict[str, Any], tier: str) -> dict[str, Any]:
+    """按付费层裁剪判定包。未知分层按最低层处理（宁少给不多给）。"""
+    keys = TIERS.get(tier) or TIERS["basic"]
+    out = {k: package[k] for k in keys if k in package}
+    for k in ALWAYS:
+        if k in package:
+            out[k] = package[k]
+    out["tier"] = tier if tier in TIERS else "basic"
+    return out
+
+
+def package_identity(package: dict[str, Any], *, insight: str = "", credentials: str = "",
+                     audit_id: str = "", valid_until: str = "") -> dict[str, Any]:
+    """给判定包补上对外交付需要的身份信息。签名需要密钥对，本项目尚未实现 → 明确标注。"""
+    package["professional_insight"] = insight or ""
+    package["owner_credentials"] = credentials or ""
+    package["owner_signature"] = None
+    package["signature_status"] = "not_implemented"      # 不假装已签名
+    package["audit_id"] = audit_id or ""
+    package["valid_until"] = valid_until or ""
+    package["content_fingerprint"] = content_fingerprint(package)
+    return package

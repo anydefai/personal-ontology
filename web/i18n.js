@@ -738,6 +738,14 @@
   "例如三个不利信号叠加，就判估值偏高（高）。": "For example, three adverse signals stacking up means overvalued (high).",
   "例如「交易金额」；8 亿写成 800000000，单位自己统一": "e.g. \"deal size\"; write 8 亿 as 800000000 and keep one unit throughout",
   "勾选必须同时成立的观察点，再写下你的结论和严重程度。例如三个不利信号叠加，就判估值偏高，严重程度高": "Tick the observations that must hold together, then write your conclusion and severity. For example, three adverse signals stacking up means clearly overvalued, severity high",
+  "对外交付时附上的说明": "What is attached when delivering outside",
+  "调用方拿到判定包时会看到下面这些。它们不参与判断，只说明这是谁的专业判断": "A caller receives the following with the decision package. None of it affects the judgment; it says whose professional judgment this is",
+  "我的专业洞察": "My professional insight",
+  "这套判断强在哪，例如：普通判断只看市盈率，本判断还看行业周期与监管环境": "What makes this judgment strong, e.g. an ordinary check looks only at the P/E while this one also reads the cycle and the regulator",
+  "我的资历": "My credentials",
+  "例如：执业 15 年，并购领域，主导过 80 多起并购案": "e.g. 15 years in practice, M&A, led over 80 deals",
+  "有效期，单位天": "validity in days",
+  "判定包会带上到期时间；签名需要密钥对，尚未实现": "The package carries an expiry; a signature would need a key pair and is not implemented yet",
   };
 
 

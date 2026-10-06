@@ -65,6 +65,22 @@
   }
   function del(what) { return '<button class="button" data-del="' + what + '">删除</button>'; }
 
+  // -- Delivery note: what a caller sees about who made this judgment --
+  function deliveryPanel(d) {
+    d = d || {};
+    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+      '<div class="panel-title"><span>对外交付时附上的说明</span></div>' +
+      hint('调用方拿到判定包时会看到下面这些。它们不参与判断，只说明这是谁的专业判断') +
+      row('<span class="field-label" style="min-width:120px">我的专业洞察</span>' +
+        input(d.insight, 'data-dlv-insight style="min-width:420px" placeholder="这套判断强在哪，例如：普通判断只看市盈率，本判断还看行业周期与监管环境"')) +
+      row('<span class="field-label" style="min-width:120px">我的资历</span>' +
+        input(d.owner_credentials, 'data-dlv-cred style="min-width:420px" placeholder="例如：执业 15 年，并购领域，主导过 80 多起并购案"')) +
+      row('<span class="field-label" style="min-width:120px">有效期，单位天</span>' +
+        input(d.valid_days == null ? 1 : d.valid_days, 'data-dlv-days type="number" step="1" placeholder="例如 1"') +
+        '<span class="muted">判定包会带上到期时间；签名需要密钥对，尚未实现</span>') +
+      '</section>';
+  }
+
   // -- 0 / Boundaries for outside calls (layer one: may it be called at all) --
   function boundariesPanel(b) {
     b = b || {};
@@ -281,6 +297,7 @@
         "</div></section>" +
       '<div id="pro-editor">' +
         boundariesPanel((def && def.boundaries) || {}) +
+        deliveryPanel(def || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
       "</div>";
@@ -468,7 +485,12 @@
           .split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean),
         confidentiality: ((host.querySelector("[data-bnd-conf]") || {}).value || "").trim()
       };
-      await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({ framework: f, boundaries: bnd }) });
+      var dvDays = ((host.querySelector("[data-dlv-days]") || {}).value || "").trim();
+      await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({
+        framework: f, boundaries: bnd,
+        insight: ((host.querySelector("[data-dlv-insight]") || {}).value || "").trim(),
+        owner_credentials: ((host.querySelector("[data-dlv-cred]") || {}).value || "").trim(),
+        valid_days: dvDays === "" ? 1 : Number(dvDays) }) });
       cache["scenario-definitions"] = null; state = null; render();
     };
   }

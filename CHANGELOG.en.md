@@ -889,3 +889,47 @@ UI tests **31/31** (a new assertion pins the fallback so the bug cannot return);
 This is a front-end-only change: **no restart and no re-login needed**; asset version → **20261004p**.
 
 ### Deploy and tests
+
+### (1) professional_insight, (2) signature/credentials/validity, (3) billing tiers, (4) feedback loop
+
+The last four pieces of the design all concern the **outbound deliverable, the decision package**, so they
+were implemented together.
+
+**(1) Professional insight**: scenario definitions gain `insight`, and the package carries
+`professional_insight`; the interface gains a "what is attached when delivering outside" panel covering
+insight, credentials and validity in days.
+
+**(2) Delivery identity**: `owner_credentials`, an `audit_id` (`AUDIT-date-random`), `valid_until` computed
+from `valid_days` (default one day, matching the design's example), and a `content_fingerprint` (SHA-256 over
+the judgment core, reproducible).
+
+**The digital signature is not implemented** — it needs a key pair — and this round **does not pretend
+otherwise**: the package states `owner_signature: null` with `signature_status: "not_implemented"`, and the
+fingerprint is labelled a content fingerprint rather than a signature.
+
+**(3) Billing tiers** (`apply_tier`, following section twelve of the design): basic gives the conclusion and
+severity; standard adds evidence; professional adds the reasoning path and threshold; audit adds confidence
+and its basis, the professional insight, credentials, audit id, validity, content fingerprint, matched rules
+and signal reasons. An unknown tier degrades to **basic** (give less rather than more) while an explicitly
+invalid tier returns **422**. Tiers are a caller-side concept, so the interface does not show them — the
+owner always sees the full package.
+
+**(4) Feedback loop** (`confidence_from_feedback` plus
+`POST /v1/scenario-definitions/{id}/feedback`): ten feedbacks reach `preliminary`, a hundred reach `stable`,
+and fewer stay `unverified`; agreement is the share judged accurate; the result is written back to the
+definition with a plain-language basis. The design's `certified` level requires third-party audit and is not
+self-declared here.
+
+**New `tests/test_package_and_feedback.py` (21/21)**: the four tiers' contents, unknown-tier degradation,
+fingerprint reproducibility, the audit layer's insight/credentials/audit id/validity, 422 for invalid tiers
+and invalid feedback, nine feedbacks still unverified, the tenth reaching preliminary, and the write-back
+with its basis.
+
+**Two mistakes this round, both recorded**: the tier lists **omitted `threshold`**, so trimming dropped it and
+`test_skill_evaluate_api` failed — I changed an output shape without re-running the existing tests; and a test
+password of seven characters was rejected by the eight-character rule.
+
+All **26 suites green**; asset version → **20261004q**; **the backend was restarted, so another login is
+needed.**
+
+### Deploy and tests
