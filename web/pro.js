@@ -1156,8 +1156,10 @@ function polishPanels(view) {
   document.body.dataset.poEntry = mine;
   var sw = document.createElement("div");
   sw.className = "pro-viewswitch";
-  sw.innerHTML = '<button class="button' + (mine === "lines" ? " primary" : "") + '" data-view="lines">一行一条</button>' +
-                 '<button class="button' + (mine === "tables" ? " primary" : "") + '" data-view="tables">表格核对</button>';
+  sw.innerHTML = '<button class="button' + (mine === "lines" ? " primary" : "") + '" data-view="lines">录入 · 一行一条</button>' +
+                 '<button class="button' + (mine === "tables" ? " primary" : "") + '" data-view="tables">核对 · 表格</button>' +
+                 '<div class="panel-caption" style="margin:2px 0 0">两种视图改的是同一份数据：' +
+                 '「录入」只留一行一条的输入框；「核对」把判断模型逐个面板展开（每行折叠条都带面板名与条数）。</div>';
   sw.querySelectorAll("[data-view]").forEach(function (b) {
     b.onclick = function () { window.poEntryView = b.dataset.view; render(); };
   });
