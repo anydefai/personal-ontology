@@ -37,6 +37,18 @@
   var EX_KINDS = [["reduce_weight", "降低某个维度的重要性"], ["adjust_threshold", "调整基准线"],
                   ["force_conclusion", "直接给出结论"]];
 
+  // A framework counts as configured only when some part has content (all-empty means not configured yet).
+  function hasFramework(fw) {
+    if (!fw || typeof fw !== "object") return false;
+    var lists = ["inputs", "signals", "combination_rules", "exception_rules", "signal_priority"];
+    for (var i = 0; i < lists.length; i++) { if ((fw[lists[i]] || []).length) return true; }
+    if (Object.keys(fw.industry_weights || {}).length) return true;
+    if (Object.keys(fw.industry_map || {}).length) return true;
+    if (((fw.thresholds || {}).adjustments || []).length) return true;
+    return false;
+  }
+
+
   function clone(o) { return JSON.parse(JSON.stringify(o || {})); }
 
   function emptyFramework() {
@@ -366,6 +378,24 @@
     // Override the handlers bound earlier: saving and drafting write to my slice.
     view.querySelectorAll("[data-save-framework]").forEach(function (b) {
       b.onclick = async function () {
+        // Anything still sitting in the line boxes gets imported and saved here, so nothing is lost silently.
+        var lineTexts = {};
+        view.querySelectorAll("[data-line-part]").forEach(function (ta) {
+          if (ta.value.trim()) lineTexts[ta.dataset.linePart] = ta.value;
+        });
+        if (Object.keys(lineTexts).length) {
+          var imp = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/import-lines",
+            { method: "POST", body: JSON.stringify({ texts: lineTexts, save: true }) });
+          if (imp && imp.framework) {
+            state = ensureShape(imp.framework); state.__slice = sliceId;
+            var bad = [];
+            Object.keys(imp.report || {}).forEach(function (kk) {
+              (imp.report[kk].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
+            });
+            if (bad.length) alert("有几行没看懂，已跳过：\n" + bad.join("\n"));
+          }
+        }
+
         if (!sliceId) { alert("请先新建一条「我的切片」，框架保存在切片上。"); return; }
         var f = collect();
         var bndRaw = ((view.querySelector("[data-bnd-amount]") || {}).value || "").trim();
@@ -717,7 +747,7 @@
           '<button class="button primary" data-orphan-attach="' + esc(x.id) + '">挂过去</button>'
         : '<span class="muted">先建一个场景才能挂</span>';
       return "<tr><td>" + esc(nameOf(x)) + "</td>" +
-        "<td>" + (x.framework ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
+        "<td>" + (hasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
         "<td>" + esc(conf) + "</td>" +
         '<td style="text-align:right;white-space:nowrap">' + action +
         ' <button class="button" data-orphan-del="' + esc(x.id) + '">删除</button></td></tr>';
@@ -745,7 +775,7 @@
       var conf = x.confidence_status && x.confidence_status !== "unverified" ? x.confidence_status : "未验证";
       return '<tr>' +
         '<td>' + esc(nameOf(x)) + (x.id === currentId ? ' <span class="badge">当前</span>' : "") + "</td>" +
-        "<td>" + (x.framework ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
+        "<td>" + (hasFramework(x) ? "已有框架" : '<span class="muted">尚未配置</span>') + "</td>" +
         "<td>" + esc(conf) + "</td>" +
         "<td>" + (priced ? ("已设 " + priced + " 项") : '<span class="muted">未设</span>') + "</td>" +
         '<td style="text-align:right;white-space:nowrap">' +

@@ -1278,3 +1278,24 @@ plus a paste box that treats content starting with `{` as JSON and everything el
 and report before confirming, and storing the pasted original in `framework.source` so nothing is lost.
 
 ### Deploy and tests
+
+### Fix: content in the line boxes was not saved (my two-button dependency was designed wrong)
+
+The user reported pasting content, pressing Save my framework, seeing the slice appear in the list, and then
+finding nothing displayed when selecting it.
+
+**Cause**: Save my framework reads only the panels below and **not** the line boxes, so saving without first
+pressing Import into the panels stored an **empty framework** — hence a slice that "exists" but opens empty.
+**The root cause is my design**: the dependency between those two buttons should not be something the user has
+to remember.
+
+**Two fixes**: Save my framework now imports the line boxes first and then saves (calling import-lines with
+save, then storing boundaries and the delivery note), and any unparsed lines are surfaced explicitly with line
+number and reason instead of being silently dropped. Second, an empty framework no longer reads as
+"framework configured" — a bug I had promised to fix earlier and missed: a new `hasFramework()` treats a
+framework as configured only when some part actually has content, matching exactly the "exists but opens
+empty" symptom.
+
+UI tests **56/56**; all **31 suites green**; front-end only, so **no restart and no re-login**.
+
+### Deploy and tests
