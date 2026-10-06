@@ -1179,6 +1179,12 @@
   "生成交付说明（含调用说明": "生成交付说明（含调用说明",
   "请先在上面选一条我的切片": "请先在上面选一条我的切片",
   "交付说明 ·": "交付说明 ·",
+  "注意：这份说明不等于授权 —— ": "Note: this contract is not an authorisation - ",
+  "  由谁决定：": "  Decided by: ",
+  "  身份怎么验：": "  Identity is proven by: ",
+  "注意：这份说明不等于授权 ——": "Note: this contract is not an authorisation - ",
+  "由谁决定：": "Decided by: ",
+  "身份怎么验：": "Identity is proven by: ",
   };
 
 

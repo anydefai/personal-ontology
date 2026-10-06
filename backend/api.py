@@ -2238,6 +2238,17 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
         "you_will_not_receive": ["framework", "weights", "thresholds", "combination_rules", "confidence_basis"],
         "billing": {"unit_price": bill.get("unit_price"), "currency": bill.get("currency") or "CNY",
                     "note": "演示性质：金额＝调用次数×单价，尚未接真实支付"},
+        # 本说明不等于授权：读得到说明也未必调得动，这里把两层关系写清楚，免得调用方对着 403 猜。
+        "access": {
+            "authorization_required": True,
+            "who_decides": "切片所有者（授权方）",
+            "how": "所有者需在控制台把这条切片【确认并启用】，并在启用时把被授权方选为你的程序。"
+                   "仅读到本说明不代表可以调用。",
+            "how_identity_is_proven": "由本机网关按【程序进程身份】识别调用方（内核判定 uid/可执行文件/命令行），"
+                                     "调用时不需要你另交令牌。",
+            "if_not_authorized": "调用会被拒绝（该切片未授权给你的程序）。",
+            "contract_vs_authorization": "本说明是接口说明书；授权是你能不能调用的前提，二者是两件事。",
+        },
         "language": language,
     }
 

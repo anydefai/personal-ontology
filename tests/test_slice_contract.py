@@ -56,6 +56,11 @@ async def main():
                           "confidence_basis", "dynamic_threshold", "signals") if k in keys]
     check("调用说明里【不含】权重/阈值/组合规则/置信度理由（第七步）", not leaked, "泄露字段：" + str(leaked))
 
+    ac = c.get("access") or {}
+    check("契约写明了：读到说明不等于获得授权，并说清由谁决定、身份怎么验",
+          ac.get("authorization_required") is True and bool(ac.get("who_decides")) and bool(ac.get("how_identity_is_proven")),
+          json.dumps(ac, ensure_ascii=False)[:140])
+
 asyncio.run(main())
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")

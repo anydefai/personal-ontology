@@ -24,6 +24,13 @@ function contractLines(c) {
   out.push("缺少必填项时：只返回「信息不足，无法判断」并列出缺哪几项。");
   out.push("");
   out.push("你会收到：" + (c.you_will_receive || []).join("、"));
+  var ac = c.access || {};
+  if (ac.authorization_required) {
+    out.push("");
+    out.push("注意：这份说明不等于授权 —— " + (ac.contract_vs_authorization || ""));
+    out.push("  由谁决定：" + (ac.who_decides || "") + "；" + (ac.how || ""));
+    out.push("  身份怎么验：" + (ac.how_identity_is_proven || ""));
+  }
   var bill = c.billing || {};
   if (bill.unit_price) out.push("计费（演示）：每次 " + bill.unit_price + " " + (bill.currency || "CNY"));
   return out;
