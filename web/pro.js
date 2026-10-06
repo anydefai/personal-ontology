@@ -1,18 +1,40 @@
 /* Professional track: the skill-framework authoring interface (steps 1-4).
  *
- * Relationship to app.js: this file only renders the "professional mode · scenario slice" page,
+ * Relationship to app.js: this file only renders the "professional mode / scenario slice" page,
  * called through window.POPro.renderSlices(view); everything else (evaluation, backtesting)
  * reuses the helpers already defined in app.js (api / load / esc / titleBlock / cache / render).
  *
- * Editing model: the framework is read into memory, edits are written back to memory, and saving
- * rebuilds the framework from memory and PATCHes it.
+ * Wording rule: the labels speak the expert's language, not the data schema's. Types are described
+ * by what they hold ("a number", "pick one of a few options"), every control carries one example,
+ * and anything schema-ish stays out of sight.
  */
 (function () {
   "use strict";
 
-  var state = null;          // the framework currently being edited
-  var defId = null;          // the current scenario-definition id
+  var state = null;          // the framework being edited
+  var defId = null;          // current scenario-definition id
   var lastDraft = "";        // description used for the last draft
+
+  // Expert wording to internal type: only the left-hand wording ever reaches the screen.
+  var TYPES = [
+    ["string", "一句描述或名称", "例如「标的行业」「管辖地」这样的一句话"],
+    ["number", "一个数字", "例如 45、8 亿；只填数字，单位自己统一"],
+    ["enum", "从几个选项里选一个", "例如「高 / 中 / 低」，把可选值写出来"],
+    ["bool", "是 / 否", "例如「是否取得控制权」，只有两种情况"],
+    ["multi", "多项选择", "例如「适用行业」，可以同时选好几个"],
+    ["money", "金额", "例如「交易金额」；按 8 亿=800000000 这样统一填数字"]
+  ];
+  var TYPE_LABEL = {};
+  var TYPE_HINT = {};
+  TYPES.forEach(function (t) { TYPE_LABEL[t[0]] = t[1]; TYPE_HINT[t[0]] = t[2]; });
+  var INT_TYPE = { string: "string", number: "number", enum: "enum", bool: "bool", multi: "multi", money: "number" };
+
+  var OPS = [["gt", "大于"], ["gte", "不小于"], ["lt", "小于"], ["lte", "不大于"],
+             ["eq", "等于"], ["neq", "不等于"], ["in", "属于"], ["not_in", "不属于"], ["contains", "包含"]];
+  var OP_LABEL = {}; OPS.forEach(function (o) { OP_LABEL[o[0]] = o[1]; });
+
+  var EX_KINDS = [["reduce_weight", "降低某个维度的重要性"], ["adjust_threshold", "调整基准线"],
+                  ["force_conclusion", "直接给出结论"]];
 
   function clone(o) { return JSON.parse(JSON.stringify(o || {})); }
 
@@ -37,144 +59,172 @@
   }
 
   function row(html) { return '<div class="pro-row">' + html + "</div>"; }
+  function hint(text) { return '<div class="panel-caption" style="margin:0 0 8px">' + text + "</div>"; }
   function input(value, attrs) {
     return '<input class="input" ' + (attrs || "") + ' value="' + esc(value == null ? "" : String(value)) + '">';
   }
   function del(what) { return '<button class="button" data-del="' + what + '">删除</button>'; }
 
+  // ── 1 · 我要知道的信息 ──
   function inputsPanel(f) {
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">1</span><span>输入定义</span></div>' +
-      '<div class="panel-caption">判定时要提供的字段。类型选 enum 时，用逗号分隔枚举值。</div>' +
+      '<div class="panel-title"><span>我要知道的信息</span></div>' +
+      hint('每次做判断之前都要先问清楚的信息，一条一行。') +
       f.inputs.map(function (i, n) {
-        return row(input(i.name, 'data-in-name="' + n + '" placeholder="字段名"') +
-          '<select class="select" data-in-type="' + n + '">' +
-            ["string", "number", "enum"].map(function (t) {
-              return '<option value="' + t + '"' + (i.type === t ? " selected" : "") + ">" + t + "</option>";
-            }).join("") + "</select>" +
-          input((i.values || []).join(","), 'data-in-values="' + n + '" placeholder="枚举值，逗号分隔"') +
-          del("input:" + n) + "</div>");
+        var t = (i.type === "number" && i.__money) ? "money" : (i.type || "string");
+        return row('<div style="min-width:150px">' + input(i.name, 'data-in-name="' + n + '" placeholder="叫什么，例如：标的行业"') + "</div>" +
+          '<div style="min-width:220px"><select class="select" data-in-type="' + n + '">' +
+            TYPES.map(function (x) { return '<option value="' + x[0] + '"' + (t === x[0] ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") +
+          "</select></div>" +
+          '<div style="min-width:240px">' +
+            ((t === "enum" || t === "multi")
+              ? input((i.values || []).join("、"), 'data-in-values="' + n + '" placeholder="可选项，用、分开，例如：高、中、低"')
+              : '<span class="muted">' + TYPE_HINT[t] + "</span>") +
+          "</div>" + del("input:" + n));
       }).join("") +
-      '<button class="button" data-add="input">＋ 加一个字段</button></section>';
+      '<div style="margin-top:8px"><button class="button" data-add="input">＋ 加一条信息</button>' +
+      '<span class="panel-caption" style="margin-left:8px">不确定类型没关系：上面那张草稿通常已经替你填好了，核对即可。</span></div></section>';
   }
 
+  // ── 2 · 不同行业的侧重 ──
   function weightsPanel(f) {
     var cats = Object.keys(f.industry_weights);
     var dims = {};
     cats.forEach(function (c) { Object.keys(f.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; }); });
     var dimList = Object.keys(dims);
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">2</span><span>行业权重表</span></div>' +
-      '<div class="panel-caption">每个行业类别一行；数值没把握就留均分，之后随时能改。</div>' +
+      '<div class="panel-title"><span>不同行业的侧重</span></div>' +
+      hint('同样是并购，科技公司更看技术、传统制造更看财务。一行一个行业类别。') +
       (cats.length ? '<div class="pro-grid" style="grid-template-columns:1.2fr repeat(' + Math.max(dimList.length, 1) + ',1fr) 0.6fr">' +
-        "<div>类别</div>" + (dimList.length ? dimList.map(function (d) { return "<div>" + esc(d) + "</div>"; }).join("") : "<div>维度</div>") + "<div></div>" +
+        "<div>行业类别</div>" + (dimList.length ? dimList.map(function (d) { return "<div>" + esc(d) + "</div>"; }).join("") : "<div>侧重</div>") + "<div></div>" +
         cats.map(function (c, n) {
           return "<div>" + input(c, 'data-w-cat="' + n + '"') + "</div>" +
             (dimList.length ? dimList.map(function (d) {
               return "<div>" + input((f.industry_weights[c] || {})[d], 'data-w-val="' + n + ":" + esc(d) + '"') + "</div>";
             }).join("") : "<div>" + input("", 'data-w-val="' + n + ':weight"') + "</div>") +
             "<div>" + del("weights:" + n) + "</div>";
-        }).join("") + "</div>" : '<div class="panel-caption">还没有行业类别。</div>') +
+        }).join("") + "</div>" : hint("还没有行业类别。")) +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
-      '<button class="button" data-add="weight-cat">＋ 加一个类别</button>' +
-      '<button class="button" data-add="weight-dim">＋ 加一个权重维度</button></div></section>';
+      '<button class="button" data-add="weight-cat">＋ 加一个行业类别</button>' +
+      '<button class="button" data-add="weight-dim">＋ 加一个侧重维度</button>' +
+      '<span class="panel-caption" style="margin:0">数值加起来是 1 就行；没把握就先平均。</span></div></section>';
   }
 
+  // ── 3 · 判断的基准线 ──
   function thresholdsPanel(f) {
     var th = f.thresholds || {};
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">3</span><span>动态阈值</span></div>' +
-      '<div class="panel-caption">基准倍数加上按条件调整的量；每项都能写理由（会进调整记录）。</div>' +
-      row('<span class="field-label" style="min-width:80px">基准</span>' + input(th.base, 'data-th-base type="number" step="any"')) +
+      '<div class="panel-title"><span>判断的基准线</span></div>' +
+      hint('先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就 +0.15。') +
+      row('<span class="field-label" style="min-width:96px">基准线</span>' +
+        input(th.base, 'data-th-base type="number" step="any" placeholder="例如 1.3"') +
+        '<span class="muted">这就是你心里那条线，通常是一个倍数</span>') +
       (th.adjustments || []).map(function (a, n) {
         var cond = a.condition || {}; var k = Object.keys(cond)[0] || "";
-        return row(input(k, 'data-th-field="' + n + '" placeholder="条件字段"') +
-          input(cond[k], 'data-th-value="' + n + '" placeholder="值"') +
-          input(a.delta, 'data-th-delta="' + n + '" placeholder="增减" type="number" step="any"') +
-          input(a.reason, 'data-th-reason="' + n + '" placeholder="理由"') +
+        return row(input(k, 'data-th-field="' + n + '" placeholder="什么情况下：字段名"') +
+          input(cond[k], 'data-th-value="' + n + '" placeholder="这个字段是什么值"') +
+          input(a.delta, 'data-th-delta="' + n + '" placeholder="调高/调低多少，例如 +0.15" type="number" step="any"') +
+          input(a.reason, 'data-th-reason="' + n + '" placeholder="为什么这么调（会记进调整记录）"') +
           del("threshold:" + n));
       }).join("") +
-      '<button class="button" data-add="threshold">＋ 加一条阈值调整</button></section>';
+      '<button class="button" data-add="threshold">＋ 加一条调整</button></section>';
   }
 
+  // ── 4 · 我观察什么 ──
+  function signalsPanel(f) {
+    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+      '<div class="panel-title"><span>我观察什么</span></div>' +
+      hint('一条观察点就是一句判断，例如「市盈率高于行业平均乘以基准线」。可以引用上面算出的基准线，不用自己算。') +
+      (f.signals || []).map(function (s, n) {
+        var when = s.when || {}; var field = Object.keys(when)[0] || "";
+        var spec = when[field] || {};
+        var ref = (typeof spec.value === "object" && spec.value !== null) ? String(spec.value.ref || "") : "";
+        var useThreshold = (typeof spec.value === "object" && spec.value !== null && spec.value.times === "threshold");
+        var plain = useThreshold ? "" : (typeof spec.value === "object" ? JSON.stringify(spec.value) : spec.value);
+        return row('<div style="min-width:160px">' + input(s.name, 'data-sig-name="' + n + '" placeholder="观察点叫什么，例如：估值偏高信号"') + "</div>" +
+          '<div style="min-width:150px">' + input(field, 'data-sig-field="' + n + '" placeholder="看哪个字段"') + "</div>" +
+          '<div style="min-width:110px"><select class="select" data-sig-op="' + n + '">' +
+            OPS.map(function (o) { return '<option value="' + o[0] + '"' + (spec.op === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") +
+          "</select></div>" +
+          '<div style="min-width:170px">' + input(plain, 'data-sig-value="' + n + '" placeholder="比什么值"') + "</div>" +
+          '<label class="pro-check" style="min-width:200px"><input type="checkbox" data-sig-ref-use="' + n + '"' + (useThreshold ? " checked" : "") + '>× 基准线</label>' +
+          '<div style="min-width:150px">' + input(ref, 'data-sig-ref="' + n + '" placeholder="若勾选：乘以哪个字段"') + "</div>" +
+          del("signal:" + n));
+      }).join("") +
+      '<button class="button" data-add="signal">＋ 加一个观察点</button></section>';
+  }
+
+  // ── 5 · 几个观察点一起出现时 ──
   function rulesPanel(f) {
     var names = f.signals.map(function (s) { return s.name; });
     function checks(selected, attr, n) {
       return names.map(function (nm) {
         var on = (selected || []).indexOf(nm) >= 0;
         return '<label class="pro-check"><input type="checkbox" ' + attr + '="' + n + '" value="' + esc(nm) + '"' + (on ? " checked" : "") + ">" + esc(nm) + "</label>";
-      }).join("") || '<span class="muted">（先定义信号）</span>';
+      }).join("") || '<span class="muted">先在上面加观察点</span>';
     }
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">4</span><span>风险交叉验证（组合规则）</span></div>' +
-      '<div class="panel-caption">勾选要同时成立的信号，再写结论与严重度。</div>' +
+      '<div class="panel-title"><span>几个观察点一起出现时</span></div>' +
+      hint('勾选必须同时成立的观察点，再写下你的结论和严重程度。例如三个不利信号叠加 → 估值偏高（高）。') +
       (f.combination_rules || []).map(function (r, n) {
-        return row('<div class="pro-checks">' + checks(r.all_of, "data-cr-sig", n) + "</div>" +
-          input(r.conclusion, 'data-cr-conc="' + n + '" placeholder="结论"') +
+        return row('<div class="pro-checks" style="min-width:260px">' + checks(r.all_of, "data-cr-sig", n) + "</div>" +
+          input(r.conclusion, 'data-cr-conc="' + n + '" placeholder="我的结论"') +
           '<select class="select" data-cr-sev="' + n + '">' +
             ["低", "中", "高", "极高"].map(function (s) { return '<option' + (r.severity === s ? " selected" : "") + ">" + s + "</option>"; }).join("") +
           "</select>" + del("rule:" + n));
       }).join("") +
-      '<button class="button" data-add="rule">＋ 加一条组合规则</button></section>' +
-      '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">5</span><span>信号</span></div>' +
-      '<div class="panel-caption">信号 = 一条布尔判断；可以引用"与动态阈值比较"。</div>' +
-      (f.signals || []).map(function (s, n) {
-        var when = s.when || {}; var field = Object.keys(when)[0] || "";
-        var spec = when[field] || {};
-        return row(input(s.name, 'data-sig-name="' + n + '" placeholder="信号名"') +
-          input(field, 'data-sig-field="' + n + '" placeholder="字段"') +
-          '<select class="select" data-sig-op="' + n + '">' +
-            ["eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "contains"].map(function (o) {
-              return '<option value="' + o + '"' + (spec.op === o ? " selected" : "") + ">" + o + "</option>";
-            }).join("") + "</select>" +
-          input(typeof spec.value === "object" ? JSON.stringify(spec.value) : spec.value, 'data-sig-value="' + n + '" placeholder="值 / 或 {\"ref\":\"字段\",\"times\":\"threshold\"}"') +
-          del("signal:" + n));
-      }).join("") +
-      '<button class="button" data-add="signal">＋ 加一个信号</button></section>';
+      '<button class="button" data-add="rule">＋ 加一条组合判断</button></section>';
   }
 
+  // ── 6 · 例外情况 ──
   function exceptionsPanel(f) {
     var names = f.signals.map(function (s) { return s.name; });
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">6</span><span>例外规则</span></div>' +
-      '<div class="panel-caption">专业判断里最难的部分：什么情况下改写上面的常规判断。</div>' +
+      '<div class="panel-title"><span>例外情况</span></div>' +
+      hint('专业判断里最难的部分：什么情况下，上面那套常规判断要被改写。只填你选的那一类需要的。') +
       (f.exception_rules || []).map(function (r, n) {
         var cond = r.condition || {}; var ov = r.override || {};
-        var sigs = cond.all_signals || [];
-        return row('<div class="pro-checks">' + names.map(function (nm) {
+        var sigs = cond.all_signals || []; var kind = ov.kind || "adjust_threshold";
+        var extra = "";
+        if (kind === "reduce_weight") {
+          extra = input(ov.target, 'data-ex-target="' + n + '" placeholder="降低哪个维度的重要性"') +
+                  input(ov.factor, 'data-ex-factor="' + n + '" placeholder="降多少：0.5 表示降一半"');
+        } else if (kind === "adjust_threshold") {
+          extra = input(ov.factor, 'data-ex-factor="' + n + '" placeholder="基准线乘多少：1.2 表示上浮 20%"');
+        } else {
+          extra = input(ov.conclusion, 'data-ex-conc="' + n + '" placeholder="直接给出的结论"');
+        }
+        return row('<div class="pro-checks" style="min-width:240px">' + names.map(function (nm) {
             return '<label class="pro-check"><input type="checkbox" data-ex-sig="' + n + '" value="' + esc(nm) + '"' + (sigs.indexOf(nm) >= 0 ? " checked" : "") + ">" + esc(nm) + "</label>";
           }).join("") + "</div>" +
           '<select class="select" data-ex-kind="' + n + '">' +
-            [["reduce_weight", "降权"], ["adjust_threshold", "调阈值"], ["force_conclusion", "直接判定"]].map(function (k) {
-              return '<option value="' + k[0] + '"' + (ov.kind === k[0] ? " selected" : "") + ">" + k[1] + "</option>";
-            }).join("") + "</select>" +
-          input(ov.target, 'data-ex-target="' + n + '" placeholder="目标字段/信号"') +
-          input(ov.factor, 'data-ex-factor="' + n + '" placeholder="系数"') +
-          input(ov.conclusion, 'data-ex-conc="' + n + '" placeholder="直接判定的结论"') +
-          input(r.reason, 'data-ex-reason="' + n + '" placeholder="理由"') + del("exception:" + n));
+            EX_KINDS.map(function (k) { return '<option value="' + k[0] + '"' + (kind === k[0] ? " selected" : "") + ">" + k[1] + "</option>"; }).join("") +
+          "</select>" + extra +
+          input(r.reason, 'data-ex-reason="' + n + '" placeholder="为什么（会记进调整记录）"') + del("exception:" + n));
       }).join("") +
-      '<button class="button" data-add="exception">＋ 加一条例外规则</button></section>' +
-      '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span class="muted">7</span><span>信号优先级</span></div>' +
-      '<div class="panel-caption">数字越小越重要；高优先级可用于裁决组合规则。</div>' +
+      '<button class="button" data-add="exception">＋ 加一条例外</button></section>';
+  }
+
+  // ── 7 · 哪个观察点更重要 + 调整记录 ──
+  function tailPanels(f) {
+    var names = f.signals.map(function (s) { return s.name; });
+    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+      '<div class="panel-title"><span>哪个观察点更重要</span></div>' +
+      hint('数字越小越重要（1 最重要）。几条判断同时成立时，先听更重要的那个。') +
       (f.signal_priority || []).map(function (p, n) {
         return row('<select class="select" data-pr-sig="' + n + '">' + names.map(function (nm) {
             return '<option' + (p.signal === nm ? " selected" : "") + ">" + esc(nm) + "</option>";
-          }).join("") + "</select>" + input(p.priority, 'data-pr-val="' + n + '" type="number"') + del("priority:" + n));
+          }).join("") + "</select>" + input(p.priority, 'data-pr-val="' + n + '" type="number" placeholder="重要程度，1 最重要"') + del("priority:" + n));
       }).join("") +
-      '<button class="button" data-add="priority">＋ 加一条优先级</button></section>';
-  }
-
-  function adjustLogPanel(f) {
-    var log = f.adjustment_log || [];
-    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">调整记录（第三步 · 专业性的来源）</div>' +
-      '<div class="panel-caption">每处改动都记下理由；这是你的经验沉淀，也是调用方判断可信度的依据。</div>' +
-      (log.length ? log.map(function (a, n) {
-        return row(input(a.step, 'data-log-step="' + n + '" placeholder="改了什么"') +
-          input(a.reason, 'data-log-reason="' + n + '" placeholder="为什么"') + del("log:" + n));
-      }).join("") : '<div class="panel-caption">还没有记录。上面每处改动都可以在保存前记一条。</div>') +
+      '<button class="button" data-add="priority">＋ 排一下重要性</button></section>' +
+      '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+      '<div class="panel-title"><span>我的调整记录</span></div>' +
+      hint('每改一处就记下理由。这是你的经验沉淀，也是调用方判断这套框架可信度的依据。') +
+      (f.adjustment_log || []).map(function (a, n) {
+        return row(input(a.step, 'data-log-step="' + n + '" placeholder="我改了什么"') +
+          input(a.reason, 'data-log-reason="' + n + '" placeholder="为什么这么改"') + del("log:" + n));
+      }).join("") +
+      (f.adjustment_log || []).length ? "" : hint("还没有记录。") +
       '<button class="button" data-add="log">＋ 记一条调整</button></section>';
   }
 
@@ -191,29 +241,29 @@
         esc(fieldLabel(d, "display_name_zh", "display_name_en")) + "</option>";
     }).join("");
     view.innerHTML = proModeButtons() +
-      titleBlock("SKILL FRAMEWORK", "技能框架", "先用一段话描述你的判断方式，让模型起草；再逐项改成你自己的——第三步的调整才是专业性所在。") +
+      titleBlock("SKILL FRAMEWORK", "技能框架", "先用一段话讲清你的判断方式，让模型起草；再逐条改成你自己的说法。改的过程就是这套框架的价值所在。") +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-        '<div class="panel-title">第一步 · 选场景并描述</div>' +
+        '<div class="panel-title"><span>先选一个场景，再用一段话讲你的判断方式</span></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">' +
-          '<select class="select" id="pro-def" style="max-width:320px">' + (opts || '<option value="">暂无专业场景</option>') + "</select>" +
-          '<span class="badge">' + (def && def.framework ? "已有框架" : "尚未配置框架") + "</span>" +
+          '<select class="select" id="pro-def" style="max-width:320px">' + (opts || '<option value="">还没有专业场景</option>') + "</select>" +
+          '<span class="badge">' + (def && def.framework ? "已有框架" : "还没有框架") + "</span>" +
         "</div>" +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">' +
-          '<input class="input" id="pro-new-name" style="max-width:220px" placeholder="新场景的名称，例如：并购估值判断">' +
+          '<input class="input" id="pro-new-name" style="max-width:260px" placeholder="新场景叫什么，例如：并购估值判断">' +
           '<button class="button" id="pro-new">＋ 新建场景</button>' +
-          (def && !def.is_builtin ? '<button class="button" id="pro-rename">重命名</button>' +
+          (def && !def.is_builtin ? '<button class="button" id="pro-rename">改名</button>' +
             '<button class="button" id="pro-del-def">删除场景</button>' : "") +
-          '<span class="panel-caption" style="margin:0">专业场景可以自己加：一个场景定义对应一套判断框架。</span>' +
+          '<span class="panel-caption" style="margin:0">场景可以自己加：一个场景配一套判断框架。</span>' +
         "</div>" +
-        '<textarea class="input" id="pro-desc" rows="4" style="width:100%" placeholder="例如：我判断并购估值会先分行业，不同行业权重不同；再按行业周期和监管环境调整阈值……"></textarea>' +
-        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
-          '<button class="button primary" id="pro-gen">生成框架草稿</button>' +
-          '<button class="button" id="pro-save">保存框架</button>' +
-          '<span class="panel-caption" style="margin:0" id="pro-hint"></span>' +
+        '<textarea class="input" id="pro-desc" rows="4" style="width:100%" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
+        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+          '<button class="button primary" id="pro-gen">让模型起草框架</button>' +
+          '<button class="button" id="pro-save">保存我的框架</button>' +
+          '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
-      "<div id=\x22pro-editor\x22>" +
-        inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) +
-        rulesPanel(state) + exceptionsPanel(state) + adjustLogPanel(state) +
+      '<div id="pro-editor">' +
+        inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
+        rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
       "</div>";
     bind(view);
   }
@@ -224,14 +274,19 @@
     f.inputs = [];
     q("[data-in-name]").forEach(function (el) {
       var n = el.dataset.inName, name = el.value.trim(); if (!name) return;
-      var type = (document.querySelector('[data-in-type="' + n + '"]') || {}).value || "string";
-      var vals = ((document.querySelector('[data-in-values="' + n + '"]') || {}).value || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean);
-      var item = { name: name, type: type }; if (type === "enum" && vals.length) item.values = vals;
+      var chosen = (document.querySelector('[data-in-type="' + n + '"]') || {}).value || "string";
+      var type = INT_TYPE[chosen] || "string";
+      var item = { name: name, type: type };
+      if (chosen === "money") item.__money = true;
+      if (type === "enum" || chosen === "multi") {
+        var vals = ((document.querySelector('[data-in-values="' + n + '"]') || {}).value || "")
+          .split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean);
+        if (vals.length) item.values = vals;
+      }
       f.inputs.push(item);
     });
     f.industry_weights = {};
-    var cats = q("[data-w-cat]");
-    cats.forEach(function (el, i) {
+    q("[data-w-cat]").forEach(function (el, i) {
       var name = el.value.trim(); if (!name) return;
       var w = {};
       q('[data-w-val^="' + i + ':"]').forEach(function (v) {
@@ -251,20 +306,24 @@
     });
     f.signals = [];
     q("[data-sig-name]").forEach(function (el) {
-      var n = el.dataset.sigName, name = el.value.trim(), field = ((document.querySelector('[data-sig-field="' + n + '"]') || {}).value || "").trim();
+      var n = el.dataset.sigName, name = el.value.trim();
+      var field = ((document.querySelector('[data-sig-field="' + n + '"]') || {}).value || "").trim();
       if (!name || !field) return;
       var op = (document.querySelector('[data-sig-op="' + n + '"]') || {}).value || "eq";
-      var raw = (document.querySelector('[data-sig-value="' + n + '"]') || {}).value || "";
-      var val; try { val = JSON.parse(raw); } catch (e) { val = /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw; }
+      var useRefEl = document.querySelector('[data-sig-ref-use="' + n + '"]');
+      var useRef = !!(useRefEl && useRefEl.checked);
+      var raw = ((document.querySelector('[data-sig-value="' + n + '"]') || {}).value || "").trim();
+      var refField = ((document.querySelector('[data-sig-ref="' + n + '"]') || {}).value || "").trim();
+      var val;
+      if (useRef && refField) val = { ref: refField, times: "threshold" };
+      else { try { val = JSON.parse(raw); } catch (e) { val = /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw; } }
       var when = {}; when[field] = { op: op, value: val };
       f.signals.push({ name: name, when: when });
     });
     f.combination_rules = [];
-    var crSeen = {};
-    q("[data-cr-conc]").forEach(function (el) { crSeen[el.dataset.crConc] = 1; });
+    var crSeen = {}; q("[data-cr-conc]").forEach(function (el) { crSeen[el.dataset.crConc] = 1; });
     Object.keys(crSeen).forEach(function (n) {
-      var sigs = [];
-      q('[data-cr-sig="' + n + '"]').forEach(function (c) { if (c.checked) sigs.push(c.value); });
+      var sigs = []; q('[data-cr-sig="' + n + '"]').forEach(function (c) { if (c.checked) sigs.push(c.value); });
       var conc = ((document.querySelector('[data-cr-conc="' + n + '"]') || {}).value || "").trim();
       if (!sigs.length || !conc) return;
       f.combination_rules.push({ all_of: sigs, conclusion: conc,
@@ -273,8 +332,7 @@
     f.exception_rules = [];
     var exSeen = {}; q("[data-ex-kind]").forEach(function (el) { exSeen[el.dataset.exKind] = 1; });
     Object.keys(exSeen).forEach(function (n) {
-      var sigs = [];
-      q('[data-ex-sig="' + n + '"]').forEach(function (c) { if (c.checked) sigs.push(c.value); });
+      var sigs = []; q('[data-ex-sig="' + n + '"]').forEach(function (c) { if (c.checked) sigs.push(c.value); });
       var kind = (document.querySelector('[data-ex-kind="' + n + '"]') || {}).value || "adjust_threshold";
       var ov = { kind: kind };
       var target = ((document.querySelector('[data-ex-target="' + n + '"]') || {}).value || "").trim();
@@ -295,8 +353,7 @@
     });
     f.adjustment_log = [];
     q("[data-log-step]").forEach(function (el) {
-      var n = el.dataset.logStep, step = el.value.trim();
-      if (!step) return;
+      var n = el.dataset.logStep, step = el.value.trim(); if (!step) return;
       f.adjustment_log.push({ step: step, reason: ((document.querySelector('[data-log-reason="' + n + '"]') || {}).value || "") });
     });
     delete f.__defId;
@@ -327,14 +384,14 @@
     var renameBtn = host.querySelector("#pro-rename");
     if (renameBtn) renameBtn.onclick = async function () {
       var name = (newName && newName.value || "").trim();
-      if (!name) { alert("把新名称填在左边的输入框里，再点重命名。"); return; }
+      if (!name) { alert("把新名称填在左边的输入框里，再点改名。"); return; }
       await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH",
         body: JSON.stringify({ display_name_zh: name, display_name_en: name }) });
       cache["scenario-definitions"] = null; render();
     };
     var delBtn = host.querySelector("#pro-del-def");
     if (delBtn) delBtn.onclick = async function () {
-      if (!confirm("删除这个场景定义？它下面的切片与判断不会一并删除。")) return;
+      if (!confirm("删除这个场景？它下面的切片与判断不会一并删除。")) return;
       await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "DELETE" });
       cache["scenario-definitions"] = null; defId = null; state = null; render();
     };
@@ -342,9 +399,9 @@
       b.onclick = function () {
         var kind = b.dataset.add;
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
-        else if (kind === "weight-cat") state.industry_weights["新类别" + (Object.keys(state.industry_weights).length + 1)] = { weight: 0.25 };
+        else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
-          var w = state.industry_weights[c]; if (!("weight" in w) || Object.keys(w).length === 1) w["维度" + (Object.keys(w).length + 1)] = 0;
+          var w = state.industry_weights[c]; w["维度" + (Object.keys(w).length + 1)] = 0;
         });
         else if (kind === "threshold") state.thresholds.adjustments.push({ condition: {}, delta: 0, reason: "" });
         else if (kind === "signal") state.signals.push({ name: "", when: {} });
@@ -370,14 +427,17 @@
         render();
       };
     });
+    // Re-render on type or exception-kind change so only the needed inputs show.
+    host.querySelectorAll("[data-in-type]").forEach(function (s) { s.onchange = function () { state = collect(); render(); }; });
+    host.querySelectorAll("[data-ex-kind]").forEach(function (s) { s.onchange = function () { state = collect(); render(); }; });
     var gen = host.querySelector("#pro-gen");
     if (gen) gen.onclick = async function () {
       var desc = (host.querySelector("#pro-desc") || {}).value || "";
       lastDraft = desc;
-      var hint = host.querySelector("#pro-hint"); if (hint) hint.textContent = "正在让模型起草…";
+      var h = host.querySelector("#pro-hint"); if (h) h.textContent = "正在让模型起草…（大约十几秒）";
       var out = await api("/v1/scenario-definitions/" + encodeURIComponent(defId) + "/draft", { method: "POST", body: JSON.stringify({ description: desc }) });
       if (out && out.framework) { state = ensureShape(out.framework); state.__defId = defId; render(); }
-      else if (hint) { hint.textContent = "生成失败：" + esc((out && (out.detail || out.error)) || "请检查模型服务"); }
+      else if (h) { h.textContent = "起草失败：" + ((out && (out.detail || out.error)) || "请检查模型服务"); }
     };
     var save = host.querySelector("#pro-save");
     if (save) save.onclick = async function () {
@@ -385,8 +445,6 @@
       await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({ framework: f }) });
       cache["scenario-definitions"] = null; state = null; render();
     };
-    var hint = host.querySelector("#pro-hint");
-    if (hint && lastDraft) hint.textContent = "";
   }
 
   window.POPro = { renderSlices: renderSlices };

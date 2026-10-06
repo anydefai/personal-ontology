@@ -796,3 +796,43 @@ All **24 suites green**; asset version → **20261004k**.
 `owner_signature` / `owner_credentials` / `valid_until`, and billing tiers.
 
 ### Deploy and tests
+
+### Option A landed: engineering vocabulary replaced with wording a domain expert understands
+
+The user pointed out that the input definitions asked a lawyer to choose `string`, when an expert is a
+domain expert and not a modelling engineer. With option A confirmed (rework the existing editor; the data
+format unchanged), `web/pro.js` was rewritten as a whole (451 lines).
+
+**Types went from three technical names to six descriptions of what they hold**: `string` → "a description
+or a name"; `number` → "a number"; `enum` → "pick one of a few options"; plus three that were missing
+entirely — **Yes/No**, **several at once**, and **amount** — each with a generic example (no domain content
+invented).
+
+**The rest of the vocabulary was replaced too**: input definitions → "what I need to know"; signals →
+"what I watch"; thresholds → "the baseline"; combination rules → "when several observations occur
+together"; exception rules → "exceptions"; priority → "which observation matters more"; adjustment log →
+"my adjustment log".
+
+**The worst offender is gone**: a signal's value used to require writing `{"ref":"field","times":"threshold"}`
+by hand; it is now a **"× baseline" checkbox plus a "multiplied by which field" box**, so the expert never
+writes JSON (confirmed: zero occurrences served).
+
+**Exception rules now show only the inputs the chosen kind needs**, and the operators were translated from
+`gt/gte/lt/lte/eq/neq/in/not_in/contains` to greater than / at least / less than / at most / equal to /
+not equal to / is one of / is not one of / contains.
+
+**The preview page supports the new types** (`app.js`): Yes/No becomes a **real boolean** and several-at-once
+becomes an **array** — otherwise they would reach the evaluator as strings and the semantics would be wrong.
+
+**Bilingual**: pro.js has **0 uncovered strings**, with 105 English entries added and three Chinese comments
+converted to English. For hints **ending in `）`**, an extra "runtime original" key was added, because the
+scanner strips a trailing `）` and the stripped form alone would leave the English unused.
+
+**Stated plainly**: three hints still contain characters such as `→` or `+0.15`, which the scanner splits
+into several runs, so their English keys do not match the runtime text node and **those three stay Chinese
+in English mode**; rewriting them without those characters next round fixes it.
+
+This is a front-end-only change: **no restart and no re-login needed**. All **24 suites green**; asset
+version → **20261004m**.
+
+### Deploy and tests

@@ -514,6 +514,13 @@ let proEvalDefId = null;
 
 function proInputField(f){
   const name=esc(f.name||"");
+  if((f.type||"")==="bool")
+    return `<label class="field" style="min-width:160px"><span class="field-label">${name}</span>
+      <select class="select" data-pro-bool="${name}"><option value="true">是</option><option value="false">否</option></select></label>`;
+  if((f.type||"")==="multi")
+    return `<label class="field" style="min-width:200px"><span class="field-label">${name}</span>
+      <span class="field-caption">可多选</span>
+      ${(f.values||[]).map((v,i)=>`<label class="pro-check"><input type="checkbox" data-pro-multi="${name}" value="${esc(v)}">${esc(v)}</label>`).join("")}</label>`;
   if((f.type||"")==="enum"&&Array.isArray(f.values)&&f.values.length)
     return `<label class="field" style="min-width:160px"><span class="field-label">${name}</span>
       <select class="select" data-pro-input="${name}">${f.values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select></label>`;
@@ -636,6 +643,10 @@ async function renderProfessionalPreview(view){
       const v=i.value.trim(); if(v==="") return;
       const numeric=i.type==="number"||/^-?\d+(\.\d+)?$/.test(v);
       data[i.dataset.proInput]=numeric?Number(v):v; });
+    document.querySelectorAll("[data-pro-bool]").forEach(sel=>{ data[sel.dataset.proBool]=sel.value==="true"; });
+    const mult={}; document.querySelectorAll("[data-pro-multi]").forEach(c=>{
+      const k=c.dataset.proMulti; if(!mult[k])mult[k]=[]; if(c.checked)mult[k].push(c.value); });
+    Object.keys(mult).forEach(k=>{ if(mult[k].length)data[k]=mult[k]; });
     const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data})});
     if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out); }
     else { proEvalResult=null; $("#pe-result").innerHTML=`<section class="panel empty-state">判定未完成：${esc((out&&(out.detail||out.error))||"框架或输入有问题")}</section>`; } };
