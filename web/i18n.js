@@ -1056,6 +1056,11 @@
   "这张表要先有「维度」才能填": "This table needs dimensions first",
   "读取权重表出错，已中止本次操作（你的输入没有被丢弃）：": "Could not read the weights table, so this action was cancelled - your input was not discarded: ",
   "读取权重表出错，已中止本次操作（你的输入没有被丢弃）": "Could not read the weights table, so this action was cancelled - your input was not discarded",
+  "这张表按「维度」分列": "This table is split by dimension",
+  "而你的信号还没标维度": "and your signals have no dimension yet",
+  "请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列。": "Go to \"what I observe\" above and add a dimension to the end of each signal row (for example | finance); save and return, and the columns will appear here.",
+  "请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列": "Go to \"what I observe\" above and add a dimension to the end of each signal row (for example | finance); save and return, and the columns will appear here",
+  "在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列。": "add a dimension to the end of each signal row (for example | finance); save and return and the columns appear",
   };
 
 

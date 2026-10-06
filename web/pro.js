@@ -207,7 +207,7 @@ function poHasFramework(fw) {
             }).join("") : "<div>" + input("", 'data-w-val="' + n + ':weight"') + "</div>") +
             "<div>" + del("weights:" + n) + "</div>";
         }).join("") + "</div>" : hint("还没有行业。")) +
-        (dimList.length ? "" : '<div class="panel-caption" style="margin-top:8px">这张表要先有「维度」才能填：请到上面【我观察什么】在每个信号末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里，就会出现对应的列。</div>') +
+        (dimList.length ? "" : '<div class="panel-caption" style="margin-top:8px">这张表按「维度」分列，而你的信号还没标维度：请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列。</div>') +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<div style="margin-top:12px">' +
         '<details style="margin-top:10px"><summary class="panel-caption" style="cursor:pointer">可选：只有当数据里的写法与上表的行业不一致时才需要填这里</summary><div style="margin-top:6px">' +
@@ -684,6 +684,12 @@ function poHasFramework(fw) {
   }
   function collect() {
     var f = ensureShape({ framework_version: state.framework_version, industry_map: clone(state.industry_map) });
+    // Fields that have no panel inputs (they come from the line boxes) must be carried over,
+    // otherwise ensureShape blanks them out and every save silently discards them.
+    ["citations", "score_bands", "fallback", "source"].forEach(function (key) {
+      var kept = (state && state[key] !== undefined) ? state[key] : f[key];
+      if (kept !== undefined) f[key] = clone(kept);
+    });
     var q = function (a) { return document.querySelectorAll(a); };
     f.inputs = [];
     q("[data-in-name]").forEach(function (el) {
@@ -736,7 +742,8 @@ function poHasFramework(fw) {
       f.thresholds.adjustments.push({ condition: cond, delta: isNaN(delta) ? 0 : delta, reason: reason });
     });
     f.signals = [];
-    q("[data-sig-name]").forEach(function (el) {
+    var prevSignals = (state && state.signals) || [];
+    q("[data-sig-name]").forEach(function (el, sigIndex) {
       var n = el.dataset.sigName, name = el.value.trim();
       var field = ((document.querySelector('[data-sig-field="' + n + '"]') || {}).value || "").trim();
       if (!name || !field) return;
@@ -749,7 +756,14 @@ function poHasFramework(fw) {
       if (useRef && refField) val = { ref: refField, times: "threshold" };
       else { try { val = JSON.parse(raw); } catch (e) { val = /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw; } }
       var when = {}; when[field] = { op: op, value: val };
-      f.signals.push({ name: name, when: when });
+      var sig = { name: name, when: when };
+      // Keep fields this row already had: the line box stores a dimension per signal and rebuilding
+      // the object from scratch dropped it on every save.
+      var prev = prevSignals[sigIndex];
+      if (prev && typeof prev === "object") {
+        Object.keys(prev).forEach(function (k) { if (!(k in sig)) sig[k] = prev[k]; });
+      }
+      f.signals.push(sig);
     });
     f.combination_rules = [];
     var crSeen = {}; q("[data-cr-conc]").forEach(function (el) { crSeen[el.dataset.crConc] = 1; });
