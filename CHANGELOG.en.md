@@ -692,3 +692,38 @@ immediately, so the workflow is now test-first, and it will be followed strictly
 All **24 suites green**.
 
 ### Deploy and tests
+
+### Rebuilding the interface around Lawyer Zhang's scenario: `web/pro.js` (steps 1-4)
+
+The user asked for a rebuild **according to the design** and pointed out that I had simplified it on my own
+initiative — downgrading five parts to a four-slot form and "the expert adjusts each item" to "paste some
+JSON". This round replaces the professional-mode scenario-slice page wholesale with the design's four
+steps: (1) choose a scenario and write a paragraph, then **draft the framework** through the ready
+`/draft` endpoint; (2) **visually edit the five parts** — input definitions, industry weight table,
+dynamic thresholds, combination rules with signals, exception rules and signal priority, all with
+add/remove rows; (3) an **adjustment log** where each change records what changed and why, stored in
+`adjustment_log`, the source of professionalism in the design; (4) evaluate and backtest on the Skill
+preview page to obtain a confidence.
+
+**The key change of method, and the root cause of three earlier failures**: the new interface lives in a
+**separate file, `web/pro.js` (357 lines)**, rather than being spliced into the 500-line `app.js`. `app.js`
+changes in exactly **one place** — professional mode calls `window.POPro.renderSlices(view)` — and the old
+interface is **kept as a fallback** so a failed pro.js load cannot white-screen the page. `index.html` gains
+one script tag, loaded after app.js. Edits go into memory first, and saving rebuilds the framework from
+memory and PATCHes it.
+
+**Prompt refinement**, addressing the sparse drafts seen in live testing: dimensions, conditions, signals
+and exceptions mentioned in the description must all become entries; weights without given numbers default
+to equal shares and threshold adjustments to zero as **placeholders to adjust**; only parts the description
+never touches stay empty.
+
+**Two things stated plainly**: (1) the prompt change is **on disk but the backend was not restarted**, so
+"draft the framework" still uses the old prompt and the new one takes effect at the next restart — which
+avoids logging the user out again; (2) `pro.js`'s interface text is **Chinese only** for now, because the
+bilingual scanner covers only `index.html` and `app.js`; the next round brings pro.js into the scanner and
+adds the English entries.
+
+All **24 suites green**; the server is confirmed to serve the new files (`pro.js` HTTP 200, 22,535 bytes;
+app.js delegates).
+
+### Deploy and tests

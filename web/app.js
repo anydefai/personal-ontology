@@ -293,6 +293,7 @@ function proModeButtons(){return `<div class="collection-toolbar" style="margin-
 const PRO_AUTHORITY = {statute:"法条", interpretation:"司法解释", precedent:"判例", experience:"个人经验"};
 
 async function renderProfessionalSlices(view){
+ if(window.POPro&&window.POPro.renderSlices){return window.POPro.renderSlices(view)}   // 新界面（web/pro.js）；加载失败则回退旧界面
  const [defs,slices,allEntries]=await Promise.all([load("scenario-definitions"),load("scenario-slices"),load("knowledge-entries")]);
  document.querySelector('[data-count="scenario-slices"]')?.replaceChildren(document.createTextNode(slices.length));
  const mine=slices.filter(x=>(x.scenario_profile||{}).kind==="professional");

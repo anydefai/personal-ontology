@@ -20,7 +20,9 @@ PARTS = ("inputs", "industry_map", "industry_weights", "thresholds", "signals",
          "combination_rules", "exception_rules", "signal_priority")
 
 SYSTEM_PROMPT = """你在帮一位专业人士把他的判断方式整理成结构化的"技能框架"。
-严格输出 JSON 对象，只包含下列键；**描述中没有提到的部分请留空或省略，绝对不要编造具体规则**：
+严格输出 JSON 对象，只包含下列键。要求：
+- 描述里提到的**维度、条件、信号、例外**都要建成条目；数值没有给出的，权重用均分、阈值调整量用 0，作为**待调整的占位**；
+- 只有描述里**完全没涉及的部分**才留空；绝对不要编造描述里没有的判断规则：
 {
   "framework_version": "V1",
   "inputs": [{"name": "字段名", "type": "string|number|enum", "values": ["枚举值"]}],
