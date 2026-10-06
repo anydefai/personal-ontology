@@ -381,6 +381,7 @@
       b.onclick = async function () {
         // Anything still sitting in the line boxes gets imported and saved here, so nothing is lost silently.
         var lineTexts = {};
+          var importedFw = null;   // framework returned by a successful line import (panels are stale)
         view.querySelectorAll("[data-line-part]").forEach(function (ta) {
           if (ta.value.trim()) lineTexts[ta.dataset.linePart] = ta.value;
         });
@@ -388,7 +389,8 @@
           var imp = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/import-lines",
             { method: "POST", body: JSON.stringify({ texts: lineTexts, save: true }) });
           if (imp && imp.framework) {
-            state = ensureShape(imp.framework); state.__slice = sliceId;
+            importedFw = ensureShape(imp.framework);
+              state = importedFw; state.__slice = sliceId;
             var bad = [];
             Object.keys(imp.report || {}).forEach(function (kk) {
               (imp.report[kk].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
@@ -398,7 +400,9 @@
         }
 
         if (!sliceId) { alert("请先新建一条「我的切片」，框架保存在切片上。"); return; }
-        var f = collect();
+          // Use the imported result when there is one: collect() would read the not-yet-re-rendered
+          // panels and overwrite the framework that was just saved with an empty one.
+          var f = importedFw || collect();
         var bndRaw = ((view.querySelector("[data-bnd-amount]") || {}).value || "").trim();
         var bnd = {
           max_amount: bndRaw === "" ? null : Number(bndRaw),

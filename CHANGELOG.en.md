@@ -1449,3 +1449,24 @@ UI tests **63/63**; all **31 suites green**; version → **20261005h**; front-en
 re-login**.
 
 ### Deploy and tests
+
+### Fix: entering lines and saving showed nothing (the ordering in my earlier fix was wrong)
+
+The user reported that entering lines and pressing Save left the panels below empty.
+
+**Cause, my bug**: the save handler first imported and saved the line boxes (so the framework was already correct
+on the server) and then immediately ran `var f = collect()`, which reads the **panels** - but the panels had not
+been re-rendered, so it read them empty - and the following PATCH sent that empty framework, overwriting what had
+just been saved. This was an ordering mistake in my previous fix: I added the automatic import before saving but
+left the panel read in place below it.
+
+**Fix**: once the import succeeds its result is kept, and `var f = importedFw || collect();` uses it, so the panels
+can no longer overwrite the imported framework (while the other panel fields such as boundaries and the delivery
+note are still saved). A regression assertion guards against this returning.
+
+Noted, not changed: pro.js line 697 contains the same pattern inside another function (`saveAll`), apparently an
+unused legacy path; recorded here for later cleanup.
+
+All 31 suites green; front-end only, so **no restart and no re-login**.
+
+### Deploy and tests
