@@ -1,3 +1,18 @@
+/* Visible error net.
+ *
+ * A synchronous throw inside a click handler (as opposed to a rejected promise) is NOT caught by
+ * unhandledrejection, so the interface just looks dead with no message at all. This catches those too,
+ * which is what makes a silent "nothing happens" observable.
+ */
+window.poErrorNet = true;
+window.addEventListener("error", function (e) {
+  try {
+    var where = "";
+    if (e && e.filename) { where = " @ " + String(e.filename).split("/").pop() + ":" + (e.lineno || "?"); }
+    alert("页面出错：" + ((e && (e.message || (e.error && e.error.message))) || "未知错误") + where);
+  } catch (x) {}
+});
+
 /* Global helper, deliberately OUTSIDE the IIFE below.
  *
  * The renderers appended near the end of this file sit outside the IIFE (it closes around line 732),
