@@ -387,10 +387,7 @@ function poHasFramework(fw) {
         deliveryPanel(slice || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
-      "</div>" +
-      '<div class="pro-savebar"><span class="panel-caption" style="margin:0">改动不会自动保存</span>' +
-        '<span class="toolbar-spacer"></span>' +
-        '<button class="button primary" data-save-framework>保存我的框架</button></div>';
+      "</div>";
     bind(view);
     // Override the handlers bound earlier: saving and drafting write to my slice.
     view.querySelectorAll("[data-save-framework]").forEach(function (b) {

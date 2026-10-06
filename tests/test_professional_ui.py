@@ -66,7 +66,6 @@ check("交付信息会显示出来（洞察/资历/审计号/有效期/指纹/�
 check("分层设置已挪到切片页（四层可选，预演页不再出现）",
       "data-dlv-tier" in _pro and app.count("审计层（完整判定包）") == 0 and _pro.count("审计层（完整判定包）") == 1)
 check("反馈入口在界面上（准确/不准确）", "pe-fb-ok" in app and "pe-fb-no" in app and "sendFeedback" in app)
-check("切片页有常驻底部保存栏（改动不会自动保存）", "pro-savebar" in _pro and _pro.count("data-save-framework") >= 2)
 check("预演页不再展示交付身份信息，改为预演说明", "proPreviewNote" in app and "pe-feedback-panel" not in app)
 check("分层设置移到切片页（默认交付层级）", "data-dlv-tier" in _pro and "pe-tier" not in app)
 check("对外交付与反馈是独立一级菜单（在场景预演之后）",
@@ -105,8 +104,7 @@ check("保存我的框架会先导入逐行框（不会默默丢掉输入）",
       "function hasFramework" in _pro and "lineTexts" in _pro and "save: true" in _pro)
 check("两种生成方式在页面上一眼可辨（方式一/方式二 + 第三步 + 混用提示）",
       all(k in _pro for k in ("方式一 · 让模型起草", "方式二 · 一行一条自己写", "第三步 · 核对与微调", "两种方式随时可以混用")))
-check("顶部的保存按钮已删除（保存入口不再重复）",
-      _pro.count("data-save-framework>保存我的框架</button>") == 1)
+check("保存入口只有一个（就是方式二里的「保存」按钮）", _pro.count("data-save-framework>") == 1)
 check("切片可确认并启用 / 退回草稿（状态闭环）",
       all(k in _pro for k in ("data-confirm-slice", "data-unconfirm-slice", 'status: "confirmed"', 'status: "analyzed"')))
 check("场景实例页显示已启用的专业切片（含框架摘要与退回草稿）",
@@ -114,6 +112,7 @@ check("场景实例页显示已启用的专业切片（含框架摘要与退回�
 check("逐行录入含「我的依据」与「打分线」两个框（共 8 个）",
       all(k in _pro for k in ('["citations"', '["score"', "我的依据", "打分线")))
 check("save keeps the imported framework rather than an empty panel read", "importedFw || collect()" in _pro)
+check("保存按钮只有一个（不再有底部常驻栏那个重复入口）", _pro.count("data-save-framework>") == 1 and "pro-savebar" not in _pro)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
