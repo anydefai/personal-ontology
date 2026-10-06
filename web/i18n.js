@@ -1103,6 +1103,10 @@
   "详情 - ": "Details - ",
   "详情": "Details",
   "详情 -": "Details -",
+  "还缺这些必须提供的信息：": "Still missing these required values: ",
+  " —— 补齐后再判定。": " - fill them in and judge again.",
+  "还缺这些必须提供的信息": "Still missing these required values",
+  "补齐后再判定。": "fill them in and judge again.",
   };
 
 

@@ -683,7 +683,15 @@ async function renderProfessionalPreview(view){
     Object.keys(mult).forEach(k=>{ if(mult[k].length)data[k]=mult[k]; });
     const tier=(def&&def.boundaries&&def.boundaries.default_tier)||"audit";
     const out=await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data,tier})});
-    if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out)+proPreviewNote(); }
+    if(out&&out.decision){ proEvalResult=out;
+      // Convention B: the judgment lists missing required inputs. Mark them on the form, not only in prose.
+      const miss=(out.missing_inputs||[]).slice();
+      document.querySelectorAll("[data-pro-input],[data-pro-bool],[data-pro-multi]").forEach(el=>{
+        const name=el.dataset.proInput||el.dataset.proBool||el.dataset.proMulti||"";
+        el.classList.toggle("pro-missing", miss.indexOf(name)>=0); });
+      const note=miss.length?('<div class="panel-caption" style="color:#d9534f;margin-bottom:6px">' +
+        esc("还缺这些必须提供的信息：" + miss.join("、") + " —— 补齐后再判定。") + "</div>") : "";
+      $("#pe-result").innerHTML=note+proPackageHtml(out)+proPreviewNote(); }
     else { proEvalResult=null; $("#pe-result").innerHTML=`<section class="panel empty-state">判定未完成：${esc((out&&(out.detail||out.error))||"框架或输入有问题")}</section>`; } };
 }
 
