@@ -822,3 +822,11 @@
       '<div class="table-wrap"><table><thead><tr><th>名称</th><th>框架</th><th>置信度</th><th>定价</th><th style="text-align:right">操作</th></tr></thead>' +
       "<tbody>" + rows + "</tbody></table></div></section>";
   }
+
+// Safety net: any unhandled failure from an API call now surfaces to the user instead of
+// leaving the interface apparently doing nothing (which made earlier bugs look like no-ops).
+window.addEventListener("unhandledrejection", function (e) {
+  var r = e.reason;
+  var msg = (r && (r.message || r.detail || r.error)) || r || "未知错误";
+  alert("操作失败：" + msg);
+});
