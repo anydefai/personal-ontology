@@ -67,6 +67,23 @@ def check_iife_scope():
 
 
 check("IIFE 作用域没被切开（IIFE 外不调用内部函数）", *check_iife_scope())
+
+
+def check_template_splices():
+    """抓"+ +字符串"这种断裂拼接：它在 JS 里合法（一元加号），node --check 不报错，
+    但会把模板拼成 NaN，于是整块面板（含按钮）渲染不出来 —— 正是"点了没反应"的真实成因。
+    """
+    bad = []
+    for f in sorted((ROOT / "web").glob("*.js")):
+        for n, line in enumerate(f.read_text(encoding="utf-8").split("\n"), 1):
+            if re.search(r"\+\s*\+\s*[\"'`]", line):
+                bad.append(f"{f.name}:{n}")
+    if bad:
+        return False, f"这些行有多余的 +（模板会拼成 NaN）：{bad}"
+    return True, "没有断裂的模板拼接"
+
+
+check("模板拼接没有断裂（+ 后直接跟字符串会拼成 NaN）", *check_template_splices())
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
 for ok, l in RESULTS:

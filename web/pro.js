@@ -214,7 +214,7 @@ function poHasFramework(fw) {
         '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="数据里的写法 → 表里的行业">' +
         Object.keys(f.industry_map || {}).map(function (k) { return esc(k) + " → " + esc(f.industry_map[k]); }).join("\n") +
         '</textarea></div>' +
-      '<button class="button" data-add="weight-cat">＋ 加一个行业</button>' + +
+      '<button class="button" data-add="weight-cat">＋ 加一个行业</button>' +
       '<button class="button" data-add="weight-dim">＋ 加一个侧重维度</button>' +
       '<span class="panel-caption" style="margin:0">数值加起来是 1 就行；没把握就先平均。</span></div></section>';
   }
