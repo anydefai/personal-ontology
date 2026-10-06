@@ -1110,8 +1110,40 @@ function polishPanels(view) {
     return el.classList && el.classList.contains("panel");
   });
   if (!sections.length) return;
+  // Two audiences: my own judgment model, and what the caller must supply and obey. Grouping the panels by
+  // audience answers at a glance which parts are written for the caller.
+  var isCallerPanel = function (title) {
+    return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
+  };
   var toc = document.createElement("div");
   toc.className = "pro-toc";
+  var groups = [
+    { title: "我的判断模型",
+      caption: "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束。",
+      cls: "pro-group-model", host: null, tocBox: null },
+    { title: "对外调用与交付（写给调用方）",
+      caption: "这一组是调用方看得到、必须遵守的：要传什么值、不许做什么、交付时附上什么说明。",
+      cls: "pro-group-caller", host: null, tocBox: null }
+  ];
+  groups.forEach(function (g) {
+    g.host = document.createElement("section");
+    g.host.className = "pro-group " + g.cls;
+    var h = document.createElement("div");
+    h.className = "panel-title";
+    h.innerHTML = "<span>" + esc(g.title) + "</span>";
+    var c = document.createElement("div");
+    c.className = "panel-caption";
+    c.textContent = g.caption;
+    g.host.appendChild(h);
+    g.host.appendChild(c);
+    g.tocBox = document.createElement("div");
+    g.tocBox.className = "pro-toc-group";
+    var tl = document.createElement("div");
+    tl.className = "pro-toc-title";
+    tl.textContent = g.title;
+    g.tocBox.appendChild(tl);
+    toc.appendChild(g.tocBox);
+  });
   sections.forEach(function (sec) {
     var t = sec.querySelector(".panel-title");
     var title = t ? t.textContent.trim() : "面板";
@@ -1123,16 +1155,19 @@ function polishPanels(view) {
     if (t) t.style.display = "none";
     sec.parentNode.insertBefore(d, sec);
     d.appendChild(sec);
+    var g = groups[isCallerPanel(title) ? 1 : 0];
+    g.host.appendChild(d);
     var link = document.createElement("a");
     link.href = "#";
-    link.textContent = title;
+    link.textContent = title + (count ? " · " + count : "");
     link.onclick = function (ev) {
       ev.preventDefault();
       d.open = true;
       if (sec.scrollIntoView) sec.scrollIntoView({ behavior: "smooth", block: "start" });
     };
-    toc.appendChild(link);
+    g.tocBox.appendChild(link);
   });
+  groups.forEach(function (g) { ed.appendChild(g.host); });
   var wrap = document.createElement("div");
   wrap.className = "pro-editor-wrap";
   ed.parentNode.insertBefore(wrap, ed);

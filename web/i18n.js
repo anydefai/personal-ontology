@@ -1067,6 +1067,14 @@
   "面板": "Panel",
   "收起": "collapse",
   "这张表按「维度」分列，而你的信号还没标维度：请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列": "This table is split by dimension, and your signals have none yet: go to \"what I observe\" above, add a dimension to the end of each signal row (for example | finance), save, and return here - the columns will appear.",
+  "我的判断模型": "My judgment model",
+  "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束。": "This group is your own basis for judging: only you can see it, callers cannot, and it does not constrain them.",
+  "对外调用与交付（写给调用方）": "External calls and delivery (written for the caller)",
+  "这一组是调用方看得到、必须遵守的：要传什么值、不许做什么、交付时附上什么说明。": "This group is what the caller sees and must obey: which values to supply, what is not allowed, and what note accompanies a delivery.",
+  "对外调用与交付（写给调用方": "External calls and delivery (written for the caller",
+  "对外": "对外",
+  "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束": "这一组是你自己的判断依据，只有你看得到；调用方看不到，也不受它约束",
+  "这一组是调用方看得到、必须遵守的：要传什么值、不许做什么、交付时附上什么说明": "这一组是调用方看得到、必须遵守的：要传什么值、不许做什么、交付时附上什么说明",
   };
 
 
