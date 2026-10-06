@@ -1065,6 +1065,8 @@
   "改": "change",
   "还没填": "not filled in yet",
   "面板": "Panel",
+  "收起": "collapse",
+  "这张表按「维度」分列，而你的信号还没标维度：请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列": "This table is split by dimension, and your signals have none yet: go to \"what I observe\" above, add a dimension to the end of each signal row (for example | finance), save, and return here - the columns will appear.",
   };
 
 

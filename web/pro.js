@@ -444,14 +444,23 @@ function poHasFramework(fw) {
         var n = a.dataset.inTypeEdit;
         var sel = view.querySelector('[data-in-type="' + n + '"]');
         var lab = view.querySelector('[data-in-type-label="' + n + '"]');
+        var collapse = function () {
+          if (sel) sel.style.display = "none";
+          if (lab) lab.style.display = "";
+          a.textContent = "改";
+        };
+        if (sel && sel.style.display !== "none") { collapse(); return; }   // second click collapses it
         if (sel) { sel.style.display = ""; sel.focus(); }
         if (lab) lab.style.display = "none";
+        a.textContent = "收起";
         if (sel) sel.onchange = function () {
-          if (lab) { lab.textContent = TYPE_LABEL[sel.value] || sel.value; lab.style.display = ""; }
-          sel.style.display = "none";
+          if (lab) lab.textContent = TYPE_LABEL[sel.value] || sel.value;
+          collapse();
           var vals = view.querySelector('[data-in-values="' + n + '"]');
           if (vals) vals.style.display = (sel.value === "enum" || sel.value === "multi") ? "" : "none";
         };
+        // Clicking elsewhere also collapses it (the delay lets a click inside the dropdown land first).
+        if (sel) sel.onblur = function () { setTimeout(collapse, 200); };
       };
     });
     view.querySelectorAll("[data-cancel-enable]").forEach(function (b) {
