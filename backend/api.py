@@ -1710,6 +1710,20 @@ def _localize_scene_labels(record: Any, language: str) -> Any:
     return out
 
 
+# A caller receives the judgment, not the author's know-how (design document, step 7). The framework, the
+# natural-language description and the confidence rationale stay inside. Boundaries are deliberately NOT
+# stripped: the caller must know the constraints (amount, purpose, no resale) in order to comply with them.
+AUTHOR_ONLY_SLICE_FIELDS = ("framework", "analysis", "original_text", "confidence_basis", "source_lines")
+
+
+def _without_author_only(item: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in item.items() if k not in AUTHOR_ONLY_SLICE_FIELDS}
+
+
+def _caller_is_agent(request: Request) -> bool:
+    return verify_agent_assertion(request) is not None
+
+
 @app.get("/v1/{collection}", dependencies=[Depends(require_session)])
 async def list_items(collection: str, request: Request):
     try:
@@ -1717,6 +1731,8 @@ async def list_items(collection: str, request: Request):
         if collection == "scenario-slices":
             language = display_language(request.headers.get("x-display-language"))
             items = [_localize_scene_labels(item, language) for item in items]
+            if _caller_is_agent(request):
+                items = [_without_author_only(item) for item in items]
         return {"items": items}
     except KeyError: raise HTTPException(status_code=404, detail="Unknown collection")
 
@@ -1754,6 +1770,8 @@ async def get_item(collection: str, item_id: str, request: Request):
     if result is None: raise HTTPException(status_code=404, detail="Record not found")
     if collection == "scenario-slices":
         result = _localize_scene_labels(result, display_language(request.headers.get("x-display-language")))
+        if _caller_is_agent(request):
+            result = _without_author_only(result)
     return result
 
 @app.patch("/v1/{collection}/{item_id}", dependencies=[Depends(require_session)])

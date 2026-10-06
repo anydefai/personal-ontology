@@ -74,6 +74,19 @@ async def main():
     check("该记录能在判定记录里查到，且标注了切片与调用方",
           bool(hit) and "s.j" in json.dumps(hit[0], ensure_ascii=False), f"找到 {len(hit)} 条")
 
+# 设计文档第七步：调用方拿不到作者的知识产权（框架/权重/原始描述/置信度理由），但要拿得到边界
+from backend.api import _without_author_only, AUTHOR_ONLY_SLICE_FIELDS
+
+_full = {"id": "s.x", "status": "confirmed", "framework": {"signals": [{"name": "n"}]},
+         "analysis": {"title": "t"}, "original_text": "raw", "confidence_basis": "why",
+         "boundaries": {"max_amount": 1}, "scenario_profile": {"kind": "professional"}}
+_seen = _without_author_only(_full)
+check("调用方拿不到框架/原始描述/置信度理由（第七步）",
+      all(k not in _seen for k in ("framework", "analysis", "original_text", "confidence_basis")),
+      str(sorted(_seen)))
+check("调用方仍能拿到边界与状态（它必须知道约束才能遵守）",
+      _seen.get("boundaries") == {"max_amount": 1} and _seen.get("status") == "confirmed")
+
 asyncio.run(main())
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
