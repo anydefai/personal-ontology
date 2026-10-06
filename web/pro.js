@@ -1157,6 +1157,11 @@ function polishPanels(view) {
     sec.parentNode.insertBefore(d, sec);
     d.appendChild(sec);
     var g = groups[isCallerPanel(title) ? 1 : 0];
+    // These panels are "when all of these hold → conclusion", so a rule is a two-part card:
+    // its checkbox set spans the first line and the conclusion controls sit on the second.
+    if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0) {
+      d.classList.add("pro-rules");
+    }
     g.host.appendChild(d);
     var link = document.createElement("a");
     link.href = "#";
