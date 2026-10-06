@@ -1067,3 +1067,39 @@ uncovered count would not fall; it is now added.
 All **26 suites green**; asset version → **20261004w**; front-end only, so no restart and no re-login.
 
 ### Deploy and tests
+
+### First cut: the personal judgment asset moves to the **slice** layer
+
+Following the layering the user confirmed, this round lands the **data model** part.
+
+Recap of the problem: I had attached the skill framework to `scenario-definitions` (the shareable layer)
+while the design puts it on `scenario-slices` (the personal layer) — which is exactly why the user could not
+see a draft list.
+
+**Change in `backend/model.py`**: slices gain **ten fields** — `framework`, `boundaries`, `insight`,
+`owner_credentials`, `valid_days`, `confidence`, `confidence_status`, `confidence_basis`, `feedback_total`
+and `feedback_accurate` — with predicates such as `sliceFramework`, deliberately distinct from the
+definition layer's `skillFramework`, so the two never overwrite each other.
+
+**New `tests/test_slice_framework.py` (9/9)**: slices carry every personal-asset field; the framework
+predicates differ between layers; the definition's field count is untouched; a personal slice with a
+framework can be created and its framework, boundaries and insight read back; **one scenario definition can
+carry several slices** (an internet edition and a manufacturing edition); and the definition layer is not
+overwritten by a slice's framework, so the two stay cleanly separated.
+
+**Method, and the lesson**: my previous two attempts broke `model.py` because I performed in-line string
+surgery on a large file and validated only at the end. This time the candidate was written to a temporary
+file, compiled, imported as a module for structural validation, and only then moved into place — and for a
+dictionary I **appended** (`FIELDS[...].update(...)`) rather than performing surgery. The first append
+tripped on my own over-strict check (it flagged predicates that are legitimately reused across collections),
+and because the assertion fired before writing, the file was unharmed; after correcting the check it passed
+first time.
+
+**Stated plainly**: this round covers **only the data model**; the interface and the judgment endpoints do
+not yet take the framework from the slice, so the interface looks unchanged. Next is wiring the five
+judgment endpoints to `slice_id`, turning the slice page into a two-level "choose a scenario template, then
+choose or create my slice" interface, and migrating the existing framework automatically.
+
+All **27 suites green**; the model change coexists safely without a restart.
+
+### Deploy and tests

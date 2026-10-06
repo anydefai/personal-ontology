@@ -171,3 +171,19 @@ def graph_to_record(graph: Graph, collection: str, item_id: str) -> dict[str, An
         if field not in record: record[field] = []
         elif not isinstance(record[field], list): record[field] = [record[field]]
     return record
+
+
+# ── 个人判断资产：技能框架及其配套信息（属于**个人切片**，不属于可共享的场景定义）──
+# 追加式补充字段，不改动上面的字面量，避免行内手术出错。
+FIELDS["scenario-slices"].update({
+    "framework": ("sliceFramework", "json"),
+    "boundaries": ("sliceBoundaries", "json"),
+    "insight": ("sliceInsight", "lit"),
+    "owner_credentials": ("sliceOwnerCredentials", "lit"),
+    "valid_days": ("sliceValidDays", "lit"),
+    "confidence": ("sliceConfidence", "lit"),
+    "confidence_status": ("sliceConfidenceStatus", "lit"),
+    "confidence_basis": ("sliceConfidenceBasis", "lit"),
+    "feedback_total": ("sliceFeedbackTotal", "lit"),
+    "feedback_accurate": ("sliceFeedbackAccurate", "lit"),
+})
