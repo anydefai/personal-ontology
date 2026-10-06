@@ -427,6 +427,7 @@ function poHasFramework(fw) {
     view.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
+        state = collect();          // collect() reads the DOM, so it must run BEFORE appending the new row
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
         else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
@@ -438,7 +439,7 @@ function poHasFramework(fw) {
         else if (kind === "exception") state.exception_rules.push({ condition: { all_signals: [] }, override: { kind: "adjust_threshold" }, reason: "" });
         else if (kind === "priority") state.signal_priority.push({ signal: state.signals[0] ? state.signals[0].name : "", priority: state.signal_priority.length + 1 });
         else if (kind === "log") state.adjustment_log.push({ step: "", reason: "" });
-        state = collect(); render();
+        render();
       };
     });
     view.querySelectorAll("[data-del]").forEach(function (b) {
@@ -740,6 +741,7 @@ function poHasFramework(fw) {
     host.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;
+        state = collect();          // collect() reads the DOM, so it must run BEFORE appending the new row
         if (kind === "input") state.inputs.push({ name: "", type: "string" });
         else if (kind === "weight-cat") state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = { 侧重: 0.25 };
         else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
@@ -751,7 +753,7 @@ function poHasFramework(fw) {
         else if (kind === "exception") state.exception_rules.push({ condition: { all_signals: [] }, override: { kind: "adjust_threshold" }, reason: "" });
         else if (kind === "priority") state.signal_priority.push({ signal: state.signals[0] ? state.signals[0].name : "", priority: state.signal_priority.length + 1 });
         else if (kind === "log") state.adjustment_log.push({ step: "", reason: "" });
-        state = collect(); render();
+        render();
       };
     });
     host.querySelectorAll("[data-del]").forEach(function (b) {
