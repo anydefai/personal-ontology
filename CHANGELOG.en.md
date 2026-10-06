@@ -983,3 +983,23 @@ feedback entry exists). All **26 suites green**; front-end only, so **no restart
 version → **20261004s**.
 
 ### Deploy and tests
+
+### A visible build marker, to tell whether the browser is running stale assets
+
+The user reported twice that the new interface was not visible, while each time I verified the server really
+was serving the new files (`pro.js` with the delivery panel twice, `app.js` with the tier and feedback
+controls four times, `no-store` in effect). Suspicion therefore moved to **the browser still running an old
+app.js**, since a single-page app does not swap its assets on its own.
+
+**The diagnostic added this round**: a fixed "界面版本 20261004t" marker in the bottom-right of the page. It
+lives in the HTML shell, which is always `no-store`, so it necessarily reflects the server's current version.
+If the marker shows an older version or is missing, the browser is serving cached assets, and that is visible
+at a glance.
+
+The manager test gained a self-check that the shell's marker matches the asset version, which would otherwise
+indicate an unsynchronised deployment (this test failed before the deploy and passed after, because I ran it
+first).
+
+All **26 suites green**; asset version → **20261004t**.
+
+### Deploy and tests

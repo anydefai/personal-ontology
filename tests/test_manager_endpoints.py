@@ -68,6 +68,10 @@ try:
           "no-store" in headers.get("cache-control", ""), str(headers.get("cache-control")))
     local = re.search(r"assets/app\.js\?v=([0-9a-z]+)", (ROOT / "web/index.html").read_text(encoding="utf-8"))
     served = re.search(rb"assets/app\.js\?v=([0-9a-z]+)", body)
+    _local_html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+    _ver = re.search(r"assets/app\.js\?v=([0-9a-z]+)", _local_html)
+    check("外壳里的版本标记与资源版本号一致（部署自检）",
+          _ver and f"界面版本 {_ver.group(1)}" in _local_html, f"标记：{re.search(chr(29928)+chr(38754)+chr(29256)+chr(26412)+r' ([0-9a-z]+)', _local_html)}")
     check("服务端 HTML 的版本号与工作区一致",
           local and served and local.group(1).encode() == served.group(1),
           f"工作区 {local.group(1) if local else '?'} / 服务端 {served.group(1).decode() if served else '?'}")
