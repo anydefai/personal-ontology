@@ -1,17 +1,18 @@
-/* 专业判断侧：技能框架的建模界面（第一步~第四步）。
+/* Professional track: the skill-framework authoring interface (steps 1-4).
  *
- * 与 app.js 的关系：本文件只做「专业模式 · 场景切片」这一页，
- * 通过 window.POPro.renderSlices(view) 被 app.js 调用；其余能力（判定、回测）
- * 复用 app.js 里已有的函数（api / load / esc / titleBlock / cache / render 等）。
+ * Relationship to app.js: this file only renders the "professional mode · scenario slice" page,
+ * called through window.POPro.renderSlices(view); everything else (evaluation, backtesting)
+ * reuses the helpers already defined in app.js (api / load / esc / titleBlock / cache / render).
  *
- * 编辑方式：先把框架读进内存，改动写回内存；保存时按内存重建 framework 并 PATCH。
+ * Editing model: the framework is read into memory, edits are written back to memory, and saving
+ * rebuilds the framework from memory and PATCHes it.
  */
 (function () {
   "use strict";
 
-  var state = null;          // 当前编辑中的框架
-  var defId = null;          // 当前场景定义 id
-  var lastDraft = "";        // 上次生成草稿用的描述
+  var state = null;          // the framework currently being edited
+  var defId = null;          // the current scenario-definition id
+  var lastDraft = "";        // description used for the last draft
 
   function clone(o) { return JSON.parse(JSON.stringify(o || {})); }
 
@@ -43,7 +44,7 @@
 
   function inputsPanel(f) {
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">1 · 输入定义</div>' +
+      '<div class="panel-title"><span class="muted">1</span><span>输入定义</span></div>' +
       '<div class="panel-caption">判定时要提供的字段。类型选 enum 时，用逗号分隔枚举值。</div>' +
       f.inputs.map(function (i, n) {
         return row(input(i.name, 'data-in-name="' + n + '" placeholder="字段名"') +
@@ -63,7 +64,7 @@
     cats.forEach(function (c) { Object.keys(f.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; }); });
     var dimList = Object.keys(dims);
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">2 · 行业权重表</div>' +
+      '<div class="panel-title"><span class="muted">2</span><span>行业权重表</span></div>' +
       '<div class="panel-caption">每个行业类别一行；数值没把握就留均分，之后随时能改。</div>' +
       (cats.length ? '<div class="pro-grid" style="grid-template-columns:1.2fr repeat(' + Math.max(dimList.length, 1) + ',1fr) 0.6fr">' +
         "<div>类别</div>" + (dimList.length ? dimList.map(function (d) { return "<div>" + esc(d) + "</div>"; }).join("") : "<div>维度</div>") + "<div></div>" +
@@ -82,7 +83,7 @@
   function thresholdsPanel(f) {
     var th = f.thresholds || {};
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">3 · 动态阈值</div>' +
+      '<div class="panel-title"><span class="muted">3</span><span>动态阈值</span></div>' +
       '<div class="panel-caption">基准倍数加上按条件调整的量；每项都能写理由（会进调整记录）。</div>' +
       row('<span class="field-label" style="min-width:80px">基准</span>' + input(th.base, 'data-th-base type="number" step="any"')) +
       (th.adjustments || []).map(function (a, n) {
@@ -105,7 +106,7 @@
       }).join("") || '<span class="muted">（先定义信号）</span>';
     }
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">4 · 风险交叉验证（组合规则）</div>' +
+      '<div class="panel-title"><span class="muted">4</span><span>风险交叉验证（组合规则）</span></div>' +
       '<div class="panel-caption">勾选要同时成立的信号，再写结论与严重度。</div>' +
       (f.combination_rules || []).map(function (r, n) {
         return row('<div class="pro-checks">' + checks(r.all_of, "data-cr-sig", n) + "</div>" +
@@ -116,7 +117,7 @@
       }).join("") +
       '<button class="button" data-add="rule">＋ 加一条组合规则</button></section>' +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">5 · 信号</div>' +
+      '<div class="panel-title"><span class="muted">5</span><span>信号</span></div>' +
       '<div class="panel-caption">信号 = 一条布尔判断；可以引用"与动态阈值比较"。</div>' +
       (f.signals || []).map(function (s, n) {
         var when = s.when || {}; var field = Object.keys(when)[0] || "";
@@ -136,7 +137,7 @@
   function exceptionsPanel(f) {
     var names = f.signals.map(function (s) { return s.name; });
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">6 · 例外规则</div>' +
+      '<div class="panel-title"><span class="muted">6</span><span>例外规则</span></div>' +
       '<div class="panel-caption">专业判断里最难的部分：什么情况下改写上面的常规判断。</div>' +
       (f.exception_rules || []).map(function (r, n) {
         var cond = r.condition || {}; var ov = r.override || {};
@@ -155,7 +156,7 @@
       }).join("") +
       '<button class="button" data-add="exception">＋ 加一条例外规则</button></section>' +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title">7 · 信号优先级</div>' +
+      '<div class="panel-title"><span class="muted">7</span><span>信号优先级</span></div>' +
       '<div class="panel-caption">数字越小越重要；高优先级可用于裁决组合规则。</div>' +
       (f.signal_priority || []).map(function (p, n) {
         return row('<select class="select" data-pr-sig="' + n + '">' + names.map(function (nm) {

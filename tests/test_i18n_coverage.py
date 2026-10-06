@@ -3,7 +3,7 @@
     ~/personal-ontology/.venv/bin/python tests/test_i18n_coverage.py
 
 机制：渲染后按文本节点精确匹配替换，未收录的串保持中文原文。
-本测试扫描 web/index.html 与 web/app.js 里的中文串，与词典做差，报告未收录数量。
+本测试扫描 web/index.html、web/app.js 与 web/pro.js 里的中文串，与词典做差，报告未收录数量。
 **基线**：当前已知未收录的数量。新增界面文案若忘记补词条，数量会上升 → 测试失败。
 完整清单：docs/i18n-pending.md
 """
@@ -26,7 +26,7 @@ function scan(file){
   }
   return [...found].filter(s=>!keys.has(s));
 }
-console.log(JSON.stringify({html:scan("web/index.html"),app:scan("web/app.js")}));
+console.log(JSON.stringify({html:scan("web/index.html"),app:scan("web/app.js"),pro:scan("web/pro.js")}));
 '''
     out = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True)
     if out.returncode != 0:
@@ -34,13 +34,15 @@ console.log(JSON.stringify({html:scan("web/index.html"),app:scan("web/app.js")})
     return json.loads(out.stdout)
 
 data = scan()
-total = len(data["html"]) + len(data["app"])
-print(f"  未收录界面文案：HTML {len(data['html'])} 条 + app.js {len(data['app'])} 条 = {total} 条")
+# 把完整清单落盘：补词条时直接读它，不靠人猜（清单来自扫描器本身）
+pathlib.Path("/tmp/i18n-uncovered.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+total = len(data["html"]) + len(data["app"]) + len(data.get("pro", []))
+print(f"  未收录界面文案：HTML {len(data['html'])} 条 + app.js {len(data['app'])} 条 + pro.js {len(data.get('pro', []))} 条 = {total} 条")
 print(f"  基线：{BASELINE} 条（完整清单见 docs/i18n-pending.md）")
 if total <= BASELINE:
     print(f"  ✔ 未超出基线（较基线减少 {BASELINE - total} 条）" if total < BASELINE else "  ✔ 与基线持平")
     sys.exit(0)
 print(f"\n  ✗ 未收录数量较基线增加 {total - BASELINE} 条——新增界面文案请补词条：")
-for s in (data["html"] + data["app"])[:15]:
+for s in (data["html"] + data["app"] + data.get("pro", []))[:15]:
     print("     ·", s)
 sys.exit(1)

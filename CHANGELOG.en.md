@@ -772,3 +772,27 @@ the `domain_pack_ids` field name, and the single integration point with fallback
 asset version → **20261004j**.
 
 ### Deploy and tests
+
+### A + B done: the new prompt is live and pro.js is inside bilingual coverage
+
+**A (backend restart)**: the refined prompt is live (backend healthy, manager HTTP 200). "Draft the
+framework" now returns a draft **with a skeleton**: dimensions and conditions mentioned in the description
+become entries, weights without numbers become **even shares**, threshold adjustments become **zero
+placeholders** to be adjusted, and only parts never touched stay empty.
+
+**B (pro.js bilingual)**: the scanner now includes `web/pro.js` (previously only `index.html` and `app.js`),
+and it writes the **complete uncovered list** to `/tmp/i18n-uncovered.json` — taken **from the scanner
+itself**, not guessed, which was exactly the lesson from the previous round's wrong-script extraction. The
+Chinese code comments in pro.js were converted to English (i18n exempts comments, removing ten noise
+entries at once), **61 English entries** were added, and the numeric prefixes of seven panel titles were
+split into their own elements — otherwise the runtime text node "1 · 输入定义" would not match the
+dictionary key "输入定义", leaving the metric satisfied while the interface stayed untranslated. The result:
+**pro.js has 0 uncovered strings**, total 58 against a baseline of 60.
+
+All **24 suites green**; asset version → **20261004k**.
+
+**Still to come from the design**: `boundaries` (amount limit, allowed scenarios, no resale), the
+**first-layer authorisation decision** (token audience, scenario scope, amount limit, no resale),
+`owner_signature` / `owner_credentials` / `valid_until`, and billing tiers.
+
+### Deploy and tests
