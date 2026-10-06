@@ -352,6 +352,7 @@
         "</div></section>" +
       sliceTable(mine, sliceId, nameOfSlice) +
       orphanPanel(orphans, defs, nameOfSlice) +
+      lineImportPanel() +
       '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
@@ -429,6 +430,30 @@
         cache["scenario-slices"] = null; render();
       };
     });
+
+    var doImport = async function (save) {
+      var texts = {};
+      view.querySelectorAll("[data-line-part]").forEach(function (ta) {
+        if (ta.value.trim()) texts[ta.dataset.linePart] = ta.value;
+      });
+      if (!Object.keys(texts).length) { var h0 = view.querySelector("#line-report"); if (h0) h0.textContent = "先在上面任意一个框里写几行。"; return; }
+      var out = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/import-lines",
+        { method: "POST", body: JSON.stringify({ texts: texts, save: !!save }) });
+      var h = view.querySelector("#line-report");
+      if (out && out.framework) {
+        state = ensureShape(out.framework); state.__slice = sliceId;
+        var bad = [];
+        Object.keys(out.report || {}).forEach(function (k) {
+          (out.report[k].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
+        });
+        if (save) { cache["scenario-slices"] = null; render(); if (bad.length) alert("已保存，但有几行没看懂：\n" + bad.join("\n")); return; }
+        render();
+        var h2 = view.querySelector("#line-report");
+        if (h2) h2.textContent = bad.length ? ("已导入，但有 " + bad.length + " 行没看懂：" + bad.join("；")) : "已导入，下面面板里可以看到";
+      } else if (h) { h.textContent = "导入失败：" + ((out && (out.detail || out.error)) || "请检查内容"); }
+    };
+    var li = view.querySelector("#line-import"); if (li) li.onclick = function () { doImport(false); };
+    var lis = view.querySelector("#line-import-save"); if (lis) lis.onclick = function () { doImport(true); };
 
     var sliceSel = view.querySelector("#pro-slice");
     if (sliceSel) sliceSel.onchange = function () { sliceId = sliceSel.value; state = null; render(); };
@@ -652,6 +677,34 @@
 
 
   // -- Unassigned slices: their scenario was deleted, so they must be recoverable --
+  // -- Line-based entry: one line per item, with the format shown inline --
+  function lineImportPanel() {
+    var parts = [
+      ["inputs", "我要知道的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
+      ["thresholds", "判断的基准线", "基准 1.3　以及　条件=值 → 调整量", "基准 1.3\n监管环境=收紧 → -0.10"],
+      ["signals", "我观察什么", "信号名 = 字段 大于/小于/等于/属于/包含 值（可写「字段 × 基准线」）", "团队流失高 = 核心团队流失风险 等于 高"],
+      ["rules", "几个观察点一起出现时", "信号 且 信号 → 结论（严重度）", "团队流失高 且 现金流危机 → 估值偏高（高）"],
+      ["exceptions", "例外情况", "条件 且 条件 → 某维度权重 ×0.5 / 基准线 ×1.2 / 直接判 结论", "技术已专利化 且 技术壁垒极高 → 团队流失权重 ×0.5"],
+      ["priority", "哪个更重要", "更重要的 > 次重要的（> 两边留空格）", "现金流危机 > 团队流失高"]
+    ];
+    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+      '<div class="panel-title"><span>一行一条录入（推荐）</span></div>' +
+      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行</div>' +
+      parts.map(function (p, i) {
+        return '<div style="margin-top:10px">' +
+          '<div class="field-label">' + p[1] + '</div>' +
+          '<div class="panel-caption" style="margin:2px 0 4px">格式：' + esc(p[2]) + '</div>' +
+          '<textarea class="input mono" rows="3" style="width:100%" data-line-part="' + p[0] + '" placeholder="' + esc(p[3]) + '"></textarea>' +
+          '</div>';
+      }).join("") +
+      '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<button class="button primary" id="line-import">导入到面板</button>' +
+        '<button class="button" id="line-import-save">导入并保存</button>' +
+        '<span class="panel-caption" style="margin:0" id="line-report"></span>' +
+      '</div></section>';
+  }
+
+
   function orphanPanel(orphans, defs, nameOf) {
     if (!orphans.length) return "";
     var options = defs.map(function (d) {

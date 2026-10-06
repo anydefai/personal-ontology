@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from . import authorization, messages, skill_backtest, skill_draft, skill_framework
+from . import authorization, line_format, messages, skill_backtest, skill_draft, skill_framework
 from .origin_policy import origin_allowed
 from .config import (BACKEND_PORT, COMMON_PASSWORDS_FILE, DATA_DIR, HOST, MODEL_CONFIG_FILE, MODEL_KEY_FILE, PORT,
                      MANAGER_PORT, SESSION_TOKEN_FILE, SETTINGS_FILE, SUPPORTED_LANGUAGES, TOKEN_FILE, WEB_DIR,
@@ -2069,3 +2069,27 @@ async def deliver_slice(slice_id: str, body: dict[str, Any]) -> Any:
     out["decision_id"] = decision_id
     out["recorded"] = True
     return out
+
+@app.post("/v1/scenario-slices/{slice_id}/import-lines", dependencies=[Depends(require_session)])
+async def import_slice_lines(slice_id: str, body: dict[str, Any]) -> Any:
+    """把「一行一条」的文本解析成框架；save=true 时直接写回这条切片。
+
+    写错的行**只影响那一行**：返回逐行报告（行号/原文/原因），其余照常导入。
+    原样输入会存进 framework.source，便于以后回看与再次导入。
+    """
+    item = _slice_or_404(slice_id)
+    texts = (body or {}).get("texts")
+    if not isinstance(texts, dict):
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    current = item.get("framework") if isinstance(item.get("framework"), dict) else {}
+    clean = {str(k): (v if isinstance(v, str) else "") for k, v in texts.items()}
+    result = line_format.apply_lines(current or {}, clean)
+    fw = result["framework"]
+    fw["source"] = clean                      # 原样保留，不丢东西
+    errors = sum(len(v["errors"]) for v in result["report"].values())
+    if (body or {}).get("save"):
+        updated = dict(item)
+        updated["framework"] = fw
+        store.put("scenario-slices", slice_id, updated)
+    return {"framework": fw, "report": result["report"], "error_count": errors,
+            "saved": bool((body or {}).get("save")), "slice_id": slice_id}

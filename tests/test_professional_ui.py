@@ -96,6 +96,8 @@ check("切片页有「我的切片」列表（含选中/删除与空态）",
       all(k in _pro for k in ("function sliceTable", "data-pick-slice", "data-drop-slice", "这个场景还没有我的切片")))
 check("有「未归属切片」区（删场景后切片可挂回）",
       all(k in _pro for k in ("function orphanPanel", "data-orphan-attach", "data-orphan-del", "未归属切片")))
+check("切片页有「一行一条录入」六个框（含导入/导入并保存）",
+      all(k in _pro for k in ("function lineImportPanel", "data-line-part", "line-import", "line-import-save", "import-lines")))
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
