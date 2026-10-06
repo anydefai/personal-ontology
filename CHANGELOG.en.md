@@ -1003,3 +1003,39 @@ first).
 All **26 suites green**; asset version → **20261004t**.
 
 ### Deploy and tests
+
+### A persistent save bar at the bottom, and relocating items (2)-(4)
+
+Two pieces of user feedback: on the scenario-slice page, having selected a scenario that already has a
+framework, edits could not be saved because no save button was visible; and a question about why items
+(2)-(4) lived on the preview page.
+
+**The save-button problem was my layout**: the only save button was at the **top** of the page while the
+editing panels are below it, so after scrolling down to edit it was out of sight. There is now a
+**persistent save bar at the bottom** ("changes are not saved automatically" plus the button), and the save
+action is bound to **every** `[data-save-framework]` element, so both work.
+
+**Items (2)-(4) moved**, following the table the user approved: the tier moved from a dropdown on the
+preview page to a **default delivery tier** inside the delivery note on the **scenario-slice** page, which
+the preview reads; feedback moved from two buttons on the preview to a **statistics-only** block on the
+**scenario-instance** page, since feedback is submitted by the caller through the API; and the delivery
+identity information is **no longer shown on the preview**, replaced by a line stating that this is a dry run
+which records no decision and produces no audit id or digital signature. The reasoning is the user's own: a
+dry run must not carry an audit id and signature, the tier is what the caller bought rather than something
+the owner picks per run, and "was this accurate" is the caller's answer to give.
+
+**Along the way**: the shell's build marker became the English `BUILD 20261004v`, since a version number
+should not enter the translation dictionary where every release would need a new entry — a trap I set
+myself last round; one Chinese comment became English and one placeholder became a bare number, leaving
+**59 uncovered against a baseline of 60**.
+
+UI tests are at **41/41**, including a **stale assertion** fixed (it still looked for the tier in its old
+place) and four new ones: the bottom save bar, the preview no longer showing delivery identity, the tier
+living on the slice page, and the instance-page statistics.
+
+All **26 suites green**; front-end only, so **no restart and no re-login**; asset version → **20261004v**.
+
+**Still outstanding, stated plainly**: the **decision-record page** does not yet show each real decision's
+delivery identity (audit id, expiry, fingerprint, signature) — it is currently only in the API response.
+
+### Deploy and tests

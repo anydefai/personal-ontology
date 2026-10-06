@@ -63,8 +63,13 @@ check("分流页面至少有 3 个（确保这条检查不是空转）", _checke
 check("按模式分流的页面里，渲染函数都自带模式切换", not _missing, str(_missing))
 check("交付信息会显示出来（洞察/资历/审计号/有效期/指纹/签名状态）",
       all(k in app for k in ("proDeliveryHtml", "审计号", "有效期至", "内容指纹", "数字签名")))
-check("判定包可按付费层交付（四层可选）", 'id="pe-tier"' in app and app.count("按哪一层交付") == 1 + app.count("按哪一层交付") - 1)
+check("分层设置已挪到切片页（四层可选，预演页不再出现）",
+      "data-dlv-tier" in _pro and app.count("审计层（完整判定包）") == 0 and _pro.count("审计层（完整判定包）") == 1)
 check("反馈入口在界面上（准确/不准确）", "pe-fb-ok" in app and "pe-fb-no" in app and "sendFeedback" in app)
+check("切片页有常驻底部保存栏（改动不会自动保存）", "pro-savebar" in _pro and _pro.count("data-save-framework") >= 2)
+check("预演页不再展示交付身份信息，改为预演说明", "proPreviewNote" in app and "pe-feedback-panel" not in app)
+check("分层设置移到切片页（默认交付层级）", "data-dlv-tier" in _pro and "pe-tier" not in app)
+check("场景实例页接住对外交付与反馈统计", "对外交付与调用方反馈" in app)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app

@@ -452,6 +452,13 @@ async function renderProfessionalInstances(view){
  const entries=allEntries.filter(e=>ids.has(e.slice_id));
  const active=entries.filter(e=>e.review_state==="active");
  view.innerHTML=`${proModeButtons()}
+  <section class="panel" style="padding:16px;margin-bottom:14px">
+   <div class="panel-title">对外交付与调用方反馈</div>
+   <div class="panel-caption" style="margin-top:6px">场景：${esc((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).display_name_zh||"—")} · 默认交付层级：${esc(((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).boundaries||{}).default_tier||"audit")}（在场景切片页的「对外交付时附上的说明」里修改）</div>
+   <div class="panel-caption">调用方反馈：${Number((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).feedback_total||0)} 次 · 置信度：${esc((defs.find(x=>mine.some(m=>m.scenario_definition_id===x.id))||{}).confidence_status||"unverified")}</div>
+   <div class="panel-caption">真实调用交付时还会附上：审计号 · 有效期至 · 内容指纹 · 数字签名状态（预演不产生这些）</div>
+   <div class="panel-caption">反馈由调用方通过接口提交；满 10 次升为「初步置信度」，满 100 次升为「稳定置信度」</div>
+  </section>
  ${titleBlock("PROFESSIONAL INSTANCE","已启用的判断规则集","这是你的专业判断在对外可用时的形态——只列已启用的条目，并显示各自的前提与依据")}
  <section class="panel collection-panel">
   <div class="collection-toolbar"><span class="record-count"><span>已启用</span> ${active.length} <span>条</span> · <span>全部</span> ${entries.length} <span>条</span></span></div>
@@ -530,6 +537,12 @@ function proInputField(f){
       <input class="input" type="number" step="any" data-pro-input="${name}"></label>`;
   return `<label class="field" style="min-width:160px"><span class="field-label">${name}</span>
     <input class="input" data-pro-input="${name}"></label>`;
+}
+
+function proPreviewNote(){
+  return `<section class="panel" style="padding:14px 16px;margin-bottom:16px">
+   <div class="panel-caption" style="margin:0">这是预演：不写判定记录，也不产生审计号与数字签名。真实调用交付时还会附上审计号、有效期、内容指纹与签名状态；交付层级取你在场景切片页设置的默认层级</div>
+  </section>`;
 }
 
 function proDeliveryHtml(pkg){
@@ -621,16 +634,7 @@ async function renderProfessionalPreview(view){
    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
     ${(fw.inputs||[]).map(proInputField).join("")||'<div class="panel-caption" style="margin:0">框架没有声明输入字段</div>'}
    </div>
-   <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <label class="field" style="max-width:260px"><span class="field-label">按哪一层交付</span>
-     <select class="select" id="pe-tier">
-      <option value="audit">审计层（完整判定包）</option>
-      <option value="professional">专业层（结论+证据+推理路径）</option>
-      <option value="standard">标准层（结论+证据）</option>
-      <option value="basic">基础层（只有结论）</option>
-     </select></label>
-    <button class="button primary" id="pe-run">判定</button>
-   </div>
+   <div style="margin-top:14px"><button class="button primary" id="pe-run">判定</button></div>
   </section>`:""}
   ${fw?`<section class="panel" style="padding:18px;margin-bottom:16px">
    <div class="panel-title">置信度与回测</div>
@@ -646,15 +650,7 @@ async function renderProfessionalPreview(view){
    <div id="pe-backtest-result">${proBacktestHtml(proBacktest)}</div>
   </section>`:""}
   <div id="pe-result">${proPackageHtml(proEvalResult)}${proDeliveryHtml(proEvalResult)}</div>
-  <section class="panel" style="padding:16px;margin-bottom:16px" id="pe-feedback-panel">
-   <div class="panel-title">这次判断准确吗</div>
-   <div class="panel-caption" style="margin-top:6px">你的反馈会累积成这个场景的置信度：满 10 次给「初步置信度」，满 100 次给「稳定置信度」。</div>
-   <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="button" id="pe-fb-ok">判断准确</button>
-    <button class="button" id="pe-fb-no">判断不准确</button>
-    <span class="panel-caption" style="margin:0" id="pe-fb-hint"></span>
-   </div>
-  </section>`;
+  `;
   document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";proEvalResult=null;render()});
   const sel=$("#pe-def"); if(sel) sel.onchange=()=>{proEvalDefId=sel.value;proEvalResult=null;render()};
   const saveFw=$("#pe-save-framework"); if(saveFw) saveFw.onclick=async()=>{
@@ -690,9 +686,9 @@ async function renderProfessionalPreview(view){
     const mult={}; document.querySelectorAll("[data-pro-multi]").forEach(c=>{
       const k=c.dataset.proMulti; if(!mult[k])mult[k]=[]; if(c.checked)mult[k].push(c.value); });
     Object.keys(mult).forEach(k=>{ if(mult[k].length)data[k]=mult[k]; });
-    const tier=(document.querySelector("#pe-tier")||{}).value||"audit";
+    const tier=(def&&def.boundaries&&def.boundaries.default_tier)||"audit";
     const out=await api(`/v1/scenario-definitions/${encodeURIComponent(proEvalDefId)}/evaluate`,{method:"POST",body:JSON.stringify({data,tier})});
-    if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out)+proDeliveryHtml(out); }
+    if(out&&out.decision){ proEvalResult=out; $("#pe-result").innerHTML=proPackageHtml(out)+proPreviewNote(); }
     else { proEvalResult=null; $("#pe-result").innerHTML=`<section class="panel empty-state">判定未完成：${esc((out&&(out.detail||out.error))||"框架或输入有问题")}</section>`; } };
 }
 

@@ -772,6 +772,18 @@
   "已记录：共": "Recorded: ",
   "次反馈，一致率": "responses, agreement ",
   "反馈未记录": "Feedback was not recorded",
+  "这是预演：不写判定记录，也不产生审计号与数字签名。真实调用交付时还会附上审计号、有效期、内容指纹与签名状态；交付层级取你在场景切片页设置的默认层级": "This is a dry run: it records no decision and produces no audit id or digital signature. A real delivery also carries an audit id, an expiry, a content fingerprint and the signature status; the tier comes from the default you set on the scenario-slice page",
+  "对外交付与调用方反馈": "Outside delivery and caller feedback",
+  "场景：": "Scenario: ",
+  " · 默认交付层级：": " · default delivery tier: ",
+  "（在场景切片页的「对外交付时附上的说明」里修改）": "(change it in the delivery note on the scenario-slice page)",
+  "调用方反馈：": "Caller feedback: ",
+  " 次 · 置信度：": " calls · confidence: ",
+  "真实调用交付时还会附上：审计号 · 有效期至 · 内容指纹 · 数字签名状态（预演不产生这些）": "A real delivery also carries: audit id · valid until · content fingerprint · signature status (a dry run produces none of these)",
+  "反馈由调用方通过接口提交；满 10 次升为「初步置信度」，满 100 次升为「稳定置信度」": "Feedback is submitted by the caller through the API; ten responses raise confidence to preliminary, a hundred to stable",
+  "默认交付层级": "Default delivery tier",
+  "调用方没有单独指定时，按这一层交付": "Delivered at this tier unless the caller specifies otherwise",
+  "改动不会自动保存": "Changes are not saved automatically",
   };
 
 

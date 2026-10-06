@@ -75,8 +75,15 @@
         input(d.insight, 'data-dlv-insight style="min-width:420px" placeholder="这套判断强在哪，例如：普通判断只看市盈率，本判断还看行业周期与监管环境"')) +
       row('<span class="field-label" style="min-width:120px">我的资历</span>' +
         input(d.owner_credentials, 'data-dlv-cred style="min-width:420px" placeholder="例如：执业 15 年，并购领域，主导过 80 多起并购案"')) +
+      row('<span class="field-label" style="min-width:120px">默认交付层级</span>' +
+        '<select class="select" data-dlv-tier>' +
+          [["audit","审计层（完整判定包）"],["professional","专业层（结论+证据+推理路径）"],
+           ["standard","标准层（结论+证据）"],["basic","基础层（只有结论）"]].map(function (x) {
+            return '<option value="' + x[0] + '"' + ((d.default_tier || "audit") === x[0] ? " selected" : "") + ">" + x[1] + "</option>";
+          }).join("") + "</select>" +
+        '<span class="muted">调用方没有单独指定时，按这一层交付</span>') +
       row('<span class="field-label" style="min-width:120px">有效期，单位天</span>' +
-        input(d.valid_days == null ? 1 : d.valid_days, 'data-dlv-days type="number" step="1" placeholder="例如 1"') +
+        input(d.valid_days == null ? 1 : d.valid_days, 'data-dlv-days type="number" step="1" placeholder="1"') +
         '<span class="muted">判定包会带上到期时间；签名需要密钥对，尚未实现</span>') +
       '</section>';
   }
@@ -292,7 +299,7 @@
         '<textarea class="input" id="pro-desc" rows="4" style="width:100%" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
         '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
           '<button class="button primary" id="pro-gen">让模型起草框架</button>' +
-          '<button class="button" id="pro-save">保存我的框架</button>' +
+          '<button class="button" data-save-framework>保存我的框架</button>' +
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
       '<div id="pro-editor">' +
@@ -300,7 +307,10 @@
         deliveryPanel(def || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
-      "</div>";
+      "</div>" +
+      '<div class="pro-savebar"><span class="panel-caption" style="margin:0">改动不会自动保存</span>' +
+        '<span class="toolbar-spacer"></span>' +
+        '<button class="button primary" data-save-framework>保存我的框架</button></div>';
     bind(view);
   }
 
@@ -475,15 +485,16 @@
       if (out && out.framework) { state = ensureShape(out.framework); state.__defId = defId; render(); }
       else if (h) { h.textContent = "起草失败：" + ((out && (out.detail || out.error)) || "请检查模型服务"); }
     };
-    var save = host.querySelector("#pro-save");
-    if (save) save.onclick = async function () {
+    var saveAll = host.querySelectorAll("[data-save-framework]");
+    saveAll.forEach(function (btn) { btn.onclick = async function () {
       var f = collect();
       var bndRaw = ((host.querySelector("[data-bnd-amount]") || {}).value || "").trim();
       var bnd = {
         max_amount: bndRaw === "" ? null : Number(bndRaw),
         allowed_scenarios: ((host.querySelector("[data-bnd-scenarios]") || {}).value || "")
           .split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean),
-        confidentiality: ((host.querySelector("[data-bnd-conf]") || {}).value || "").trim()
+        confidentiality: ((host.querySelector("[data-bnd-conf]") || {}).value || "").trim(),
+        default_tier: ((host.querySelector("[data-dlv-tier]") || {}).value || "audit")
       };
       var dvDays = ((host.querySelector("[data-dlv-days]") || {}).value || "").trim();
       await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({
@@ -492,7 +503,10 @@
         owner_credentials: ((host.querySelector("[data-dlv-cred]") || {}).value || "").trim(),
         valid_days: dvDays === "" ? 1 : Number(dvDays) }) });
       cache["scenario-definitions"] = null; state = null; render();
-    };
+    }; });
+    // The tier chosen next to the save button goes into boundaries (no backend change needed).
+    var tierSel = host.querySelector("[data-dlv-tier]");
+    if (tierSel) tierSel.onchange = function () { state.__tier = tierSel.value; };
   }
 
   window.POPro = { renderSlices: renderSlices };
