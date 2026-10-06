@@ -437,7 +437,7 @@ function poHasFramework(fw) {
         deliveryPanel(slice || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + citationsPanel(state) +
-        scoreBandsPanel(state) + tailPanels(state) +
+        scoreBandsPanel(state) + billingPanel(state) + tailPanels(state) +
       "</div>";
     bind(view);
     polishPanels(view);
@@ -742,7 +742,7 @@ function poHasFramework(fw) {
     var f = ensureShape({ framework_version: state.framework_version, industry_map: clone(state.industry_map) });
     // Fields that have no panel inputs (they come from the line boxes) must be carried over,
     // otherwise ensureShape blanks them out and every save silently discards them.
-    ["citations", "score_bands", "fallback", "source"].forEach(function (key) {
+    ["citations", "score_bands", "fallback", "source", "billing"].forEach(function (key) {
       var kept = (state && state[key] !== undefined) ? state[key] : f[key];
       if (kept !== undefined) f[key] = clone(kept);
     });
@@ -768,6 +768,17 @@ function poHasFramework(fw) {
       if (mc) bandsOut.mid = { conclusion: mc.value.trim(),
                                severity: (document.querySelector('[data-sb-sev="mid"]') || {}).value || "中" };
       f.score_bands = bandsOut;
+    }
+    if (document.querySelector("[data-bill-price]")) {
+      var bp = document.querySelector("[data-bill-price]");
+      var raw = (bp.value || "").trim();
+      var bc = document.querySelector("[data-bill-currency]");
+      if (raw === "") { delete f.billing; }
+      else {
+        var pv = parseFloat(raw);
+        if (isNaN(pv)) { throw new Error("每次调用的价格不是数字：" + raw); }
+        f.billing = { unit_price: pv, currency: (bc && bc.value) || "CNY" };
+      }
     }
     var q = function (a) { return document.querySelectorAll(a); };
     f.inputs = [];
@@ -1014,7 +1025,26 @@ function poHasFramework(fw) {
     if (tierSel) tierSel.onchange = function () { state.__tier = tierSel.value; };
   }
 
-  // ── Table editors for citations (part 7) and score bands (part 8) ──
+  // ── Billing (demonstration only) ──
+// The price is always typed by the owner; the software never invents one. The meter simply counts the audit
+// records of external judgments for this slice, so no separate billing table exists yet.
+function billingPanel(f) {
+  var bill = f.billing || {};
+  return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+    '<div class="panel-title"><span>计费（演示）</span></div>' +
+    hint('每次调用多少钱由你填；留空表示暂不计费。金额只是按"调用次数 × 单价"估算，尚未接真实支付。') +
+    row('<span class="pro-band">每次调用</span>' +
+        input(bill.unit_price === 0 || bill.unit_price ? bill.unit_price : "", 'data-bill-price placeholder="例如 200"') +
+        '<select class="select" data-bill-currency>' +
+          ["CNY", "USD"].map(function (c) {
+            return "<option" + ((bill.currency || "CNY") === c ? " selected" : "") + ">" + c + "</option>";
+          }).join("") +
+        "</select>" +
+        '<span class="muted">元 / 次</span>') +
+    '</section>';
+}
+
+// ── Table editors for citations (part 7) and score bands (part 8) ──
 // These two used to be editable only line by line; these panels match the others so they can be reviewed here.
 function citationsPanel(f) {
   var list = f.citations || [];
@@ -1203,6 +1233,7 @@ function polishPanels(view) {
   // Two audiences: my own judgment model, and what the caller must supply and obey. Grouping the panels by
   // audience answers at a glance which parts are written for the caller.
   var isCallerPanel = function (title) {
+    if (title.indexOf("计费") >= 0) { return true; }
     return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
   };
   var toc = document.createElement("div");
@@ -1243,6 +1274,7 @@ function polishPanels(view) {
     // counts in the index come from the same place as before.
     if (title.indexOf("几个观察点一起出现时") >= 0 || title.indexOf("例外情况") >= 0 ||
         title.indexOf("我的依据") >= 0) { sec.classList.add("pro-rules"); }
+    if (title.indexOf("计费") >= 0) { d = d; }
     var g = groups[isCallerPanel(title) ? 1 : 0];
     g.host.appendChild(sec);
     var link = document.createElement("a");

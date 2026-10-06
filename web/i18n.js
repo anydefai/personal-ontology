@@ -1124,6 +1124,20 @@
   "我的依据（第 7 部分）与打分线（第 8 部分）的表格界面": "我的依据（第 7 部分）与打分线（第 8 部分）的表格界面",
   "这两个部分过去只能用": "这两个部分过去只能用",
   "填；这里补上与其它面板同款的表格，好核对": "填；这里补上与其它面板同款的表格，好核对",
+  "计费（演示）": "Billing (demonstration)",
+  "每次调用多少钱由你填；留空表示暂不计费。金额只是按": "You set the price per call; leaving it blank means no billing. The amount is only an estimate of",
+  "调用次数 × 单价": "calls times unit price",
+  "估算，尚未接真实支付。": "and real payment is not wired up yet.",
+  "每次调用": "Per call",
+  "元 / 次": "per call",
+  "每次调用的价格不是数字：": "The price per call is not a number: ",
+  "每次调用多少钱由你填；留空表示暂不计费。金额只是按\"调用次数 × 单价\"估算，尚未接真实支付。": "You set the price per call; leaving it blank means no billing. The amount is only an estimate of calls times unit price, and real payment is not wired up yet.",
+  "计费（演示": "Billing (demonstration",
+  "调用次数": "number of calls",
+  "单价": "unit price",
+  "估算，尚未接真实支付": "as an estimate, and real payment is not wired up yet",
+  "例如 200": "e.g. 200",
+  "计费": "Billing",
   };
 
 
