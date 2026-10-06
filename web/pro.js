@@ -1156,6 +1156,14 @@ function polishPanels(view) {
     if (t) t.style.display = "none";
     sec.parentNode.insertBefore(d, sec);
     d.appendChild(sec);
+    // Number every item inside this panel (1, 2, 3 …) so the panel and its index entry agree at a glance.
+    Array.prototype.slice.call(sec.querySelectorAll(".pro-row")).forEach(function (r, i) {
+      if (r.querySelector(".pro-num")) return;
+      var badge = document.createElement("span");
+      badge.className = "pro-num";
+      badge.textContent = String(i + 1);
+      r.insertBefore(badge, r.firstChild);
+    });
     var g = groups[isCallerPanel(title) ? 1 : 0];
     // These panels are "when all of these hold → conclusion", so a rule is a two-part card:
     // its checkbox set spans the first line and the conclusion controls sit on the second.
