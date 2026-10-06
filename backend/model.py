@@ -66,7 +66,9 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                              # 专业判断：技能框架与其置信度（R3'）
                              "framework": ("skillFramework", "json"), "confidence": ("skillConfidence", "lit"),
                              "confidence_status": ("skillConfidenceStatus", "lit"),
-                             "confidence_basis": ("skillConfidenceBasis", "lit")},
+                             "confidence_basis": ("skillConfidenceBasis", "lit"),
+                             # 对外调用的边界（金额上限 / 允许用途 / 不得转售），第一层授权判定用
+                             "boundaries": ("skillBoundaries", "json")},
     "knowledge-entries": {"slice_id": ("entryOfSlice", "scenario-slices"),
                           "premise": ("premise", "json"), "conclusion": ("conclusion", "lit"),
                           "exception": ("exceptionText", "lit"), "basis": ("basis", "lit"),

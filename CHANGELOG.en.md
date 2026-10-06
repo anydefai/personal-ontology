@@ -836,3 +836,37 @@ This is a front-end-only change: **no restart and no re-login needed**. All **24
 version → **20261004m**.
 
 ### Deploy and tests
+
+### C1 + C2: boundaries for outside calls and the first-layer authorisation decision
+
+The user asked for the rest of the design, and this round lands its most important layer: **"may it be
+called at all"**.
+
+**C1 - boundaries** (stored on the scenario definition, separate from the judgment content):
+`boundaries = {max_amount, allowed_scenarios, confidentiality}`, with a new "boundaries for outside calls"
+panel in the interface, saved together with the framework.
+
+**C2 - first-layer authorisation** (new `backend/authorization.py`, 76 lines, plus
+`POST /v1/scenario-definitions/{id}/authorize`): it checks that boundaries are declared, that the caller and
+purpose are identified, that the purpose falls inside the allowed list, that the caller promises not to
+resell, that an amount ceiling is declared, and that the amount is readable. Failing any of those refuses
+the call. **Exceeding the ceiling is not a refusal** — it raises the outcome to "confirm", the design's own
+wording being that a 1.5bn call against a 1bn ceiling becomes "needs confirmation" and the owner decides.
+The implementation therefore marks the ceiling check as **non-blocking**; it can only promote allow to
+confirm, never to deny. Outcomes are `allow` / `confirm` / `deny`, each with per-check detail for the
+interface and for auditing.
+
+**New `tests/test_authorization.py` (16/16)**: allowed; over-ceiling becomes confirm; purpose out of range
+refused; no no-resale promise refused; missing caller or amount refused; no boundaries declared means
+default refusal; and all three outcomes through the API.
+
+**A2 finished**: hints containing `→`, `+0.15` or `=` were rewritten so the scanner treats each as one run,
+which means those English entries now actually take effect (three of them previously did not, because they
+were split into fragments).
+
+All **25 suites green**; asset version → **20261004n**; the authorisation route is registered.
+
+**Note**: this round included backend changes and **the backend has been restarted, so you will need to log
+in once more.**
+
+### Deploy and tests

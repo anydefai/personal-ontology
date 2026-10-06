@@ -22,7 +22,7 @@
     ["enum", "从几个选项里选一个", "例如「高 / 中 / 低」，把可选值写出来"],
     ["bool", "是 / 否", "例如「是否取得控制权」，只有两种情况"],
     ["multi", "多项选择", "例如「适用行业」，可以同时选好几个"],
-    ["money", "金额", "例如「交易金额」；按 8 亿=800000000 这样统一填数字"]
+    ["money", "金额", "例如「交易金额」；8 亿写成 800000000，单位自己统一"]
   ];
   var TYPE_LABEL = {};
   var TYPE_HINT = {};
@@ -64,6 +64,24 @@
     return '<input class="input" ' + (attrs || "") + ' value="' + esc(value == null ? "" : String(value)) + '">';
   }
   function del(what) { return '<button class="button" data-del="' + what + '">删除</button>'; }
+
+  // -- 0 / Boundaries for outside calls (layer one: may it be called at all) --
+  function boundariesPanel(b) {
+    b = b || {};
+    return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+      '<div class="panel-title"><span>对外调用的边界</span></div>' +
+      hint('这一组管的是"别人能不能调用你的判断"，与上面的判断内容无关。三项都必须填，缺一项就不会放行。') +
+      row('<span class="field-label" style="min-width:96px">金额上限</span>' +
+        input(b.max_amount, 'data-bnd-amount type="number" step="any" placeholder="例如 1000000000（10 亿）"') +
+        '<span class="muted">超过上限不会拒绝，而是先请你本人确认</span>') +
+      row('<span class="field-label" style="min-width:96px">允许用途</span>' +
+        input((b.allowed_scenarios || []).join("、"), 'data-bnd-scenarios placeholder="用、分开，例如：并购尽调、投资决策"') +
+        '<span class="muted">不在这个范围内的用途一律拒绝</span>') +
+      row('<span class="field-label" style="min-width:96px">保密要求</span>' +
+        input(b.confidentiality, 'data-bnd-conf placeholder="例如：调用方不得转售结论"') +
+        '<span class="muted">调用方每次都必须承诺不得转售，否则拒绝</span>') +
+      '</section>';
+  }
 
   // ── 1 · 我要知道的信息 ──
   function inputsPanel(f) {
@@ -115,7 +133,7 @@
     var th = f.thresholds || {};
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>判断的基准线</span></div>' +
-      hint('先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就 +0.15。') +
+      hint('先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就上调 0.15。') +
       row('<span class="field-label" style="min-width:96px">基准线</span>' +
         input(th.base, 'data-th-base type="number" step="any" placeholder="例如 1.3"') +
         '<span class="muted">这就是你心里那条线，通常是一个倍数</span>') +
@@ -123,7 +141,7 @@
         var cond = a.condition || {}; var k = Object.keys(cond)[0] || "";
         return row(input(k, 'data-th-field="' + n + '" placeholder="什么情况下：字段名"') +
           input(cond[k], 'data-th-value="' + n + '" placeholder="这个字段是什么值"') +
-          input(a.delta, 'data-th-delta="' + n + '" placeholder="调高/调低多少，例如 +0.15" type="number" step="any"') +
+          input(a.delta, 'data-th-delta="' + n + '" placeholder="调高或调低多少，例如 0.15" type="number" step="any"') +
           input(a.reason, 'data-th-reason="' + n + '" placeholder="为什么这么调（会记进调整记录）"') +
           del("threshold:" + n));
       }).join("") +
@@ -165,7 +183,7 @@
     }
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>几个观察点一起出现时</span></div>' +
-      hint('勾选必须同时成立的观察点，再写下你的结论和严重程度。例如三个不利信号叠加 → 估值偏高（高）。') +
+      hint('勾选必须同时成立的观察点，再写下你的结论和严重程度。例如三个不利信号叠加，就判估值偏高，严重程度高。') +
       (f.combination_rules || []).map(function (r, n) {
         return row('<div class="pro-checks" style="min-width:260px">' + checks(r.all_of, "data-cr-sig", n) + "</div>" +
           input(r.conclusion, 'data-cr-conc="' + n + '" placeholder="我的结论"') +
@@ -262,6 +280,7 @@
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
       '<div id="pro-editor">' +
+        boundariesPanel((def && def.boundaries) || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + tailPanels(state) +
       "</div>";
@@ -442,7 +461,14 @@
     var save = host.querySelector("#pro-save");
     if (save) save.onclick = async function () {
       var f = collect();
-      await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({ framework: f }) });
+      var bndRaw = ((host.querySelector("[data-bnd-amount]") || {}).value || "").trim();
+      var bnd = {
+        max_amount: bndRaw === "" ? null : Number(bndRaw),
+        allowed_scenarios: ((host.querySelector("[data-bnd-scenarios]") || {}).value || "")
+          .split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean),
+        confidentiality: ((host.querySelector("[data-bnd-conf]") || {}).value || "").trim()
+      };
+      await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH", body: JSON.stringify({ framework: f, boundaries: bnd }) });
       cache["scenario-definitions"] = null; state = null; render();
     };
   }
