@@ -870,3 +870,22 @@ All **25 suites green**; asset version → **20261004n**; the authorisation rout
 in once more.**
 
 ### Deploy and tests
+
+### Fix: the scenario-instance page lost the professional-mode switch
+
+The user reported that after choosing "daily-life scenario" on the scenario-instance page, the
+professional-scenario button was gone, so there was no way back.
+
+**This was the third instance of the same class of bug**: the mode switch was duplicated inside individual
+render functions, so any branch that forgot it left its page unreachable — the first time was the preview
+page, and I only patched that one page rather than the cause.
+
+**This time the cause is fixed**: the router now carries a fallback that, for the three pages supporting
+professional mode, adds the switch when the rendered output lacks it, with a `querySelector` guard so a page
+that already drew it does not get a duplicate. Future pages of this kind only need their id added to that
+list, instead of every render function being patched.
+
+UI tests **31/31** (a new assertion pins the fallback so the bug cannot return); all **25 suites green**.
+This is a front-end-only change: **no restart and no re-login needed**; asset version → **20261004p**.
+
+### Deploy and tests

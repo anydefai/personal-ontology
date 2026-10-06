@@ -34,6 +34,10 @@ check("专业场景可自行新建/重命名/删除",
 check("app.js 只做一处接入并保留回退",
       "window.POPro&&window.POPro.renderSlices" in app, "接入点缺失")
 check("边界面板存在（第一层授权判定用）", all(k in _pro for k in ("data-bnd-amount", "data-bnd-scenarios", "data-bnd-conf")))
+check("路由器兜底：三个页面缺模式切换会自动补（防同类漏加）",
+      "insertAdjacentHTML(\"afterbegin\",proModeButtons())" in app
+      and 'view.querySelector("[data-pro-mode]")' in app
+      and '"scenario-slices","scenario-instances","scenario-preview"' in app)
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
