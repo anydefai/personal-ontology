@@ -594,7 +594,15 @@ function poHasFramework(fw) {
       else if (h2) { h2.textContent = "起草失败：" + ((out && (out.detail || out.error)) || "请检查模型服务"); }
     };
     view.querySelectorAll("[data-pick-slice]").forEach(function (b) {
-      b.onclick = function () { sliceId = b.dataset.pickSlice; state = null; render(); };
+      b.onclick = function () {
+        sliceId = b.dataset.pickSlice;
+        render();
+        // Jump to step 3 so the panels the user came to edit are in view.
+        requestAnimationFrame(function () {
+          var ed = document.getElementById("pro-editor");
+          if (ed && ed.scrollIntoView) ed.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      };
     });
     view.querySelectorAll("[data-drop-slice]").forEach(function (b) {
       b.onclick = async function () {
