@@ -197,6 +197,13 @@
           '<select class="select" id="pro-def" style="max-width:320px">' + (opts || '<option value="">暂无专业场景</option>') + "</select>" +
           '<span class="badge">' + (def && def.framework ? "已有框架" : "尚未配置框架") + "</span>" +
         "</div>" +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">' +
+          '<input class="input" id="pro-new-name" style="max-width:220px" placeholder="新场景的名称，例如：并购估值判断">' +
+          '<button class="button" id="pro-new">＋ 新建场景</button>' +
+          (def && !def.is_builtin ? '<button class="button" id="pro-rename">重命名</button>' +
+            '<button class="button" id="pro-del-def">删除场景</button>' : "") +
+          '<span class="panel-caption" style="margin:0">专业场景可以自己加：一个场景定义对应一套判断框架。</span>' +
+        "</div>" +
         '<textarea class="input" id="pro-desc" rows="4" style="width:100%" placeholder="例如：我判断并购估值会先分行业，不同行业权重不同；再按行业周期和监管环境调整阈值……"></textarea>' +
         '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
           '<button class="button primary" id="pro-gen">生成框架草稿</button>' +
@@ -302,6 +309,34 @@
     });
     var sel = host.querySelector("#pro-def");
     if (sel) sel.onchange = function () { defId = sel.value; state = null; render(); };
+    var newName = host.querySelector("#pro-new-name");
+    var newBtn = host.querySelector("#pro-new");
+    if (newBtn) newBtn.onclick = async function () {
+      var name = (newName && newName.value || "").trim();
+      if (!name) { alert("请先填写新场景的名称。"); return; }
+      var packs = await load("domain-packs");
+      var packId = (packs && packs[0] && packs[0].id) || "legal.cn";
+      var newId = "custom." + Date.now().toString(36);
+      var out = await api("/v1/scenario-definitions", { method: "POST", body: JSON.stringify({
+        id: newId, display_name_zh: name, display_name_en: name,
+        domain_pack_ids: [packId], definition_version: "1", is_builtin: false }) });
+      if (out && out.id) { cache["scenario-definitions"] = null; defId = out.id; state = null; render(); }
+      else alert("新建失败：" + ((out && (out.detail || out.error)) || "请稍后重试"));
+    };
+    var renameBtn = host.querySelector("#pro-rename");
+    if (renameBtn) renameBtn.onclick = async function () {
+      var name = (newName && newName.value || "").trim();
+      if (!name) { alert("把新名称填在左边的输入框里，再点重命名。"); return; }
+      await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "PATCH",
+        body: JSON.stringify({ display_name_zh: name, display_name_en: name }) });
+      cache["scenario-definitions"] = null; render();
+    };
+    var delBtn = host.querySelector("#pro-del-def");
+    if (delBtn) delBtn.onclick = async function () {
+      if (!confirm("删除这个场景定义？它下面的切片与判断不会一并删除。")) return;
+      await api("/v1/scenario-definitions/" + encodeURIComponent(defId), { method: "DELETE" });
+      cache["scenario-definitions"] = null; defId = null; state = null; render();
+    };
     host.querySelectorAll("[data-add]").forEach(function (b) {
       b.onclick = function () {
         var kind = b.dataset.add;

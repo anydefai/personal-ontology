@@ -750,3 +750,25 @@ previously only the professional side filtered, one-directionally, which was a d
 All **24 suites green**; asset version → **20261004i**.
 
 ### Deploy and tests
+
+### Professional scenarios can now be added (previously locked to the three built-ins)
+
+The user asked why step one offered only one of three scenarios and whether it could be extended. The cause
+was that the three skeletons were seeded in R1 with **no way to create a scenario**, leaving the list
+fixed.
+
+The fix, inside `web/pro.js` step one, adds **create, rename and delete** for scenario definitions:
+creating sends a name to `POST /v1/scenario-definitions`, attaches it to the existing domain pack and
+selects it immediately; renaming PATCHes `display_name_zh` and `display_name_en`; delete appears only for
+**non-built-in** scenarios. Along the way a field-name error was corrected: the domain pack field is
+**`domain_pack_ids` (an array)**, not `domain_pack_id` — verified with a probe outside production data for
+create, rename and delete before touching the interface.
+
+This maps onto the design's four layers: domain pack → **scenario definition (shareable, now creatable)** →
+scenario slice (the personal judgment asset) → judgment entries.
+
+UI tests are at **29/29** (adding: the separate file and its four steps, the create/rename/delete entries,
+the `domain_pack_ids` field name, and the single integration point with fallback). All **24 suites green**;
+asset version → **20261004j**.
+
+### Deploy and tests

@@ -26,6 +26,13 @@ check("日常预演页也有模式切换（否则切不过去）", app.count("pr
 check("日常侧不显示专业切片（列表/实例/预演/仪表盘四处过滤）",
       app.count("!isProSlice(x)") >= 4, str(app.count("!isProSlice(x)")))
 check("专业切片判定口径统一", "const isProSlice=x=>" in app)
+_pro = pathlib.Path(__file__).resolve().parent.parent.joinpath("web/pro.js").read_text(encoding="utf-8")
+check("新界面在独立文件 web/pro.js（含四步）", "POPro" in _pro and "renderSlices" in _pro)
+check("专业场景可自行新建/重命名/删除",
+      all(k in _pro for k in ("pro-new", "pro-rename", "pro-del-def", "domain_pack_ids")),
+      "缺入口或字段名不对")
+check("app.js 只做一处接入并保留回退",
+      "window.POPro&&window.POPro.renderSlices" in app, "接入点缺失")
 check("日常侧原有渲染函数仍在", "async function renderScenarios(view){" in app and "async function renderScenarioInstances(view){" in app)
 # ③ 复用通用 CRUD，未新增专属端点
 check("专业侧复用通用集合端点", "/v1/knowledge-entries" in app
