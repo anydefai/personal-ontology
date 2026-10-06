@@ -422,7 +422,7 @@ function poHasFramework(fw) {
       sliceTable(mine, sliceId, nameOfSlice) +
       orphanPanel(orphans, defs, nameOfSlice) +
       lineImportPanel() +
-      '<div class="panel-title" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
+      '<div class="panel-title" id="pro-step3" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
         '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
@@ -599,7 +599,7 @@ function poHasFramework(fw) {
         render();
         // Jump to step 3 so the panels the user came to edit are in view.
         requestAnimationFrame(function () {
-          var ed = document.getElementById("pro-editor");
+          var ed = document.getElementById("pro-step3");
           if (ed && ed.scrollIntoView) ed.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       };
@@ -1031,7 +1031,7 @@ function poHasFramework(fw) {
         "<td>" + esc(conf) + "</td>" +
         "<td>" + (priced ? ("已设 " + priced + " 项") : '<span class="muted">未设</span>') + "</td>" +
         '<td style="text-align:right;white-space:nowrap">' +
-          '<button class="button" data-pick-slice="' + esc(x.id) + '">选中</button> ' +
+          '<button class="button" data-pick-slice="' + esc(x.id) + '">核对与微调</button> ' +
           (x.status === "confirmed"
             ? '<button class="button" data-unconfirm-slice="' + esc(x.id) + '">退回草稿</button> '
             : '<button class="button primary" data-confirm-slice="' + esc(x.id) + '">确认并启用…</button> ') +
