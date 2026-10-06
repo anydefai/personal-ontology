@@ -165,6 +165,7 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
 
     # ── 第 4 步：例外识别（可改写阈值并重算信号）──
     applied: list[dict[str, Any]] = []
+    weight_factors: dict[str, float] = {}      # 例外里的"降权"真正作用到打分上
     for rule in framework.get("exception_rules") or []:
         eff = _exception_effect(rule, data, threshold, signals)
         if not eff:
@@ -177,6 +178,7 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
                        if all(signals.get(s) for s in (r.get("all_of") or []))]
             applied.append(f"{rule.get('reason') or '例外'}：阈值 → {round(threshold, 4)}")
         elif kind == "reduce_weight":
+            weight_factors[str(eff.get("target") or "")] = float(eff.get("factor", 1.0))
             applied.append(f"{rule.get('reason') or '例外'}：{eff.get('target')} 权重 × {eff.get('factor')}")
         elif kind == "force_conclusion":
             applied.append(f"{rule.get('reason') or '例外'}：直接判定 {eff.get('conclusion')}")
@@ -194,6 +196,16 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
                  "detail": "；".join(f"{s} 第 {p} 位" for s, p in
                                      sorted(prio.items(), key=lambda kv: kv[1])[:3]) or "未定义优先级"})
 
+    # ── 打分：命中的信号 × 该行业该维度的权重（例外里的降权在此生效）──
+    weights = weights or {}
+    score = 0.0
+    for sig in framework.get("signals") or []:
+        dim = sig.get("dimension")
+        if not dim or not signals.get(sig.get("name")):
+            continue
+        score += float(weights.get(dim, 0.0)) * float(weight_factors.get(dim, 1.0))
+    score = round(score, 6)
+
     # ── 第 6 步：综合判定 ──
     forced = [a for a in applied if "直接判定" in a]
     if forced:
@@ -203,13 +215,22 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
         top = matched[0]
         decision, severity = top.get("conclusion"), top.get("severity") or "中"
     else:
-        fb = framework.get("fallback") or {}
-        if isinstance(fb, dict) and fb.get("conclusion"):
-            decision, severity = str(fb["conclusion"]), str(fb.get("severity") or "低")
+        bands = framework.get("score_bands") or {}
+        high, low, mid = bands.get("high") or {}, bands.get("low") or {}, bands.get("mid") or {}
+        if high.get("conclusion") and high.get("min") is not None and score >= float(high["min"]):
+            decision, severity = str(high["conclusion"]), str(high.get("severity") or "中")
+        elif low.get("conclusion") and low.get("max") is not None and score <= float(low["max"]):
+            decision, severity = str(low["conclusion"]), str(low.get("severity") or "低")
+        elif mid.get("conclusion"):
+            decision, severity = str(mid["conclusion"]), str(mid.get("severity") or "中")
         else:
-            decision, severity = "无明确结论", "低"
+            fb = framework.get("fallback") or {}
+            if isinstance(fb, dict) and fb.get("conclusion"):
+                decision, severity = str(fb["conclusion"]), str(fb.get("severity") or "低")
+            else:
+                decision, severity = "无明确结论", "低"
     path.append({"step": 6, "name": "综合判定",
-                 "detail": f"结论 {decision}，严重度 {severity}"
+                 "detail": f"结论 {decision}，严重度 {severity}（打分 {score}）"
                            + ("（由例外规则直接判定）" if forced else
                               f"（按优先级取命中组合：{'、'.join(r.get('conclusion') or '' for r in matched[:2])}）"
                               if matched else "（无组合规则命中）")})
@@ -236,7 +257,7 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
             basis.append(str(c["text"]))
 
     return {
-        "decision": decision, "severity": severity, "basis": basis,
+        "decision": decision, "severity": severity, "basis": basis, "score": score,
         "confidence": confidence, "confidence_status": confidence_status,
         "confidence_basis": confidence_basis,
         "reasoning_path": path,

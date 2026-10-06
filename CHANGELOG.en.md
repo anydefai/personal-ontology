@@ -1404,3 +1404,28 @@ unconditional citation. Six new tests.
 **On the second item, weighted scoring, I hit two gaps that only the user can define** - see the next message.
 
 ### Deploy and tests
+
+### Weighted scoring now really computes (A': hit=1 / miss=0) and "reduce weight" takes effect
+
+With A' confirmed, an optional dimension on signals and placeholder score bands approved:
+
+**Signals can carry a dimension** as a fourth segment (`团队流失高 = 核心团队流失风险 等于 高 ｜ 团队`).
+**The score is the sum of the weights of the dimensions whose signals fired** (hit = 1, miss = 0; signals without
+a dimension do not score). **The exception "reduce weight 50%" now really participates** - previously it was
+recorded but never applied. **A new part, the score bands**, turns the score into a conclusion
+(`打分 0.5 以上 → 估值偏高（高）`, `打分 0.3 以下 → 估值合理（低）`, `其余 → 估值中性（中）`).
+
+**Conclusion precedence, a convention I chose and the user should confirm**: a matched combination rule wins;
+otherwise the score bands; otherwise the fallback; otherwise "no clear conclusion". The score and the citations
+both reach the decision package, and the sixth reasoning step mentions the score so it can be explained.
+
+Verified: rule hit (team+finance = 1.0) yields 估值偏高（高）; adding a reduce-weight exception moves 1.0 to 0.7;
+firing only the team dimension gives 0.6, halved by the exception to 0.3, landing on the "below" band; and when a
+rule and the bands both apply the rule wins. Seven new tests (30/30 in that suite); all 31 suites green.
+
+**Two things stated plainly**: the values X=0.5 and Y=0.3 are **placeholders I chose** and the user should set
+them by their own professional judgment, since they decide the conclusion; and the interface does not yet have
+boxes for the two new parts, so they can currently only be supplied through the line-based text interface. The
+backend and parser are done; the input boxes come next and need one restart.
+
+### Deploy and tests

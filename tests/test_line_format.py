@@ -67,6 +67,37 @@ check("兜底：都不命中时给兜底结论（不再是无明确结论）",
 check("没有兜底时仍回落为无明确结论",
       judge({"combination_rules": []}, {})["decision"] == "无明确结论", "回落失败")
 
+# ── 加权打分（A′：命中=1 / 未命中=0）与"降权"真正生效 ──
+_fw = apply_lines({}, {
+    "signals": "团队流失高 = 核心团队流失风险 等于 高 ｜ 团队\n现金流危机 = 现金流状况 等于 危机 ｜ 财务",
+    "score": "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）",
+})["framework"]
+_fw["industry_weights"] = {"科技": {"团队": 0.6, "财务": 0.4}}
+_fw["industry_map"] = {"新能源": "科技"}
+check("信号可标维度（第四段 ｜ 维度）",
+      _fw["signals"][0].get("dimension") == "团队" and _fw["signals"][1].get("dimension") == "财务",
+      str([x.get("dimension") for x in _fw["signals"]]))
+_sc = judge(dict(_fw), {"行业": "新能源", "核心团队流失风险": "高", "现金流状况": "危机"})
+check("打分 = 命中信号所属维度的权重之和（0.6+0.4=1.0）", _sc["score"] == 1.0, str(_sc["score"]))
+check("打分 ≥ 0.5 → 走「以上」那条结论", _sc["decision"] == "估值偏高" and _sc["severity"] == "高",
+      f"{_sc['decision']}/{_sc['severity']}")
+_dw = apply_lines({}, {"signals": "团队流失高 = 核心团队流失风险 等于 高 ｜ 团队",
+                       "exceptions": "团队流失高 → 团队权重 ×0.5",
+                       "score": "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）"})["framework"]
+_dw["industry_weights"] = {"科技": {"团队": 0.6}}; _dw["industry_map"] = {"新能源": "科技"}
+_d = judge(dict(_dw), {"行业": "新能源", "核心团队流失风险": "高"})
+check("例外里的「降权 50%」真正参与计算（0.6 → 0.3）", _d["score"] == 0.3, str(_d["score"]))
+check("降权后落到「以下」那条结论", _d["decision"] == "估值合理", _d["decision"])
+_r = apply_lines({}, {"signals": "团队流失高 = 核心团队流失风险 等于 高 ｜ 团队",
+                      "rules": "团队流失高 → 估值严重偏高（极高）",
+                      "score": "打分 0.5 以上 → 估值偏高（高）"})["framework"]
+_r["industry_weights"] = {"科技": {"团队": 0.6}}; _r["industry_map"] = {"新能源": "科技"}
+_rule = judge(dict(_r), {"行业": "新能源", "核心团队流失风险": "高"})
+check("组合规则优先于打分线（规则命中就用规则）",
+      _rule["decision"] == "估值严重偏高" and _rule["score"] == 0.6, f"{_rule['decision']}/{_rule['score']}")
+check("打分与依据一样会写进判定包（可解释）",
+      "score" in _sc and "打分" in _sc["reasoning_path"][-1]["detail"], _sc["reasoning_path"][-1]["detail"])
+
 # ── 闭环：张律师那套框架，用"一行一条"写出来 ──
 T = {
 "inputs": """市盈率 ｜ 数字

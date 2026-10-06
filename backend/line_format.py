@@ -104,8 +104,12 @@ def parse_signals(lines: list[str]) -> tuple[list[dict], list[dict]]:
         if not s or s.startswith("#"):
             continue
         if "=" not in s or " " not in s.split("=", 1)[1]:
-            bad.append(_err(n, raw, "格式：信号名 = 字段 大于 值（可写「字段 × 基准线」）")); continue
+            bad.append(_err(n, raw, "格式：信号名 = 字段 大于 值（可写「字段 × 基准线 ｜ 维度」）")); continue
         name, body = s.split("=", 1)
+        dimension = None
+        if "|" in body:                      # 第四段：这个信号属于哪个权重维度
+            body, dimension = body.split("|", 1)
+            dimension = dimension.strip() or None
         body = body.strip()
         op_cn = next((o for o in OPS if body.startswith(o)), None)
         if not op_cn:
@@ -125,7 +129,10 @@ def parse_signals(lines: list[str]) -> tuple[list[dict], list[dict]]:
         else:
             v = _num(rest)
             value = v if v is not None else rest
-        ok.append({"name": name.strip(), "when": {field: {"op": OPS[op_cn], "value": value}}})
+        item = {"name": name.strip(), "when": {field: {"op": OPS[op_cn], "value": value}}}
+        if dimension:
+            item["dimension"] = dimension
+        ok.append(item)
     return ok, bad
 
 
@@ -252,6 +259,11 @@ def apply_lines(framework: dict[str, Any], texts: dict[str, str]) -> dict[str, A
         if fb:
             fw["fallback"] = fb
         report["fallback"] = {"imported": 1 if fb else 0, "errors": bad}
+    if texts.get("score"):
+        sc, bad = parse_score(lines_of("score"))
+        if sc:
+            fw["score_bands"] = sc
+        report["score"] = {"imported": len(sc), "errors": bad}
     if texts.get("priority"):
         ok, bad = parse_priority(lines_of("priority"))
         fw["signal_priority"] = ok
@@ -293,3 +305,42 @@ def parse_fallback(lines: list[str]) -> tuple[dict, list[dict]]:
             return {}, [_err(n, raw, "格式：都不命中 → 结论（严重度）")]
         return {"conclusion": conclusion, "severity": severity}, []
     return {}, []
+
+def parse_score(lines: list[str]) -> tuple[dict, list[dict]]:
+    """打分线：把汇总分变成结论。三行，缺哪行就哪条不生效。
+
+       打分 0.5 以上 → 估值偏高（高）
+       打分 0.3 以下 → 估值合理（低）
+       其余 → 估值中性（中）
+    """
+    out: dict = {}
+    bad: list[dict] = []
+    for n, raw in enumerate(lines, 1):
+        t = _clean(raw)
+        if not t or t.startswith("#"):
+            continue
+        if "→" not in raw and "->" not in raw:
+            bad.append(_err(n, raw, "格式：打分 0.5 以上 → 结论（严重度）")); continue
+        left, right = re.split(r"→|->", raw, maxsplit=1)
+        right = right.strip()
+        m = re.match(r"^(.*?)[（(](低|中|高|极高)[）)]?$", right)
+        conclusion, severity = (m.group(1).strip(), m.group(2)) if m else (right, "中")
+        if not conclusion:
+            bad.append(_err(n, raw, "箭头右边要写结论")); continue
+        ml = _clean(left)
+        num = re.search(r"(\d+(?:\.\d+)?)", ml)
+        if "以上" in ml or ">=" in ml:
+            out.setdefault("high", {})["min"] = float(num.group(1)) if num else None
+            out["high"].update({"conclusion": conclusion, "severity": severity})
+        elif "以下" in ml or "<=" in ml:
+            out.setdefault("low", {})["max"] = float(num.group(1)) if num else None
+            out["low"].update({"conclusion": conclusion, "severity": severity})
+        elif "其余" in ml or "其他" in ml:
+            out["mid"] = {"conclusion": conclusion, "severity": severity}
+        else:
+            bad.append(_err(n, raw, "要写清楚是「打分 X 以上」「打分 X 以下」还是「其余」")); continue
+        if out.get("high", {}).get("min") is None and "high" in out:
+            bad.append(_err(n, raw, "「以上」前面要写数字")); continue
+        if out.get("low", {}).get("max") is None and "low" in out:
+            bad.append(_err(n, raw, "「以下」前面要写数字")); continue
+    return out, bad
