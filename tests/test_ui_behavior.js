@@ -16,6 +16,8 @@ const MODELS = [
     not_applicable: ["需要顺序分支的判断"], input_contract: { fields: { inputs: "x", signals: "x", industry_weights: "x", thresholds: "x", combination_rules: "x", score_bands: "x", citations: "x" } } },
   { id: "requirements_v1", version: "1", label_zh: "要件逻辑", applicable: "要件型判断",
     not_applicable: ["加权排序"], input_contract: { fields: { inputs: "x", signals: "x", combination_rules: "x", citations: "x" } } },
+  { id: "formula_v1", version: "1", label_zh: "领域公式", applicable: "有明确计算式的判断",
+    not_applicable: ["只有经验权重"], input_contract: { fields: { inputs: "x", formulas: "x", bands: "x", citations: "x" } } },
 ];
 
 function buildView() {
