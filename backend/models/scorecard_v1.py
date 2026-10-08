@@ -129,7 +129,7 @@ def _exception_effect(rule: dict[str, Any], data: dict[str, Any], threshold: flo
     cond = rule.get("condition") or {}
     # fail-closed：三个键都没有 ⇒ 这条例外没有条件 ⇒ 不命中。
     # （原先 fail-open：空条件被当成恒真，会把整条判定无条件覆盖掉）
-    if not any(k in cond for k in ("all_signals", "conditions", "requires_field")):
+    if not (cond.get("all_signals") or cond.get("conditions") or cond.get("requires_field")):
         return None
     if cond.get("all_signals"):
         if not all(signals.get(s) for s in cond["all_signals"]):
