@@ -213,7 +213,7 @@ function poHasFramework(fw) {
   // ── 1 · 我要知道的信息 ──
   function inputsPanel(f) {
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span>我要知道的信息</span></div>' +
+      '<div class="panel-title"><span>需要调用方提交的信息</span></div>' +
       hint('每次做判断之前都要先问清楚的信息，一条一行。') +
       hint('调用这条判断的人必须提供下面这些值；少任何一项，判定会返回「信息不足，无法判断」。') +
       f.inputs.map(function (i, n) {
@@ -1141,20 +1141,30 @@ window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
   // -- Line-based entry: one line per item, with the format shown inline --
   function lineImportPanel() {
     var parts = [
-      ["inputs", "我要知道的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
       ["thresholds", "判断的基准线", "基准 1.3　以及　条件=值 → 调整量", "基准 1.3\n监管环境=收紧 → -0.10"],
       ["signals", "我观察什么", "信号名 = 字段 大于/小于/等于/属于/包含 值（可写「字段 × 基准线」）", "团队流失高 = 核心团队流失风险 等于 高"],
       ["rules", "几个观察点一起出现时", "信号 且 信号 → 结论（严重度）", "团队流失高 且 现金流危机 → 估值偏高（高）"],
       ["exceptions", "例外情况", "条件 且 条件 → 某维度权重 ×0.5 / 基准线 ×1.2 / 直接判 结论", "技术已专利化 且 技术壁垒极高 → 团队流失权重 ×0.5"],
       ["priority", "哪个更重要", "更重要的 > 次重要的（> 两边留空格）", "现金流危机 > 团队流失高"],
       ["citations", "我的依据", "依据名　或　依据名 → 信号1 且 信号2（全部命中才附上）", "反垄断法第二十六条 → 团队流失高 且 现金流危机\n证券法第七十八条"],
-      ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"]
+      ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"],
+      ["inputs", "需要调用方提交的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
+      ["boundaries", "对外调用的边界", "金额上限 1000000　允许用途 甲、乙　不得转售", "金额上限 1000000\n允许用途 估值、尽调\n不得转售"],
+      ["delivery", "对外交付时附上的说明", "强在哪：…　资历：…　档位：audit　有效期：30 天", "强在哪：普通判断只看一个指标，本判断还看行业与周期\n有效期：30 天"],
+      ["billing", "计费（演示）", "每次 <价格> <币种>；不填表示不计费", "每次 （留空表示不计费）"]
     ];
     return '<section class="panel" id="pro-lines" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>方式二 · 一行一条自己写</span></div>' +
-      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>两种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补</div>' +
+      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>三种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或整篇贴进来后再逐条微调</div>' +
+      '<div class="panel-caption" style="margin:8px 0 2px"><strong>我的判断模型</strong>（前 7 个框：你的判断方法，调用方看不到）</div>' +
       parts.map(function (p, i) {
-        return '<div style="margin-top:10px">' +
+        var groupHead = (i === 0 || p[0] === "inputs")
+          ? '<div class="panel-caption" style="margin:14px 0 2px"><strong>' +
+            (p[0] === "inputs" ? "对外调用与交付（写给调用方，这 4 个框调用方看得到）" : "我的判断模型") +
+            (p[0] === "inputs" ? "（" + (parts.length - 7) + " 个框）" : "（前 7 个框：你的判断方法，调用方看不到）") +
+            "</strong></div>"
+          : "";
+        return groupHead + '<div style="margin-top:10px">' +
           '<div class="field-label">' + p[1] + '</div>' +
           '<div class="panel-caption" style="margin:2px 0 4px">格式：' + esc(p[2]) + '</div>' +
           '<textarea class="input mono" rows="3" style="width:100%" data-line-part="' + p[0] + '" placeholder="' + esc(p[3]) + '"></textarea>' +
@@ -1278,7 +1288,7 @@ function polishPanels(view) {
   // audience answers at a glance which parts are written for the caller.
   var isCallerPanel = function (title) {
     if (title.indexOf("计费") >= 0) { return true; }
-    return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
+    return title.indexOf("对外") >= 0 || title.indexOf("需要调用方提交的信息") >= 0 || title.indexOf("我要知道的信息") >= 0;
   };
   var toc = document.createElement("div");
   toc.className = "pro-toc";
