@@ -573,12 +573,23 @@ function poHasFramework(fw) {
         // 拿不到模型目录时（例如会话失效）不能把整块藏掉 —— 用内置的默认模型信息兜住，
         // 并明确提示「目录没读到」，让用户知道该重新登录，而不是以为功能没了。
         var offline = false;
-        if (!m) {
+        // 内置清单：模型是代码，不经部署不会变，所以这份兜底是准的。
+        // 目录接口拿不到时（例如会话失效）也让你看到全部模型，而不是只剩一个。
+        var FALLBACK_MODELS = [
+          { id: "scorecard_v1", version: "1", label_zh: "评分卡（证据累积）",
+            applicable: "证据累积型：把若干可观察信号按重要性加权，累积成总分再落到档位（风控评分卡、核保、术前风险分级、合规清单）。",
+            not_applicable: ["需要顺序分支的判断", "要件组合（任一满足／排除条件／嵌套）", "领域公式（剂量、折现现金流）", "概率型结论"] },
+          { id: "requirements_v1", version: "1", label_zh: "要件逻辑（成立就用它）",
+            applicable: "要件型：每条结论对应一个要件表达式，成立即用该结论（合同效力、诉讼时效、主体资格、准入条件）。",
+            not_applicable: ["需要按重要性加权排序的判断", "领域公式型", "概率型结论"] },
+          { id: "formula_v1", version: "1", label_zh: "领域公式（核心是一个计算式）",
+            applicable: "有明确计算式的判断：剂量（体重×肾功能）、折现现金流、精算现值、成本收益比。",
+            not_applicable: ["只有经验权重的判断", "只有要件是否成立的判断", "概率型结论"] }
+        ];
+        if (!m || !(models && models.length)) {
           offline = true;
-          m = { id: "scorecard_v1", version: "1", label_zh: "评分卡（证据累积）",
-                applicable: "证据累积型判断：把若干可观察信号按重要性加权，累积成总分，再落到几个档位。",
-                not_applicable: ["需要顺序分支的判断", "要件组合型（任一满足 / 排除条件 / 嵌套逻辑）",
-                                 "领域公式型（剂量、折现现金流、精算现值）", "概率型结论"] };
+          models = FALLBACK_MODELS;
+          m = models[0];
         }
         // 当前模型：切片自己带的 model 优先（老切片没有此字段 → 默认模型）
         if (!window.poJudgmentModel) { window.poJudgmentModel = (state.model || m.id); }
@@ -590,7 +601,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
           '<div class="panel-title"><span>判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
           '<div class="panel-caption" style="margin:6px 0 8px">这条切片的结论由哪个模型算出。模型不写在引擎里，' +
-          (offline ? '<div class="panel-caption" style="color:#d9534f;margin:0 0 6px">模型目录没读到（多半是登录已失效）—— 下面是默认模型；登录后这里会出现完整列表与切换。</div>' : "") +
+          (offline ? '<div class="panel-caption" style="color:#d9534f;margin:0 0 6px">模型清单一共三个，已内置显示（登录后还能读到每个模型的完整说明）。</div>' : "") +
           "每个模型自带适用边界；调用说明与判定记录里都会记下它用了哪个模型、哪个版本。</div>" +
           '<div style="margin:6px 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
           '<span class="field-label" style="min-width:56px">判定模型</span>' +

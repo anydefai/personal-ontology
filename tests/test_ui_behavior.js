@@ -131,11 +131,12 @@ function textOf(view) {
   try { await ctx.window.POPro.renderSlices(v2.view); } catch (e) {}
   const t2 = textOf(v2.view);
   check("目录 401 时判定模型面板仍在（不整块消失）", /判定模型/.test(t2), "没找到");
-  check("并给出明确提示（目录没读到）", /目录没读到/.test(t2), "没找到提示");
+  check("并给出明确提示（内置清单 + 登录后读完整说明）", /内置显示/.test(t2), "没找到提示");
   // 替身不解析 innerHTML，所以直接看渲染出来的字符串里有没有选项
   const hasSelect = /id="pro-model"/.test(t2);
   const optionCount = (t2.match(/<option value="[^"]*"[^>]*>/g) || []).length;
-  check("目录 401 时下拉仍存在且带选项（不能是空的选择框）", hasSelect && optionCount >= 1,
+  // 目录拿不到时也必须是【三个】模型，而不是只剩默认那一个（用户报过这个问题）
+  check("目录 401 时下拉里仍是三个模型（不是只剩一个）", hasSelect && optionCount >= 3,
         "选择框 " + (hasSelect ? "有" : "没有") + " · 选项 " + optionCount + " 个");
 
   // ④ polishPanels 能跑完并给条目编号（面板会被搬到分组容器里，所以在 view 里找）
