@@ -236,50 +236,26 @@ class MCPServer:
                 result["principals"] = [self._present_principal(item, mode) for item in principals]
                 result["principal_display_mode"] = mode
             self._write_session(name)
-            # 智能体先读这三个就知道：这是谁的空间、提供哪些服务、每个场景归谁（一一对应）。
             result["space"] = "个人可信数据空间"
             result["services"] = ["读取可信数据空间目录", "授权检查", "场景预演", "场景反馈"]
-            _insts = result.get("scenario_instances") or []
-            if _insts:
-                result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_insts))
-            # 主体名：能读到就显示真名（默认档位 full），读不到就回落成 ID 并标明原因 —— 不再静默吞错。
-            _names, _name_note = {}, ""
             try:
-                for _p in (self._api("GET", "/v1/principals").get("items", []) or []):
-                    _names[str(_p.get("id"))] = str(_p.get("display_name_zh") or _p.get("display_name_en") or _p.get("id"))
-            except Exception as _e:
-                _name_note = "主体名不可读（管理端未允许提供主体目录）：%s" % _e
-            _mode = "full"
-            try:
-                import json as _json, pathlib as _pl
-                _st = _json.loads((_pl.Path(__file__).resolve().parent.parent / "data" / "settings.json").read_text(encoding="utf-8"))
-                _mode = str(_st.get("principal_display_mode") or "full")
-            except Exception:
-                _mode = "full"
-            _owners = {}
-            for _it in _insts:
-                _sid = str((_it or {}).get("id") or "")
-                _gids = []
-                for _r in ((_it or {}).get("authorization_rules") or []):
-                    if isinstance(_r, dict) and _r.get("grantor_id"):
-                        _g = str(_r["grantor_id"])
-                        if _g not in _gids:
-                            _gids.append(_g)
-                for _g in _gids:
-                    _sc = _owners.setdefault(_g, [])
-                    if _sid and _sid not in _sc:
-                        _sc.append(_sid)
-                if _gids:
-                    _it["owner"] = {"id": _gids[0], "display": _names.get(_gids[0], _gids[0])}
-                elif len(_owners) == 1:            # 全场只有一个主体时，归属它（并标明是推断）
-                    _only = list(_owners)[0]
-                    _it["owner"] = {"id": _only, "display": _names.get(_only, _only), "inferred": True}
-            result["owners"] = [{"id": _g, "display": _names.get(_g, _g), "display_mode": _mode,
-                                "scenarios": _sc, "name_resolved": _g in _names}
-                               for _g, _sc in _owners.items()]
-            if _name_note:
-                result["owner_name_note"] = _name_note
-
+                _insts = result.get("scenario_instances") or []
+                if _insts:
+                    result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_insts))
+                    import sys as _sys
+                    print("DIAG insts=%d first_keys=%s rules=%s" % (len(_insts), sorted((_insts[0] or {}).keys())[:12] if _insts else [], [len((x or {}).get("authorization_rules") or []) for x in _insts]), file=_sys.stderr)
+                _owners = {}
+                for _it in _insts:
+                    for _r in [x for x in (_it.get("authorization_rules") or []) if isinstance(x, dict)]:
+                        _g = str(_r.get("grantor_id") or "")
+                        if _g:
+                            _owners.setdefault(_g, []).append(str(_it.get("id")))
+                result["owners"] = [{"id": _k, "display": _k, "display_mode": "full", "scenarios": _v}
+                                    for _k, _v in _owners.items()]
+            except Exception as _e:      # 不再静默：这类错误必须露出来
+                import sys as _sys
+                print('owners build failed: %r' % (_e,), file=_sys.stderr)
+            return result
         if name == "judge_professional_slice":
             sid = str(args.get("slice_id") or "")
             if not sid:
