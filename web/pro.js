@@ -152,12 +152,15 @@ function poHasFramework(fw) {
   // Needed after parsing or duplicating, otherwise the editor keeps the old empty state.
   // The redraw is delegated to the existing hook, which is assigned by the time this runs.
   window.poReloadSlice = function () {
-    // Re-entrancy guard: refreshing may itself end up here, which previously recursed forever.
+    // What this replaces called window.poRefreshSlice, which no code ever assigned, so refreshing
+    // silently did nothing and step three kept showing the old empty state.
+    // render() is the page renderer (declared outside this IIFE); typeof keeps this safe either way.
     if (window.poReloading) { return; }
     window.poReloading = true;
     try {
       state = null;
-      if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
+      if (typeof render === "function") { render(); }
+      else if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
     } finally { window.poReloading = false; }
   };
   var defId = null;          // current scenario-definition id

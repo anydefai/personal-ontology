@@ -1461,6 +1461,9 @@
   "// NOTE: this handler lives outside the IIFE; it only calls the published hook": "// NOTE: this handler lives outside the IIFE; it only calls the published hook",
   "// no condition needed: reaching here means the parse already succeeded": "// no condition needed: reaching here means the parse already succeeded",
   "// Re-entrancy guard: refreshing may itself end up here, which previously recursed forever.": "// Re-entrancy guard: refreshing may itself end up here, which previously recursed forever.",
+  "// What this replaces called window.poRefreshSlice, which no code ever assigned, so refreshing": "// What this replaces called window.poRefreshSlice, which no code ever assigned, so refreshing",
+  "// silently did nothing and step three kept showing the old empty state.": "// silently did nothing and step three kept showing the old empty state.",
+  "// render() is the page renderer (declared outside this IIFE); typeof keeps this safe either way.": "// render() is the page renderer declared outside this IIFE; typeof keeps this safe either way.",
   };
 
 
