@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from backend.models.formula_v1 import FORMULA_V1
 from backend.models.requirements_v1 import REQUIREMENTS_V1
 from backend.models.scorecard_v1 import SCORECARD_V1
 
@@ -40,6 +41,7 @@ class JudgmentModel(Protocol):
 MODELS: dict[str, JudgmentModel] = {
     SCORECARD_V1.id: SCORECARD_V1,
     REQUIREMENTS_V1.id: REQUIREMENTS_V1,
+    FORMULA_V1.id: FORMULA_V1,
 }
 DEFAULT_MODEL = SCORECARD_V1.id
 
