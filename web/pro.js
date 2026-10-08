@@ -753,7 +753,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         var g = view.querySelector("[data-enable-grantor]"), a = view.querySelector("[data-enable-agent]");
         if (!g || !g.value) { alert("请先选择授权方。"); return; }
         if (!a || !a.value) { alert("请先选择被授权方（已批准的本机程序）。"); return; }
-        var agent = (approvedAgents || []).filter(function (x) { return x.key === a.value; })[0] || {};
+        var agent = (window.poApprovedAgents || []).filter(function (x) { return x.key === a.value; })[0] || {};
         var agentName = String(agent.name || a.value);
         // The program needs a matching principal for the rule to reference (a mirror; its name must equal the program's).
         var mirrorId = null;
