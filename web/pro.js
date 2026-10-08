@@ -878,13 +878,8 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         render();
       };
     });
-    view.querySelectorAll("[data-confirm-slice]").forEach(function (b) {
-      b.onclick = async function () {
-        await api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.confirmSlice),
-          { method: "PATCH", body: JSON.stringify({ status: "confirmed" }) });
-        cache["scenario-slices"] = null; render();
-      };
-    });
+  // NOTE: [data-confirm-slice] is bound ONCE above (it must open the grantee picker first).
+  // A second binding here used to overwrite it and PATCH status directly, so the picker never appeared.
     view.querySelectorAll("[data-unconfirm-slice]").forEach(function (b) {
       b.onclick = async function () {
         await api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.unconfirmSlice),
