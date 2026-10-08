@@ -1502,6 +1502,10 @@
   "可选：只有当调用方提交的行业写法与你建的类别不一致时才需要填这里": "Optional: only needed when the industry wording callers submit differs from your categories",
   "写法（与「方式二」的样例一致）：一行一个类别的归类，一行一个类别的权重。": "Notation, matching the mode two sample: one line per category grouping, one line per category weighting.",
   "类别名你自己取，例如「高法律风险」；调用方提交的是行业，例如 房地产。": "You name the categories yourself, for instance high legal risk; callers submit an industry such as real estate.",
+  "每个类别包含哪些行业": "Which industries each category covers",
+  " —— 调用方提交的行业必须在这里归到某个类别，否则打不了分": " - every industry callers submit must be grouped here, otherwise no score can be produced",
+  "一行一条：行业 → 上表里的类别。调用方提交的每一个行业都要出现在这里（例如 房地产 → 高法律风险）。": "One per line: industry, then the category above. Every industry callers submit must appear here, for example real estate, then high legal risk.",
+  "行业 → 类别（例如 房地产 → 高法律风险）": "industry, then category, for example real estate, then high legal risk",
   };
 
 
