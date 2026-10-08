@@ -240,9 +240,9 @@ class MCPServer:
             result["services"] = ["读取可信数据空间目录", "授权检查", "场景预演", "场景反馈"]
             try:
                 _insts = result.get("scenario_instances") or []
-                if _insts:
-                    result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_insts))
-                    import sys as _sys
+                _pros = [x for x in _insts if str((x or {}).get("kind") or "") == "professional"]
+                if _pros:
+                    result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_pros))
                     print("DIAG insts=%d first_keys=%s rules=%s" % (len(_insts), sorted((_insts[0] or {}).keys())[:12] if _insts else [], [len((x or {}).get("authorization_rules") or []) for x in _insts]), file=_sys.stderr)
                 _owners = {}
                 for _it in _insts:
