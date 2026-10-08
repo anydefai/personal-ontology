@@ -1445,6 +1445,8 @@
   "肾功能）、折现现金流、精算现值、成本收益比": "Chinese syntax sample: 肾功能）、折现现金流、精算现值、成本收益比",
   "模型清单一共三个，已内置显示（登录后还能读到每个模型的完整说明": "Chinese syntax sample: 模型清单一共三个，已内置显示（登录后还能读到每个模型的完整说明",
   "就地更新下面那段说明（重画整页会弄丢你正在填的内容": "Chinese syntax sample: 就地更新下面那段说明（重画整页会弄丢你正在填的内容",
+  "每个模型的说明存到全局：切换处理在另一个作用域里（拿不到这里的 models": "Chinese syntax sample: 每个模型的说明存到全局：切换处理在另一个作用域里（拿不到这里的 models",
+  "曾经因此报过 Uncaught ReferenceError": "Chinese syntax sample: 曾经因此报过 Uncaught ReferenceError",
   };
 
 

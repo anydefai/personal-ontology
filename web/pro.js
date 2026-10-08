@@ -599,6 +599,10 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
 }).join("");
         // 每个模型的说明存到全局：切换处理在另一个作用域里（拿不到这里的 models），
         // 曾经因此报过 Uncaught ReferenceError: models is not defined。
+        window.poModelTitle = {};
+        (models && models.length ? models : [m]).forEach(function (x) {
+          window.poModelTitle[x.id] = "判定模型 · " + (x.label_zh || x.id) + " v" + (x.version || "1");
+        });
         window.poModelDesc = {};
         (models && models.length ? models : [m]).forEach(function (x) {
           var li = (x.not_applicable || []).map(function (y) { return "<li>" + esc(y) + "</li>"; }).join("");
@@ -607,7 +611,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         });
         var na = (m.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
         return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-          '<div class="panel-title"><span>判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
+          '<div class="panel-title"><span id="pro-model-title">判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
           '<div class="panel-caption" style="margin:6px 0 8px">这条切片的结论由哪个模型算出。模型不写在引擎里，' +
           (offline ? '<div class="panel-caption" style="color:#d9534f;margin:0 0 6px">模型清单一共三个，已内置显示（登录后还能读到每个模型的完整说明）。</div>' : "") +
           "每个模型自带适用边界；调用说明与判定记录里都会记下它用了哪个模型、哪个版本。</div>" +
@@ -1528,6 +1532,10 @@ function polishPanels(view) {
       var desc = view.querySelector("#pro-model-desc");
       var descHtml = (window.poModelDesc || {})[pick];
       if (desc && descHtml) { desc.innerHTML = descHtml; }
+      // 标题也要跟着变（只更新说明会让标题停在旧模型上）。
+      var titleEl = view.querySelector("#pro-model-title");
+      var titleText = (window.poModelTitle || {})[pick];
+      if (titleEl && titleText) { titleEl.textContent = titleText; }
       var note = view.querySelector("#pro-model-note");
       if (note) { note.textContent = "已切到 " + pick + "；保存后这条切片就会按它判定。"; }
     };

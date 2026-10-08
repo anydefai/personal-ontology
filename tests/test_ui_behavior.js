@@ -129,6 +129,10 @@ function textOf(view) {
   check("切换处理不再引用局部变量 models（防同类作用域报错）",
         !/var pickedModel = \(models/.test(src.slice(src.indexOf("pro-model"))), "仍在引用 models");
   check("切换处理用的是 descHtml（来自全局说明表）", /desc\.innerHTML = descHtml/.test(src), "没找到");
+  // 标题同样不能停在旧模型上（用户报过："判定模型 · 评分卡（证据累积） v1"不跟着切换变）
+  const titleMap = (c1.window && c1.window.poModelTitle) || {};
+  check("渲染后标题表里有三个模型", Object.keys(titleMap).length >= 3, "键：" + Object.keys(titleMap).join(","));
+  check("切换处理会同时更新标题", /titleEl\.textContent = titleText/.test(src), "没找到");
   // 切换模型时说明必须跟着变；且不能靠重画整页（那会弄丢用户正在填的内容）
   check("说明块有 id 且切换时会被就地更新（源码级）",
         /id="pro-model-desc"/.test(src) && /desc\.innerHTML = /.test(src), "没有就地更新逻辑");
