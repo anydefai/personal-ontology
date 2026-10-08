@@ -253,7 +253,9 @@ class MCPServer:
                     _cfg = {}
                 if _cfg.get("include_principals") is True and str(_cfg.get("principal_display_mode") or "neutral") != "id_only":
                     try:
-                        for _p in (self._api("GET", "/v1/principals").get("items", []) or []):
+                        _raw_pr = self._api("GET", "/v1/principals")
+                        import sys as _s2; print("PRINCIPALS RAW: %r" % (_raw_pr,), file=_s2.stderr)
+                        for _p in ((_raw_pr or {}).get("items", []) or []):
                             _pid = str(_p.get("id") or "")
                             _nm = (_p.get("display_name_zh") or _p.get("display_name_en") or _pid)
                             _names[_pid] = "本人" if str(_cfg.get("principal_display_mode") or "neutral") == "neutral" else str(_nm)
