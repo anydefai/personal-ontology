@@ -24,7 +24,7 @@ def _agent_denied_message(text: str) -> str:
         if message: return str(message)
     except (ValueError, AttributeError):
         pass
-    return "本机治理服务拒绝了该智能体的访问；请在控制台「智能体授权」中批准。"
+    return "可信数据空间服务拒绝了该智能体的访问；请在控制台「智能体授权」中批准。"
 
 
 def http_client_error():
@@ -34,7 +34,7 @@ def http_client_error():
 
 SERVER_INFO = {"name": "personal-ontology", "version": "1.0.0"}
 TOOLS = [
-    {"name": "get_governance_catalog", "description": "读取本机个人本体的资源类型、动作和已确认的场景实例（含范围、偏好、每次执行必填信息、最近演进记录，以及授权规则的启用状态）。执行场景时必须逐项检查必填输入和偏好；缺失或含糊时先向用户询问。只把明确表示今后也适用的偏好，在用户明确同意后写回实例。主体名称只有在管理员启用对应数据范围后才可读取。关于授权：authorization_state 为 draft/suspended 的规则不参与判定，check_authorization 会返回默认拒绝；只有 active 规则参与判定。policies 字段是分析阶段的草稿，判定实际使用的是 authorization_rules；需要判断能否放行时以 authorization_rules 的 policy_status 与 conditions 为准。first_request_summary 只是首次描述的摘要（可能含那一次的时间、地点、人数），不要把它当成场景定义或长期偏好；长期偏好看 preferences，每次执行必须向用户收集的字段看 required_inputs。authorization_rules 的 grantor_id / grantee_id 是主体 ID；只有在管理员允许提供主体目录时，才能通过 principals 把它们解析成名称，且名称如何显示由管理员的隐私设置决定（principal_display_mode：neutral 中性名 / full 真实名 / id_only 仅 ID）。", "inputSchema": {"type": "object", "properties": {"include_principals": {"type": "boolean", "description": "请求读取主体名称；需要管理员预先允许。"}}, "additionalProperties": False}, "annotations": {"title": "读取治理目录", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}},
+    {"name": "get_governance_catalog", "description": "读取个人可信数据空间的资源类型、动作和已确认的场景实例（含范围、偏好、每次执行必填信息、最近演进记录，以及授权规则的启用状态）。执行场景时必须逐项检查必填输入和偏好；缺失或含糊时先向用户询问。只把明确表示今后也适用的偏好，在用户明确同意后写回实例。主体名称只有在管理员启用对应数据范围后才可读取。关于授权：authorization_state 为 draft/suspended 的规则不参与判定，check_authorization 会返回默认拒绝；只有 active 规则参与判定。policies 字段是分析阶段的草稿，判定实际使用的是 authorization_rules；需要判断能否放行时以 authorization_rules 的 policy_status 与 conditions 为准。first_request_summary 只是首次描述的摘要（可能含那一次的时间、地点、人数），不要把它当成场景定义或长期偏好；长期偏好看 preferences，每次执行必须向用户收集的字段看 required_inputs。authorization_rules 的 grantor_id / grantee_id 是主体 ID；只有在管理员允许提供主体目录时，才能通过 principals 把它们解析成名称，且名称如何显示由管理员的隐私设置决定（principal_display_mode：neutral 中性名 / full 真实名 / id_only 仅 ID）。", "inputSchema": {"type": "object", "properties": {"include_principals": {"type": "boolean", "description": "请求读取主体名称；需要管理员预先允许。"}}, "additionalProperties": False}, "annotations": {"title": "读取可信数据空间目录", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}},
     {"name": "judge_professional_slice", "description": "调用某条专业技能切片给出专业判断。参数 slice_id 是切片 ID；data 按该切片的调用说明逐项填写（全部必填，缺一项只会返回信息不足）；request 里给 caller（调用方名称）、purpose（本次用途）、amount（涉及金额，如适用）、no_resale（true 表示承诺不得转售）。切片必须已在控制台确认并启用；返回结论、严重度、分数、依据、命中的信号与判定记录号。", "inputSchema": {"type": "object", "properties": {"slice_id": {"type": "string"}, "data": {"type": "object"}, "request": {"type": "object"}}, "required": ["slice_id"]}},
     {"name": "check_authorization", "description": "调用本机授权引擎检查主体对资源执行动作是否允许；只返回判定并写入审计记录，不会执行该动作。", "inputSchema": {"type": "object", "properties": {"principal_id": {"type": "string"}, "action_id": {"type": "string"}, "resource_type_id": {"type": "string"}, "resource_id": {"type": "string"}, "context": {"type": "object"}, "phase": {"type": "string", "enum": ["pre_planning", "pre_execution"]}}, "required": ["principal_id", "action_id", "resource_type_id", "resource_id"], "additionalProperties": False}, "annotations": {"title": "检查授权", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}},
     {"name":"preview_scenario_instance","description":"预演某个已保存场景：提交本次用户输入和候选资源，返回缺失的必填信息及已有约束检查结果。发现缺项或重要约束未定义时，必须先向用户说明并询问；预演不执行真实动作、不修改实例。","inputSchema":{"type":"object","properties":{"scenario_id":{"type":"string"},"request_inputs":{"type":"object"},"candidate":{"type":"object"}},"required":["scenario_id"],"additionalProperties":False},"annotations":{"title":"预演场景实例","readOnlyHint":True,"destructiveHint":False,"idempotentHint":True,"openWorldHint":False}},
@@ -69,7 +69,7 @@ class MCPServer:
                 token = ""
         if not token:
             raise RuntimeError(
-                "本体已锁定，或没有可用的会话令牌。请让用户先在那台运行控制台的机器上用登录密码解锁；"
+                "数据空间已锁定，或没有可用的会话令牌。请让用户先在那台运行控制台的机器上用登录密码解锁；"
                 f"跨机使用时请把解锁后生成的令牌通过 {SESSION_TOKEN_ENV} 传给本进程。")
         return token
 
@@ -109,13 +109,13 @@ class MCPServer:
                 if response.status == 403:
                     raise RuntimeError(_agent_denied_message(text))
                 if response.status in (401, 409):
-                    raise RuntimeError("本体已锁定（或尚未初始化）。请让用户在那台运行控制台的机器上"
+                    raise RuntimeError("数据空间已锁定（或尚未初始化）。请让用户在那台运行控制台的机器上"
                                        "用登录密码解锁，然后再试。")
                 if response.status >= 400:
                     raise RuntimeError(f"治理服务返回 HTTP {response.status}")
                 return json.loads(text)
             except (OSError, http_client_error()) as exc:
-                raise RuntimeError("无法通过本机套接字连接治理服务；请确认服务已启动。") from exc
+                raise RuntimeError("无法通过本机套接字连接可信数据空间服务；请确认服务已启动。") from exc
             finally:
                 connection.close()
         data = json.dumps(body, ensure_ascii=False).encode() if body is not None else None
@@ -126,7 +126,7 @@ class MCPServer:
         except urllib.error.HTTPError as exc:
             if exc.code == 401:
                 raise RuntimeError(
-                    "本体已锁定，或会话令牌已失效（本体重新解锁后令牌会更换）。"
+                    "数据空间已锁定，或会话令牌已失效（本体重新解锁后令牌会更换）。"
                     "请让用户在那台运行控制台的机器上解锁；跨机使用时需要重启本 MCP 连接以取回新令牌。"
                 ) from exc
             raise RuntimeError(f"治理服务返回 HTTP {exc.code}") from exc
@@ -231,10 +231,26 @@ class MCPServer:
                     settings = {}
                 if settings.get("include_principals") is not True:
                     raise RuntimeError("管理员尚未允许向智能体提供主体名称。可在本体控制台的智能体接入设置中启用。")
-                mode = str(settings.get("principal_display_mode") or "neutral")
+                mode = str(settings.get("principal_display_mode") or "full")
                 principals = self._api("GET", "/v1/principals").get("items", [])
                 result["principals"] = [self._present_principal(item, mode) for item in principals]
                 result["principal_display_mode"] = mode
+                result["space"] = "个人可信数据空间"
+                result["services"] = ["读取可信数据空间目录", "授权检查", "场景预演", "场景反馈"]
+                try:
+                    _insts = result.get("scenario_instances") or []
+                    if _insts:
+                        result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_insts))
+                    _owners = {}
+                    for _it in _insts:
+                        for _r in (_it.get("authorization_rules") or []):
+                            _g = str(_r.get("grantor_id") or "")
+                            if _g:
+                                _owners.setdefault(_g, []).append(str(_it.get("id")))
+                    result["owners"] = [{"id": _k, "display": _k, "display_mode": mode, "scenarios": _v}
+                                        for _k, _v in _owners.items()]
+                except Exception:
+                    pass
             self._write_session(name)
             return result
         if name == "judge_professional_slice":

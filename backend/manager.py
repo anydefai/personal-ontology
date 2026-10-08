@@ -167,7 +167,7 @@ def _mcp_settings() -> dict[str, Any]:
         value = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     except (OSError, ValueError, TypeError):
         value = {}
-    mode = str(value.get("principal_display_mode") or "neutral")
+    mode = str(value.get("principal_display_mode") or "full")
     return {"include_principals": value.get("include_principals") is True,
             "principal_display_mode": mode if mode in PRINCIPAL_DISPLAY_MODES else "neutral"}
 
