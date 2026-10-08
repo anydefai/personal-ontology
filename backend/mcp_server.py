@@ -237,13 +237,26 @@ class MCPServer:
                 result["principal_display_mode"] = mode
             self._write_session(name)
             result["space"] = "个人可信数据空间"
-            result["services"] = ["读取可信数据空间目录", "授权检查", "场景预演", "场景反馈"]
+            # services 说明这个空间对外能提供什么：从数据里长出来，不抄界面菜单。
+            result["services"] = {
+                "capabilities": ["授权检查（会写审计记录）", "场景预演（返回缺项与约束检查）",
+                                 "场景反馈（写回长期偏好）"],
+                "judgments": [],
+            }
             try:
                 _insts = result.get("scenario_instances") or []
-                _pros = [x for x in _insts if str((x or {}).get("kind") or "") == "professional"]
-                if _pros:
-                    result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_pros))
-                    print("DIAG insts=%d first_keys=%s rules=%s" % (len(_insts), sorted((_insts[0] or {}).keys())[:12] if _insts else [], [len((x or {}).get("authorization_rules") or []) for x in _insts]), file=_sys.stderr)
+                for _it in _insts:
+                    _pro = (_it or {}).get("professional")
+                    if not (isinstance(_pro, dict) and not _pro.get("error")):
+                        continue
+                    _bill = _pro.get("billing") or {}
+                    result["services"]["judgments"].append({
+                        "slice_id": str((_it or {}).get("id") or ""), "title": _pro.get("title"),
+                        "model": _pro.get("model"), "purpose": (_pro.get("allowed_purposes") or [None])[0],
+                        "unit_price": _bill.get("unit_price"), "currency": _bill.get("currency") or "CNY",
+                        "max_amount": _pro.get("max_amount"), "no_resale_required": _pro.get("no_resale_required"),
+                        "validity": _pro.get("validity"), "ready": (_pro.get("readiness") or {}).get("ready"),
+                        "call": "POST /v1/scenario-slices/" + str((_it or {}).get("id") or "") + "/judge"})
                 _owners = {}
                 for _it in _insts:
                     for _r in [x for x in (_it.get("authorization_rules") or []) if isinstance(x, dict)]:
