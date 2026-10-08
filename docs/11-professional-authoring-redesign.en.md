@@ -9,7 +9,7 @@
 ## 1. Where we are, and what is wrong
 
 Today there are two drafting methods side by side in step two, model drafting and line-by-line writing, and the
-line-by-line panel actually holds eight boxes: the information I need, my baseline, what I observe, when several
+line-by-line panel actually holds eight boxes: the information the caller must supply, my baseline, what I observe, when several
 signals appear together, exceptions, priority, my citations and score bands. The three items in the external calls
 and delivery group, namely the call boundaries, the delivery note and billing, can only be edited in the table
 panels above; they are missing from line-by-line entry.
@@ -38,7 +38,7 @@ exception. After generating, the interface jumps to step three with a note to re
 ## 4. Method two, write everything at once, with a sample
 
 One large text box takes the whole document in a single submission. It uses the same line syntax as method three,
-separated into sections by headers in lenticular brackets, for example the information I need, my baseline, what I
+separated into sections by headers in lenticular brackets, for example the information the caller must supply, my baseline, what I
 observe, when several appear together, exceptions, priority, my citations, score bands, and the three new sections
 for call boundaries, the delivery note and billing.
 
@@ -56,8 +56,9 @@ The same syntax is split into eleven boxes, one per section. Three are new: call
 allowed purposes and no resale; the delivery note with what makes the judgment strong, credentials, tier and
 validity; and billing with a price per call and a currency, blank meaning none.
 
-The eleven boxes are grouped by audience exactly as in step three, eight under my judgment model and three under
-external calls and delivery, each group with a caption and collapsible as a whole so that eleven boxes are never
+The eleven boxes are grouped by audience exactly as in step three, seven under my judgment model (baseline, signals, combinations, exceptions, priority, citations, score
+bands) and four under external calls and delivery (the information the caller must supply, call boundaries, the
+delivery note and billing), each group with a caption and collapsible as a whole so that eleven boxes are never
 all visible at once.
 
 ## 6. How the three relate
