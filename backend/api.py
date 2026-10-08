@@ -2184,6 +2184,9 @@ async def enable_slice(slice_id: str, body: dict[str, Any]) -> Any:
     这条规则管的是"谁可以调用"。停用即撤回该规则。
     """
     item = _slice_or_404(slice_id)
+    readiness = _slice_readiness(item)
+    if not readiness["ready"]:
+        raise HTTPException(status_code=422, detail="这条切片还不能启用，还缺：" + "；".join(readiness["missing"]))
     grantor = str((body or {}).get("grantor_id") or "")
     grantee = str((body or {}).get("grantee_id") or "")
     for who in (grantor, grantee):
@@ -2223,6 +2226,40 @@ async def disable_slice(slice_id: str) -> Any:
     updated = dict(item); updated["status"] = "analyzed"
     store.put("scenario-slices", slice_id, updated)
     return {"slice_id": slice_id, "status": "analyzed", "revoked": revoked}
+
+
+def _slice_readiness(item: dict[str, Any]) -> dict[str, Any]:
+    """启用门槛：空的或半成品切片不能对外启用。
+
+    理由：启用意味着"这条切片对外可用"。若它连判断要什么、看什么、凭什么下结论都没有，
+    调用方拿到的就是一个没有内容的判断。这里按模型分别要求【最低可判定】的字段。
+    """
+    fw = item.get("framework") or {}
+    model = str(fw.get("model") or "scorecard_v1")
+    missing: list[str] = []
+    warnings: list[str] = []
+    if not (fw.get("inputs") or []):
+        missing.append("「我要知道的信息」一项都没有（不知道要调用方提交什么）")
+    if model == "requirements_v1":
+        if not (fw.get("combination_rules") or []):
+            missing.append("要件规则一条都没有（这个模型靠要件成立来给结论）")
+        if not (fw.get("signals") or []):
+            missing.append("要件（我观察什么）一条都没有")
+    elif model == "formula_v1":
+        if not (fw.get("formulas") or {}):
+            missing.append("公式一条都没有")
+        if not (fw.get("bands") or fw.get("score_bands") or []):
+            missing.append("分档一条都没有（公式结果落不到结论上）")
+    else:
+        if not (fw.get("signals") or []):
+            missing.append("观察点（我观察什么）一条都没有")
+        if not (fw.get("combination_rules") or []) and not (fw.get("score_bands") or {}) \
+                and not (fw.get("fallback") or {}):
+            missing.append("没有任何能给出结论的东西（组合判断 / 打分线 / 兜底 都没有）")
+    if model == "scorecard_v1" and (fw.get("signals") or []) and not (fw.get("industry_weights") or {}):
+        warnings.append("没有填「不同行业的侧重」（权重）—— 这样打分永远是 0")
+    return {"ready": not missing, "missing": missing, "warnings": warnings,
+            "model": model}
 
 
 def _slice_validity(slice_id: str, item: dict[str, Any]) -> dict[str, Any]:
@@ -2276,6 +2313,7 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
     b = item.get("boundaries") or {}
     bill = (fw.get("billing") or {}) if isinstance(fw.get("billing"), dict) else {}   # 前端把计费存在框架里
     validity = _slice_validity(slice_id, item)
+    readiness = _slice_readiness(item)
     fields = []
     for x in (fw.get("inputs") or []):
         if not isinstance(x, dict):
@@ -2331,6 +2369,7 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
         "model_contract": engine.get_model(item).input_contract(),
         "model_output_contract": engine.get_model(item).output_contract(),
         "validity": validity,
+        "readiness": readiness,
         "language": language,
     }
 
