@@ -479,6 +479,63 @@ function poHasFramework(fw) {
     catch (e) { return []; }
   }
 
+  // Bind the add/remove/type-change buttons. Extracted into a function so it can be published and
+  // exercised by the probe (tests/probe_add_buttons.js) instead of only by eye.
+  function bindRowButtons(view) {
+      view.querySelectorAll("[data-add]").forEach(function (b) {
+        b.onclick = function () {
+          var kind = b.dataset.add;
+          // Capture everything the user has typed before appending. collect() reads the DOM, so it must run
+          // first; if it fails we report and abort rather than silently discarding their input.
+          try {
+            state = collect();
+          } catch (e) {
+            alert("读取当前输入出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
+            return;
+          }
+          if (kind === "input") state.inputs.push({ name: "", type: "string" });
+          else if (kind === "weight-cat") {
+            var dims = {};
+            Object.keys(state.industry_weights).forEach(function (c) {
+              Object.keys(state.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; });
+            });
+            var blank = {};
+            Object.keys(dims).forEach(function (d) { blank[d] = 0; });
+            if (!Object.keys(blank).length) blank["侧重"] = 0;
+            state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = blank;
+          }
+          else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
+            var w = state.industry_weights[c]; w["维度" + (Object.keys(w).length + 1)] = 0;
+          });
+          else if (kind === "threshold") state.thresholds.adjustments.push({ condition: {}, delta: 0, reason: "" });
+          else if (kind === "signal") state.signals.push({ name: "", when: {} });
+          else if (kind === "rule") state.combination_rules.push({ all_of: [], conclusion: "", severity: "中" });
+          else if (kind === "exception") state.exception_rules.push({ condition: { all_signals: [] }, override: { kind: "adjust_threshold" }, reason: "" });
+          else if (kind === "priority") state.signal_priority.push({ signal: state.signals[0] ? state.signals[0].name : "", priority: state.signal_priority.length + 1 });
+          else if (kind === "citation") state.citations = (state.citations || []).concat([{ text: "", signals: [] }]);
+          else if (kind === "log") state.adjustment_log.push({ step: "", reason: "" });
+          render();
+        };
+      });
+      view.querySelectorAll("[data-del]").forEach(function (b) {
+        b.onclick = function () {
+          try { state = collect(); } catch (e) {}
+          var parts = b.dataset.del.split(":"), what = parts[0], n = parseInt(parts[1], 10);
+          if (what === "input") state.inputs.splice(n, 1);
+          else if (what === "weights") delete state.industry_weights[Object.keys(state.industry_weights)[n]];
+          else if (what === "threshold") state.thresholds.adjustments.splice(n, 1);
+          else if (what === "signal") state.signals.splice(n, 1);
+          else if (what === "rule") state.combination_rules.splice(n, 1);
+          else if (what === "exception") state.exception_rules.splice(n, 1);
+          else if (what === "priority") state.signal_priority.splice(n, 1);
+          else if (what === "citation") state.citations.splice(n, 1);
+          else if (what === "log") state.adjustment_log.splice(n, 1);
+          render();
+        };
+      });
+  }
+  window.poBindRowButtons = bindRowButtons;   // published: handlers outside the IIFE, and the probe
+
   async function renderSlices(view) {
     var models = await loadModelCatalog();
     var pickModel = window.poJudgmentModel || "scorecard_v1";
@@ -708,59 +765,6 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         } catch (err) {
           alert("启用失败：" + (err && err.message ? err.message : err));
         }
-      };
-    });
-    // The add/remove/type-change handlers used to live only in the old host-based renderer, so the
-    // buttons were dead in the live path. Same handlers, bound against view.
-    view.querySelectorAll("[data-add]").forEach(function (b) {
-      b.onclick = function () {
-        var kind = b.dataset.add;
-        // Capture everything the user has typed before appending. collect() reads the DOM, so it must run
-        // first; if it fails we report and abort rather than silently discarding their input.
-        try {
-          state = collect();
-        } catch (e) {
-          alert("读取当前输入出错，已中止本次操作（你的输入没有被丢弃）：" + (e && e.message ? e.message : e));
-          return;
-        }
-        if (kind === "input") state.inputs.push({ name: "", type: "string" });
-        else if (kind === "weight-cat") {
-          var dims = {};
-          Object.keys(state.industry_weights).forEach(function (c) {
-            Object.keys(state.industry_weights[c] || {}).forEach(function (d) { dims[d] = 1; });
-          });
-          var blank = {};
-          Object.keys(dims).forEach(function (d) { blank[d] = 0; });
-          if (!Object.keys(blank).length) blank["侧重"] = 0;
-          state.industry_weights["新行业" + (Object.keys(state.industry_weights).length + 1)] = blank;
-        }
-        else if (kind === "weight-dim") Object.keys(state.industry_weights).forEach(function (c) {
-          var w = state.industry_weights[c]; w["维度" + (Object.keys(w).length + 1)] = 0;
-        });
-        else if (kind === "threshold") state.thresholds.adjustments.push({ condition: {}, delta: 0, reason: "" });
-        else if (kind === "signal") state.signals.push({ name: "", when: {} });
-        else if (kind === "rule") state.combination_rules.push({ all_of: [], conclusion: "", severity: "中" });
-        else if (kind === "exception") state.exception_rules.push({ condition: { all_signals: [] }, override: { kind: "adjust_threshold" }, reason: "" });
-        else if (kind === "priority") state.signal_priority.push({ signal: state.signals[0] ? state.signals[0].name : "", priority: state.signal_priority.length + 1 });
-        else if (kind === "citation") state.citations = (state.citations || []).concat([{ text: "", signals: [] }]);
-        else if (kind === "log") state.adjustment_log.push({ step: "", reason: "" });
-        render();
-      };
-    });
-    view.querySelectorAll("[data-del]").forEach(function (b) {
-      b.onclick = function () {
-        try { state = collect(); } catch (e) {}
-        var parts = b.dataset.del.split(":"), what = parts[0], n = parseInt(parts[1], 10);
-        if (what === "input") state.inputs.splice(n, 1);
-        else if (what === "weights") delete state.industry_weights[Object.keys(state.industry_weights)[n]];
-        else if (what === "threshold") state.thresholds.adjustments.splice(n, 1);
-        else if (what === "signal") state.signals.splice(n, 1);
-        else if (what === "rule") state.combination_rules.splice(n, 1);
-        else if (what === "exception") state.exception_rules.splice(n, 1);
-        else if (what === "priority") state.signal_priority.splice(n, 1);
-        else if (what === "citation") state.citations.splice(n, 1);
-        else if (what === "log") state.adjustment_log.splice(n, 1);
-        render();
       };
     });
     // Re-render on type or exception-kind change so only the needed inputs show.
@@ -1303,6 +1307,7 @@ function billingPanel(f) {
         "</select>" +
         '<span class="muted">元 / 次</span>') +
     '</section>';
+  bindRowButtons(view);   // bind add/remove/type-change buttons on every render
 }
 
 // ── Table editors for citations (part 7) and score bands (part 8) ──

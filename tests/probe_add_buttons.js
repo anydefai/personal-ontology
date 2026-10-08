@@ -4,7 +4,7 @@ const src=fs.readFileSync(path.join(process.cwd(),"web","pro.js"),"utf8");
 const MODELS=[{id:"scorecard_v1",version:"1",label_zh:"评分卡",applicable:"x",not_applicable:[],input_contract:{fields:{inputs:"x",signals:"x",thresholds:"x"}}}];
 const doc=makeDocument(); const view=new El("div"); doc.body.appendChild(view);
 // 复核面板 + 「加一条」按钮（与真实页面同属性）
-const ed=new El("div"); ed.attributes.id="pro-editor"; view.appendChild(ed);
+let ed=new El("div"); ed.attributes.id="pro-editor"; view.appendChild(ed);
 [["我观察什么","signal"],["例外情况","exception"],["我的依据","citation"],["几个观察点一起出现时","rule"],["哪个观察点更重要","priority"],["需要调用方提交的信息","input"]].forEach(function(p){
   const sec=new El("section"); sec.className="panel";
   const h=new El("div"); h.className="panel-title"; const sp=new El("span"); sp.textContent=p[0];
@@ -31,7 +31,20 @@ ctx.window={document:doc,addEventListener:()=>{},removeEventListener:()=>{},loca
 ctx.globalThis=ctx; vm.createContext(ctx); vm.runInContext(src,ctx);
 (async()=>{
   try { await ctx.window.POPro.renderSlices(view); } catch(e) { console.log("  renderSlices 抛错:", e.message); }
-  try { ctx.window.POPro.polishPanels(view); } catch(e) { console.log("  polishPanels 抛错:", e.message); }
+  // 渲染之后再放带按钮的面板（innerHTML 会清空子节点）
+  const ed2 = new El("div"); ed2.attributes.id = "pro-editor"; view.appendChild(ed2);
+  [["我观察什么","signal"],["例外情况","exception"],["我的依据","citation"],["几个观察点一起出现时","rule"],["哪个观察点更重要","priority"],["需要调用方提交的信息","input"]].forEach(function(p){
+    const sec=new El("section"); sec.className="panel";
+    const h=new El("div"); h.className="panel-title"; const sp=new El("span"); sp.textContent=p[0];
+    h.appendChild(sp); sec.appendChild(h);
+    const row=new El("div"); row.className="pro-row"; sec.appendChild(row);
+    const btn=new El("button"); btn.attributes["data-add"]=p[1]; sec.appendChild(btn);
+    ed2.appendChild(sec);
+  });
+  ed = ed2;
+  // 关键：面板必须在 render 之后再放（替身的 innerHTML 会清空子节点），
+  // 然后调用公开的绑定函数 —— 这样才是真的在测那条路。
+  try { ctx.window.poBindRowButtons(view); } catch(e) { console.log("  poBindRowButtons 抛错:", e.message); }
   const btns = ed.querySelectorAll("button");
   console.log("  找到按钮:", btns.length, "个；绑定了 onclick 的:", btns.filter(b=>typeof b.onclick==="function").length);
   for (const b of btns) {

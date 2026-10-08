@@ -1468,6 +1468,10 @@
   "// Query helper, hoisted to the top of the IIFE: collect() used it before its own local": "// Query helper, hoisted to the top of the IIFE: collect() used it before its own local",
   "// declaration, so var hoisting made it undefined and every add-row button threw": "// declaration, so var hoisting made it undefined and every add-row button threw",
   "// \"q is not a function\".": "// q is not a function.",
+  "// Bind the add/remove/type-change buttons. Extracted into a function so it can be published and": "// Bind the add/remove/type-change buttons. Extracted into a function so it can be published and",
+  "// exercised by the probe (tests/probe_add_buttons.js) instead of only by eye.": "// exercised by the probe (tests/probe_add_buttons.js) instead of only by eye.",
+  "// published: handlers outside the IIFE, and the probe": "// published: handlers outside the IIFE, and the probe",
+  "bindRowButtons(view);   // bind add/remove/type-change buttons on every render": "bindRowButtons(view);   // bind add/remove/type-change buttons on every render",
   };
 
 
