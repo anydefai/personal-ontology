@@ -1464,6 +1464,7 @@
   "// What this replaces called window.poRefreshSlice, which no code ever assigned, so refreshing": "// What this replaces called window.poRefreshSlice, which no code ever assigned, so refreshing",
   "// silently did nothing and step three kept showing the old empty state.": "// silently did nothing and step three kept showing the old empty state.",
   "// render() is the page renderer (declared outside this IIFE); typeof keeps this safe either way.": "// render() is the page renderer declared outside this IIFE; typeof keeps this safe either way.",
+  "// the review button clears the cache too; without this step three re-renders from stale data": "// the review button clears the cache too; without this step three re-renders from stale data",
   };
 
 

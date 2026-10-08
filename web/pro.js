@@ -158,6 +158,7 @@ function poHasFramework(fw) {
     if (window.poReloading) { return; }
     window.poReloading = true;
     try {
+      cache["scenario-slices"] = null;   // the review button clears the cache too; without this step three re-renders from stale data
       state = null;
       if (typeof render === "function") { render(); }
       else if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
