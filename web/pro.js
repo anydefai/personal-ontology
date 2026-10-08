@@ -1532,7 +1532,7 @@ function polishPanels(view) {
       docTa.value = ""; docRep.textContent = "";
     };
     btnParse.onclick = async function () {
-      var sid = (window.poProSlice && window.poProSlice.id) || "";
+      var sid = sliceId || "";
       if (!sid) { alert("请先在上面选一条我的切片。"); return; }
       if (!docTa.value.trim()) { docRep.textContent = "先把整篇贴进上面的框里（或点【填入样例】）。"; return; }
       docRep.textContent = "解析中…";
@@ -1610,7 +1610,7 @@ function polishPanels(view) {
       bar.querySelectorAll("[data-contract-btn]").forEach(function (btn) {
         btn.onclick = async function () {
           var note = bar.querySelector("[data-contract-note]");
-          var sid = (window.poProSlice && window.poProSlice.id) || "";
+          var sid = sliceId || "";
           if (!sid) { alert("请先在上面选一条我的切片。"); return; }
           note.textContent = "读取中…";
           var c = null;

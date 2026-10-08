@@ -129,6 +129,12 @@ function textOf(view) {
   check("切换处理不再引用局部变量 models（防同类作用域报错）",
         !/var pickedModel = \(models/.test(src.slice(src.indexOf("pro-model"))), "仍在引用 models");
   check("切换处理用的是 descHtml（来自全局说明表）", /desc\.innerHTML = descHtml/.test(src), "没找到");
+  // 用户报过：新建切片后点【提交解析】提示"请先在上面选一条我的切片"。
+  // 根因是解析读的是 window.poProSlice（真实界面里从未被赋值，只有测试替身设了它），
+  // 而不是页面自己的 sliceId。这条断言防止它再退化。
+  check("方式二/三的解析读页面自己的 sliceId（绝不能读 window.poProSlice）",
+        !/window\.poProSlice && window\.poProSlice\.id/.test(src) && /var sid = sliceId \|\| ""/.test(src),
+        "仍在读全局 poProSlice");
   // 标题同样不能停在旧模型上（用户报过："判定模型 · 评分卡（证据累积） v1"不跟着切换变）
   const titleMap = (c1.window && c1.window.poModelTitle) || {};
   check("渲染后标题表里有三个模型", Object.keys(titleMap).length >= 3, "键：" + Object.keys(titleMap).join(","));
