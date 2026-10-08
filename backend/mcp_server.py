@@ -245,7 +245,21 @@ class MCPServer:
             try:
                 # 这两个变量原先由被替换掉的旧代码赋值，补回来以免 NameError 被外层 except 吞掉：
                 _insts = result.get("scenario_instances") or []
-                _names = {}
+                # 名字：只要本机设置允许提供主体目录，就解析成名字（不再依赖调用方传 include_principals）。
+                _names, _name_note = {}, ""
+                try:
+                    _cfg = json.loads(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "mcp-settings.json"), encoding="utf-8").read())
+                except Exception:
+                    _cfg = {}
+                if _cfg.get("include_principals") is True and str(_cfg.get("principal_display_mode") or "neutral") != "id_only":
+                    try:
+                        for _p in (self._api("GET", "/v1/principals").get("items", []) or []):
+                            _pid = str(_p.get("id") or "")
+                            _nm = (_p.get("display_name_zh") or _p.get("display_name_en") or _pid)
+                            _names[_pid] = "本人" if str(_cfg.get("principal_display_mode") or "neutral") == "neutral" else str(_nm)
+                    except Exception as _e:
+                        _name_note = "主体名读取失败：%s" % _e
+                _mode = str(_cfg.get("principal_display_mode") or "neutral")
                 for _it in _insts:
                     _iid = str((_it or {}).get("id") or "")
                     _rules = [r for r in ((_it or {}).get("authorization_rules") or [])
