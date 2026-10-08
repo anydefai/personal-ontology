@@ -127,6 +127,10 @@ def _exception_effect(rule: dict[str, Any], data: dict[str, Any], threshold: flo
                       signals: dict[str, bool]) -> dict[str, Any] | None:
     """例外规则：条件满足时返回其 override 描述。"""
     cond = rule.get("condition") or {}
+    # fail-closed：三个键都没有 ⇒ 这条例外没有条件 ⇒ 不命中。
+    # （原先 fail-open：空条件被当成恒真，会把整条判定无条件覆盖掉）
+    if not any(k in cond for k in ("all_signals", "conditions", "requires_field")):
+        return None
     if cond.get("all_signals"):
         if not all(signals.get(s) for s in cond["all_signals"]):
             return None
@@ -401,7 +405,7 @@ def for_caller(package: dict[str, Any], tier: str | None = None) -> dict[str, An
         _forced = [s for s in (package.get("exceptions_applied") or []) if "直接判定" in str(s)]
         _cited = package.get("rule_cited") or []
         if _forced:
-            out["decided_by"] = "例外：" + str(_forced[0])   # 保留原因（例如「标的为国资背景」）便于溯源
+            out["decided_by"] = str(_forced[0])   # 保留原因（例如「标的为国资背景」）便于溯源
         elif _cited:
             out["decided_by"] = "组合规则：" + str(_cited[0])
         elif package.get("score") is not None:
