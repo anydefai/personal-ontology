@@ -51,6 +51,21 @@ check("阈值步骤里带 factor 的恰好一条", sum(1 for s in steps_mul if s
 FW5 = {**FW, "thresholds": {"base": 1.0, "adjustments": []}}
 check("没有调整项时阈值就是基准值（1.0）", abs(compute_threshold(FW5, DATA)[0] - 1.0) < 1e-9)
 
+from backend import line_format as LF
+ok1, bad1 = LF.parse_signals(["营收增长率>35 = 营收增长率 大于 35 ｜ 财务 ｜ 0.5",
+                              "客户集中度>50 = 客户集中度 大于 50 ｜ 市场"])
+check("行格式：信号第三段解析为命中分值", not bad1 and abs(float(ok1[0].get("score_value") or 0) - 0.5) < 1e-9,
+      str(bad1 or ok1))
+ok2, bad2 = LF.parse_signals(["x = 客户集中度 大于 50 ｜ 市场 ｜ 2"])
+check("行格式：命中分值超出 0–1 会报错（不静默）", bool(bad2), "居然通过了")
+
+th3, bad3 = LF.parse_thresholds(["基准 1.3", "监管环境=收紧 → -0.10", "行业周期位置=上升期 → ×1.2"])
+check("行格式：阈值写 ×1.2 解析为 factor（不是 delta）",
+      not bad3 and th3["adjustments"][1].get("factor") == 1.2 and th3["adjustments"][1].get("delta") is None,
+      str(th3["adjustments"]))
+check("行格式：× 与 + 混用后阈值正确（1.3 − 0.1 再 ×1.2 = 1.44）",
+      abs(compute_threshold({"thresholds": th3}, {"监管环境": "收紧", "行业周期位置": "上升期"})[0] - 1.44) < 1e-9)
+
 ok = sum(1 for x in RESULTS if x)
 print("\n===== %d/%d 项通过 =====" % (ok, len(RESULTS)))
 sys.exit(0 if ok == len(RESULTS) else 1)

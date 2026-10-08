@@ -83,20 +83,23 @@ def parse_thresholds(lines: list[str]) -> tuple[dict, list[dict]]:
                 base = v
             continue
         if "→" not in raw and "->" not in raw:
-            bad.append(_err(n, raw, "格式：条件=值 → 调整量（例如 监管环境=收紧 → -0.10）")); continue
+            bad.append(_err(n, raw, "格式：条件=值 → 调整量（例如 监管环境=收紧 → -0.10，或 → ×1.2）")); continue
         left, right = re.split(r"→|->", raw, maxsplit=1)
-        left_clean = _clean(left)
-        # 表达式：支持 且 / 或 / 非 / 括号（可嵌套）；旧的「信号 且 信号」写法仍然有效。
-        expr = re.sub(r"\s+", " ", left_clean).strip()
-        d = _num(right)
-        if d is None:
-            bad.append(_err(n, raw, "箭头右边要写数字，例如 +0.15")); continue
         cond = {}
-        k, _, v = _clean(left).partition("=")
-        if not k.strip():
+        k2, _, v2 = _clean(left).partition("=")
+        if not k2.strip() or not v2.strip():
             bad.append(_err(n, raw, "箭头左边要写 字段=值")); continue
-        cond[k.strip()] = v.strip()
-        adj.append({"condition": cond, "delta": d, "reason": ""})
+        cond[k2.strip()] = v2.strip()
+        txt = right.strip()
+        # 右边写 ×1.2 → 乘法（按比例缩放基准线）；写 +0.15 / -0.10 → 加法。
+        is_mul = txt.startswith(("×", "*"))
+        d = _num(txt.lstrip("×*").strip()) if is_mul else _num(txt)
+        if d is None:
+            bad.append(_err(n, raw, "箭头右边要写数字，例如 +0.15 或 ×1.2")); continue
+        if is_mul:
+            adj.append({"condition": cond, "delta": None, "factor": d, "reason": ""})
+        else:
+            adj.append({"condition": cond, "delta": d, "reason": ""})
     return {"base": base, "adjustments": adj}, bad
 
 
@@ -109,10 +112,19 @@ def parse_signals(lines: list[str]) -> tuple[list[dict], list[dict]]:
         if "=" not in s or " " not in s.split("=", 1)[1]:
             bad.append(_err(n, raw, "格式：信号名 = 字段 大于 值（可写「字段 × 基准线 ｜ 维度」）")); continue
         name, body = s.split("=", 1)
+        score_value = None
         dimension = None
-        if "|" in body:                      # 第四段：这个信号属于哪个权重维度
-            body, dimension = body.split("|", 1)
-            dimension = dimension.strip() or None
+        if "|" in body:                      # 第四段：维度；可再跟一段：命中分值（不写＝1）
+            body, rest = body.split("|", 1)
+            segs = [x.strip() for x in rest.split("|")]
+            dimension = segs[0] or None
+            if len(segs) > 1 and segs[1]:
+                try:
+                    score_value = float(segs[1])
+                except ValueError:
+                    bad.append(_err(n, raw, "命中分值要写数字，例如 ｜ 财务 ｜ 0.5")); continue
+                if not (0 <= score_value <= 1):
+                    bad.append(_err(n, raw, "命中分值要在 0 到 1 之间，例如 ｜ 财务 ｜ 0.5")); continue
         body = body.strip()
         op_cn = next((o for o in OPS if body.startswith(o)), None)
         if not op_cn:
@@ -135,6 +147,8 @@ def parse_signals(lines: list[str]) -> tuple[list[dict], list[dict]]:
         item = {"name": name.strip(), "when": {field: {"op": OPS[op_cn], "value": value}}}
         if dimension:
             item["dimension"] = dimension
+        if score_value is not None:
+            item["score_value"] = score_value
         ok.append(item)
     return ok, bad
 
