@@ -1382,14 +1382,14 @@ function polishPanels(view) {
   // session; the default is model drafting, which is the least effort the first time.
   var METHOD_KEYS = ["model", "doc", "lines"];
   var methodRegions = {};
-  Array.prototype.slice.call(ed.querySelectorAll("#pro-doc, #pro-lines")).forEach(function (el) {
+  Array.prototype.slice.call(view.querySelectorAll("#pro-doc, #pro-lines")).forEach(function (el) {
     methodRegions[el.id === "pro-doc" ? "doc" : "lines"] = el;
   });
-  Array.prototype.slice.call(ed.querySelectorAll("section.panel")).forEach(function (el) {
+  Array.prototype.slice.call(view.querySelectorAll("section.panel")).forEach(function (el) {
     var t = (el.querySelector(".panel-title span") || {}).textContent || "";
     if (t.indexOf("方式一") >= 0) { methodRegions.model = el; }
   });
-  if (methodRegions.model && methodRegions.doc && methodRegions.lines && !ed.querySelector("#pro-method-cards")) {
+  if (methodRegions.model && methodRegions.doc && methodRegions.lines && !view.querySelector("#pro-method-cards")) {
     var chosen = METHOD_KEYS.indexOf(window.poDraftMethod) >= 0 ? window.poDraftMethod : "model";
     var bar = document.createElement("div");
     bar.id = "pro-method-cards";
