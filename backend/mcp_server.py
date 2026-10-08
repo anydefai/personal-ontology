@@ -249,9 +249,24 @@ class MCPServer:
                     for _r in [x for x in (_it.get("authorization_rules") or []) if isinstance(x, dict)]:
                         _g = str(_r.get("grantor_id") or "")
                         if _g:
-                            _owners.setdefault(_g, []).append(str(_it.get("id")))
+                            _sc = _owners.setdefault(_g, [])
+                            _sid = str(_it.get("id"))
+                            if _sid not in _sc:
+                                _sc.append(_sid)
                 result["owners"] = [{"id": _k, "display": _k, "display_mode": "full", "scenarios": _v}
                                     for _k, _v in _owners.items()]
+                _byname = {_g: _names.get(_g, _g) for _g in _owners}
+                for _it in _insts:
+                    _gid = ""
+                    for _r in ((_it or {}).get("authorization_rules") or []):
+                        if isinstance(_r, dict) and _r.get("grantor_id"):
+                            _gid = str(_r["grantor_id"])
+                            break
+                    if _gid:
+                        _it["owner"] = {"id": _gid, "display": _byname.get(_gid, _gid)}
+                    elif len(_owners) == 1:            # 全场只有一个主体时归它，并标明是推断
+                        _only = list(_owners)[0]
+                        _it["owner"] = {"id": _only, "display": _byname.get(_only, _only), "inferred": True}
             except Exception as _e:      # 不再静默：这类错误必须露出来
                 import sys as _sys
                 print('owners build failed: %r' % (_e,), file=_sys.stderr)
