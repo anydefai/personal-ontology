@@ -69,6 +69,67 @@ def parse_inputs(lines: list[str]) -> tuple[list[dict], list[dict]]:
     return ok, bad
 
 
+def parse_weights(lines: list[str]) -> tuple[dict, dict, list[dict]]:
+    """作者侧的行业侧重表，两行一种：
+
+        类别 高法律风险 ｜ 行业 房地产、制造业
+        权重 高法律风险 ｜ 法律 0.4 · 交易 0.2 · 合规 0.2
+
+    返回 (industry_map 行业→类别, industry_weights 类别→{维度: 权重}, 错误)。
+    维度名必须与「我观察什么」里 ｜ 后面写的一致；对不上时由引擎的校验提示报出来。
+    """
+    imap: dict[str, str] = {}
+    iw: dict[str, dict[str, float]] = {}
+    bad: list[dict] = []
+    for n, raw in enumerate(lines, 1):
+        t = _clean(raw)
+        if not t or t.startswith("#"):
+            continue
+        if "|" not in t:
+            bad.append(_err(n, raw, "格式：类别 <类别名> ｜ 行业 <行业1、行业2>，或 权重 <类别名> ｜ <维度> <数> · <维度> <数>"))
+            continue
+        left, right = t.split("|", 1)
+        left, right = left.strip(), right.strip()
+        if left.startswith("类别"):
+            cat = left[2:].strip()
+            if not cat:
+                bad.append(_err(n, raw, "「类别」后面要写类别名")); continue
+            rest = right
+            for pre in ("行业", "属于", "对应"):
+                if rest.startswith(pre):
+                    rest = rest[len(pre):].strip()
+                    break
+            names = [x.strip() for x in re.split(r"[、,，/]", rest) if x.strip()]
+            if not names:
+                bad.append(_err(n, raw, "「行业」后面要写行业名，多个用、分隔")); continue
+            for name in names:
+                imap[name] = cat
+            iw.setdefault(cat, {})
+        elif left.startswith("权重"):
+            cat = left[2:].strip()
+            if not cat:
+                bad.append(_err(n, raw, "「权重」后面要写类别名")); continue
+            pairs = re.split(r"[·,，;；]", right)
+            got = 0
+            for seg in pairs:
+                seg = seg.strip()
+                if not seg:
+                    continue
+                m = re.match(r"^(.*?)\s*[:：]?\s*(-?\d+(?:\.\d+)?)$", seg)
+                if not m:
+                    bad.append(_err(n, raw, f"这一段看不懂：{seg}（要写「维度名 数值」）")); continue
+                dim, val = m.group(1).strip(), float(m.group(2))
+                if not dim:
+                    bad.append(_err(n, raw, "权重前面要写维度名")); continue
+                iw.setdefault(cat, {})[dim] = val
+                got += 1
+            if not got:
+                bad.append(_err(n, raw, "权重一项都没解析出来")); continue
+        else:
+            bad.append(_err(n, raw, "这一行要以「类别」或「权重」开头")); continue
+    return imap, iw, bad
+
+
 def parse_thresholds(lines: list[str]) -> tuple[dict, list[dict]]:
     base, adj, bad = 1.0, [], []
     for n, raw in enumerate(lines, 1):
@@ -274,6 +335,16 @@ def apply_lines(framework: dict[str, Any], texts: dict[str, str]) -> dict[str, A
         ok, bad = parse_inputs(lines_of("inputs"))
         fw["inputs"] = ok
         report["inputs"] = {"imported": len(ok), "errors": bad}
+    if texts.get("weights"):
+        imap, iw, bad = parse_weights(lines_of("weights"))
+        if imap:
+            fw["industry_map"] = {**(fw.get("industry_map") or {}), **imap}
+        if iw:
+            merged = dict(fw.get("industry_weights") or {})
+            for k, v in iw.items():
+                merged[k] = {**(merged.get(k) or {}), **v}
+            fw["industry_weights"] = merged
+        report["weights"] = {"imported": len(imap) + sum(len(v) for v in iw.values()), "errors": bad}
     if texts.get("thresholds"):
         th, bad = parse_thresholds(lines_of("thresholds"))
         fw["thresholds"] = th
@@ -503,6 +574,7 @@ SECTION_KEYWORDS: list[tuple[str, str]] = [
     ("对外调用的边界", "boundaries"), ("边界", "boundaries"),
     ("对外交付时附上", "delivery"), ("交付说明", "delivery"),
     ("计费", "billing"),
+    ("不同行业的侧重", "weights"), ("行业侧重", "weights"), ("侧重", "weights"),
     ("基准线", "thresholds"), ("阈值", "thresholds"),
     ("观察点", "signals"), ("信号", "signals"), ("我观察什么", "signals"),
     ("例外", "exceptions"),
