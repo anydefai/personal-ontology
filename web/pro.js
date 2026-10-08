@@ -147,6 +147,19 @@ function poHasFramework(fw) {
   "use strict";
 
   var state = null;          // the framework being edited
+
+  // Published for handlers outside the IIFE: clear the editor state and redraw.
+  // Needed after parsing or duplicating, otherwise the editor keeps the old empty state.
+  // The redraw is delegated to the existing hook, which is assigned by the time this runs.
+  window.poReloadSlice = function () {
+    state = null;
+    // Reload the slice the way the review button does, otherwise step three stays empty.
+    if (parsed) {
+      if (typeof window.poReloadSlice === "function") { window.poReloadSlice(); }
+      var ed = document.querySelector("#pro-editor");
+      if (ed && ed.scrollIntoView) { try { ed.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }
+    }
+  };
   var defId = null;          // current scenario-definition id
   var sliceId = null;        // the slice currently selected (personal asset)
   var lastDraft = "";        // description used for the last draft
@@ -1563,7 +1576,13 @@ function polishPanels(view) {
       });
       docRep.textContent = reportLines.length ? reportLines.join("\n") : "没有解析到内容，请检查小节标题。";
       docRep.style.whiteSpace = "pre-wrap";
-      if (parsed && parsed.framework && typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
+      // Reload the slice the way the review button does, otherwise step three stays empty.
+      if (parsed) {
+        if (typeof window.poReloadSlice === "function") { window.poReloadSlice(); }
+        else if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
+        var ed = document.querySelector("#pro-editor");
+        if (ed && ed.scrollIntoView) { try { ed.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }
+      }   // NOTE: this handler lives outside the IIFE; it only calls the published hook
     };
   }
 

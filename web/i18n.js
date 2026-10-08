@@ -1454,6 +1454,11 @@
   "请在下拉框里选中一条我的切片再试。": "Select one of your slices in the dropdown and try again.",
   "这个场景下还没有你的切片，请先在第一步新建。": "This scenario has no slice of yours yet; create one in step one first.",
   "(未选)": "(none)",
+  "Published for handlers outside the IIFE: clear the editor state and redraw.": "Published for handlers outside the IIFE: clear the editor state and redraw.",
+  "// Needed after parsing or duplicating, otherwise the editor keeps the old empty state.": "// Needed after parsing or duplicating, otherwise the editor keeps the old empty state.",
+  "// The redraw is delegated to the existing hook, which is assigned by the time this runs.": "// The redraw is delegated to the existing hook, which is assigned by the time this runs.",
+  "// Reload the slice the way the review button does, otherwise step three stays empty.": "// Reload the slice the way the review button does, otherwise step three stays empty.",
+  "// NOTE: this handler lives outside the IIFE; it only calls the published hook": "// NOTE: this handler lives outside the IIFE; it only calls the published hook",
   };
 
 
