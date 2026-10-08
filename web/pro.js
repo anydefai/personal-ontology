@@ -597,6 +597,14 @@ function poHasFramework(fw) {
 var opts = (models && models.length ? models : [m]).map(function (x) {
   return '<option value="' + esc(x.id) + '"' + (x.id === window.poJudgmentModel ? " selected" : "") + ">" + esc(x.label_zh || x.id) + "</option>";
 }).join("");
+        // 每个模型的说明存到全局：切换处理在另一个作用域里（拿不到这里的 models），
+        // 曾经因此报过 Uncaught ReferenceError: models is not defined。
+        window.poModelDesc = {};
+        (models && models.length ? models : [m]).forEach(function (x) {
+          var li = (x.not_applicable || []).map(function (y) { return "<li>" + esc(y) + "</li>"; }).join("");
+          window.poModelDesc[x.id] = '<div class="panel-caption"><strong>适合：</strong>' + esc(x.applicable || "—") + "</div>" +
+            (li ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + li + "</ul></div>" : "");
+        });
         var na = (m.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
         return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
           '<div class="panel-title"><span>判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
@@ -1518,12 +1526,8 @@ function polishPanels(view) {
       window.poJudgmentModel = pick;
       // 就地更新下面那段说明（重画整页会弄丢你正在填的内容）。
       var desc = view.querySelector("#pro-model-desc");
-      var pickedModel = (models || []).filter(function (x) { return x.id === pick; })[0];
-      if (desc && pickedModel) {
-        var na2 = (pickedModel.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
-        desc.innerHTML = '<div class="panel-caption"><strong>适合：</strong>' + esc(pickedModel.applicable || "—") + "</div>" +
-          (na2 ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + na2 + "</ul></div>" : "");
-      }
+      var descHtml = (window.poModelDesc || {})[pick];
+      if (desc && descHtml) { desc.innerHTML = descHtml; }
       var note = view.querySelector("#pro-model-note");
       if (note) { note.textContent = "已切到 " + pick + "；保存后这条切片就会按它判定。"; }
     };

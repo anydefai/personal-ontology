@@ -116,6 +116,16 @@ function textOf(view) {
   check("页面上出现第二步标题", /第二步/.test(t1));
   check("页面上出现判定模型面板（含下拉）", /判定模型/.test(t1) && /pro-model/.test(t1));
   check("第一步有「另存为新切片」按钮（DOM 级）", /另存为新切片/.test(t1) && /pro-dup-slice/.test(t1), "没找到按钮");
+  // 这个 bug 真的报错过：切换模型时 Uncaught ReferenceError: models is not defined
+  // —— 切换处理在另一个作用域，拿不到 renderSlices 的局部变量 models。
+  // 现在渲染时把每个模型的说明放进 window.poModelDesc，切换时直接取。
+  const descMap = v1.ctx.window.poModelDesc || {};
+  check("渲染后 window.poModelDesc 里有三个模型（切换时直接取，不依赖局部变量）",
+        Object.keys(descMap).length >= 3 && /适合/.test(descMap["requirements_v1"] || ""),
+        "键：" + Object.keys(descMap).join(","));
+  check("切换处理不再引用局部变量 models（防同类作用域报错）",
+        !/var pickedModel = \(models/.test(src.slice(src.indexOf("pro-model"))), "仍在引用 models");
+  check("切换处理用的是 descHtml（来自全局说明表）", /desc\.innerHTML = descHtml/.test(src), "没找到");
   // 切换模型时说明必须跟着变；且不能靠重画整页（那会弄丢用户正在填的内容）
   check("说明块有 id 且切换时会被就地更新（源码级）",
         /id="pro-model-desc"/.test(src) && /desc\.innerHTML = /.test(src), "没有就地更新逻辑");
