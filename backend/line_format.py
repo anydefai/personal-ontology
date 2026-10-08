@@ -268,6 +268,18 @@ def apply_lines(framework: dict[str, Any], texts: dict[str, str]) -> dict[str, A
         ok, bad = parse_priority(lines_of("priority"))
         fw["signal_priority"] = ok
         report["priority"] = {"imported": len(ok), "errors": bad}
+    if texts.get("boundaries"):
+        bd, bad = parse_boundaries(lines_of("boundaries"))
+        fw["boundaries"] = {**(fw.get("boundaries") or {}), **bd} if bd else (fw.get("boundaries") or {})
+        report["boundaries"] = {"imported": len(bd), "errors": bad}
+    if texts.get("delivery"):
+        dv, bad = parse_delivery(lines_of("delivery"))
+        fw["delivery"] = {**(fw.get("delivery") or {}), **dv} if dv else (fw.get("delivery") or {})
+        report["delivery"] = {"imported": len(dv), "errors": bad}
+    if texts.get("billing"):
+        bl, bad = parse_billing(lines_of("billing"))
+        fw["billing"] = {**(fw.get("billing") or {}), **bl} if bl else (fw.get("billing") or {})
+        report["billing"] = {"imported": len(bl), "errors": bad}
     return {"framework": fw, "report": report}
 
 def parse_citations(lines: list[str]) -> tuple[list[dict], list[dict]]:
@@ -344,3 +356,161 @@ def parse_score(lines: list[str]) -> tuple[dict, list[dict]]:
         if out.get("low", {}).get("max") is None and "low" in out:
             bad.append(_err(n, raw, "「以下」前面要写数字")); continue
     return out, bad
+
+# ── 对外调用与交付（写给调用方）三段 ──
+
+def parse_boundaries(lines: list[str]) -> tuple[dict, list[dict]]:
+    """对外调用的边界。三种写法，各写一行：
+
+        金额上限 1000000
+        允许用途 估值、尽调
+        不得转售
+    """
+    out: dict = {}
+    bad: list[dict] = []
+    for n, raw in enumerate(lines, 1):
+        t = _clean(raw)
+        if not t or t.startswith("#"):
+            continue
+        if re.match(r"^(金额上限|上限|最大金额)", t):
+            v = _num(re.sub(r"^(金额上限|上限|最大金额)[：: ]*", "", t))
+            if v is None:
+                bad.append(_err(n, raw, "格式：金额上限 1000000")); continue
+            out["max_amount"] = int(v) if float(v) == int(v) else v
+        elif re.match(r"^(允许用途|用途)", t):
+            body = re.sub(r"^(允许用途|用途)[：: ]*", "", t)
+            items = [x.strip() for x in re.split(r"[、,，/|]", body) if x.strip()]
+            if not items:
+                bad.append(_err(n, raw, "格式：允许用途 估值、尽调")); continue
+            out["allowed_scenarios"] = items
+        elif re.search(r"(不得转售|不转售|禁止转售|承诺不转售)", t):
+            out["confidentiality"] = t
+        elif re.match(r"^保密", t):
+            out["confidentiality"] = re.sub(r"^保密[：: ]*", "", t) or t
+        else:
+            bad.append(_err(n, raw, "格式：金额上限 … ／ 允许用途 … ／ 不得转售"))
+    return out, bad
+
+
+def parse_delivery(lines: list[str]) -> tuple[dict, list[dict]]:
+    """对外交付时附上的说明。四行都可以不写：
+
+        强在哪：普通判断只看一个指标，本判断还看行业与周期
+        资历：执业 15 年
+        档位：audit
+        有效期：30 天
+    """
+    out: dict = {}
+    bad: list[dict] = []
+    KEYS = {"强在哪": "insight", "资历": "owner_credentials", "档位": "default_tier",
+            "有效期": "valid_days", "有效天数": "valid_days", "交付档位": "default_tier"}
+    for n, raw in enumerate(lines, 1):
+        t = _clean(raw)
+        if not t or t.startswith("#"):
+            continue
+        m = re.match(r"^([^：:]{1,8})[：:](.*)$", t)
+        if not m:
+            bad.append(_err(n, raw, "格式：强在哪：… ／ 资历：… ／ 档位：… ／ 有效期：30 天")); continue
+        key, value = m.group(1).strip(), m.group(2).strip()
+        field = KEYS.get(key)
+        if field is None:
+            bad.append(_err(n, raw, "认不出这一项：" + key)); continue
+        if field == "valid_days":
+            m2 = re.search(r"(\d+(?:\.\d+)?)", value)
+            if not m2:
+                bad.append(_err(n, raw, "有效期要写天数，例如 有效期：30 天")); continue
+            out["valid_days"] = int(float(m2.group(1)))
+        else:
+            out[field] = value
+    return out, bad
+
+
+def parse_billing(lines: list[str]) -> tuple[dict, list[dict]]:
+    """计费（演示）。**价格由用户填写**，软件从不生成：
+
+        每次 200 CNY
+        每次 200
+        每次 （留空表示不计费）
+    """
+    out: dict = {}
+    bad: list[dict] = []
+    for n, raw in enumerate(lines, 1):
+        t = _clean(raw)
+        if not t or t.startswith("#"):
+            continue
+        if re.search(r"(不计费|免费|留空)", t):
+            continue                                   # 明确表示不计费：什么都不写
+        body = re.sub(r"^(每次|每次调用|单价)[：: ]*", "", t)
+        m = re.search(r"(\d+(?:\.\d+)?)", body)
+        if not m:
+            bad.append(_err(n, raw, "格式：每次 200 CNY（不填表示不计费）")); continue
+        out["unit_price"] = float(m.group(1))
+        if out["unit_price"] == int(out["unit_price"]):
+            out["unit_price"] = int(out["unit_price"])
+        cur = re.search(r"(CNY|RMB|USD|美元|元)", body)
+        if cur:
+            out["currency"] = {"RMB": "CNY", "元": "CNY", "美元": "USD"}.get(cur.group(1), cur.group(1))
+    return out, bad
+
+
+# ── 整篇一次性写入：按小节标题切分 ──
+
+SECTION_KEYWORDS: list[tuple[str, str]] = [
+    # 顺序即优先级：更具体的写在前面，否则「几个观察点一起出现时」会被「观察点」抢先认成 signals。
+    ("需要调用方提交", "inputs"), ("提交的信息", "inputs"), ("我要知道的信息", "inputs"),
+    ("一起出现", "rules"), ("组合", "rules"),
+    ("对外调用的边界", "boundaries"), ("边界", "boundaries"),
+    ("对外交付时附上", "delivery"), ("交付说明", "delivery"),
+    ("计费", "billing"),
+    ("基准线", "thresholds"), ("阈值", "thresholds"),
+    ("观察点", "signals"), ("信号", "signals"), ("我观察什么", "signals"),
+    ("例外", "exceptions"),
+    ("更重要", "priority"), ("优先级", "priority"),
+    ("我的依据", "citations"), ("依据", "citations"),
+    ("打分线", "score"), ("分数", "score"),
+    ("兜底", "fallback"),
+]
+SECTION_TITLES = {"inputs": "需要调用方提交的信息", "thresholds": "判断的基准线", "signals": "我观察什么",
+                  "rules": "几个观察点一起出现时", "exceptions": "例外情况", "priority": "哪个更重要",
+                  "citations": "我的依据", "score": "打分线", "fallback": "兜底结论",
+                  "boundaries": "对外调用的边界", "delivery": "对外交付时附上的说明", "billing": "计费（演示）"}
+
+
+def section_of(title: str) -> str | None:
+    """把一个【小节标题】认成某一部分；认不出返回 None。"""
+    t = title.strip().strip("【】[]# ").strip()
+    for keyword, part in SECTION_KEYWORDS:
+        if keyword in t:
+            return part
+    return None
+
+
+def split_document(text: str) -> tuple[dict[str, str], list[dict]]:
+    """把整篇文本按【小节标题】切成 {部分: 文本}。
+
+    没有标题的行若出现在任何小节之前，会报一行错误提示补标题（否则不知道它属于哪一节）。
+    """
+    parts: dict[str, list[str]] = {}
+    errors: list[dict] = []
+    current: str | None = None
+    for n, raw in enumerate((text or "").split("\n"), 1):
+        line = raw.strip()
+        if not line:
+            if current:
+                parts.setdefault(current, []).append("")
+            continue
+        m = re.match(r"^[【\[#]+(.+?)[】\]]*$", line)
+        if m and (line.startswith("【") or line.startswith("[") or line.startswith("#")):
+            part = section_of(m.group(1))
+            if part is None:
+                errors.append(_err(n, raw, "认不出这个小节标题，可用的标题见示例"))
+                current = None
+            else:
+                current = part
+                parts.setdefault(part, [])
+            continue
+        if current is None:
+            errors.append(_err(n, raw, "这一行前面没有小节标题，请先写【需要调用方提交的信息】这样的标题"))
+            continue
+        parts[current].append(raw)
+    return {k: "\n".join(v) for k, v in parts.items()}, errors
