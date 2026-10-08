@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh">
+<meta charset="utf-8">
+<title>判定报告（专业版示例）· 并购估值</title>
+<style>
+  body{font:14px/1.8 -apple-system,"PingFang SC",sans-serif;max-width:860px;margin:36px auto;padding:0 26px;color:#1f2937;background:#fff}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.3px}
+  h2{font-size:15px;margin:30px 0 10px;padding:7px 0 7px 11px;border-left:3px solid #2f7d5f;background:#f6faf8}
+  h3{font-size:13.5px;margin:18px 0 6px;color:#374151}
+  .muted{color:#6b7280;font-size:12px}
+  table{border-collapse:collapse;width:100%;margin:8px 0 2px}
+  td,th{border:1px solid #e5e7eb;padding:7px 10px;text-align:left;font-size:13px;vertical-align:top}
+  th{background:#f6f8f7;font-weight:600;white-space:nowrap}
+  .hit{color:#15803d;font-weight:600}.miss{color:#9ca3af}
+  .verdict{font-size:18px;font-weight:600;color:#b45309;margin:6px 0}
+  .box{border:1px solid #e5e7eb;border-radius:10px;padding:14px 18px;margin:12px 0;background:#fcfdfc}
+  .chain{counter-reset:s;list-style:none;padding-left:0;margin:8px 0}
+  .chain li{counter-increment:s;padding:7px 0 7px 34px;position:relative;border-bottom:1px dashed #eef0ef}
+  .chain li:before{content:counter(s);position:absolute;left:0;top:8px;width:22px;height:22px;border-radius:50%;
+    background:#2f7d5f;color:#fff;font-size:12px;text-align:center;line-height:22px}
+  code{background:#eef2f0;padding:1px 4px;border-radius:4px}
+  .kpi{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0}
+  .kpi div{border:1px solid #e5e7eb;border-radius:8px;padding:9px 14px;min-width:120px}
+  .kpi b{display:block;font-size:17px;color:#111}
+</style>
+
+<h1>并购估值 · 判定报告</h1>
+<p class="muted">切片 scenario_slice_86a33d17e9eb（并购估值）· 报告编号 decision_skill_a7d4fdfbddfb4204 · 档位 audit · 生成于 2026-10-11</p>
+
+<div class="kpi">
+  <div>结论<b>法律与合规双重风险</b></div>
+  <div>严重度<b>极高</b></div>
+  <div>分数<b>0.90</b></div>
+  <div>命中信号<b>6 / 9</b></div>
+  <div>缺项<b>0</b></div>
+</div>
+
+<h2>一、本次输入</h2>
+<table>
+  <tr><th>字段</th><th>提交值</th><th>字段</th><th>提交值</th></tr>
+  <tr><td>行业</td><td>新能源</td><td>市盈率</td><td>46</td></tr>
+  <tr><td>不动产权属</td><td>有瑕疵</td><td>行业平均市盈率</td><td>22</td></tr>
+  <tr><td>未决诉讼金额占比</td><td>7.5（%）</td><td>客户集中度</td><td>58（%）</td></tr>
+  <tr><td>对外担保</td><td>有未披露</td><td>交易结构</td><td>现金加换股</td></tr>
+  <tr><td>业绩对赌条款</td><td>有</td><td>标的为国资背景</td><td>否</td></tr>
+  <tr><td>数据合规结论</td><td>不合规</td><td class="muted">11 项齐全</td><td class="muted">无缺项</td></tr>
+</table>
+
+<h2>二、逐层推演</h2>
+<ol class="chain">
+  <li><b>行业归类</b>：行业「新能源」按作者设定的归类表归入<b>科技</b>类别。该类别决定各维度在打分中的相对分量（分量明细属作者方法，不在此披露）。</li>
+  <li><b>动态基准线</b>：本次有 <b>2 项</b>条件触发了基准线调整（数据合规不合规、客户集中度偏高），因此警戒水平被相应上调。调整后的具体数值属作者方法，不在此披露。</li>
+  <li><b>风险信号判定</b>：9 个观察点逐一比对本切片设定的警戒水平，<b>命中 6 项</b>（见下表；条件的具体阈值不披露，仅给出判定结论）。</li>
+  <li><b>组合规则匹配</b>：在命中的信号中，满足作者设定的组合条件者被引用；本次命中的组合规则指向<b>「权属瑕疵 且 数据合规风险」</b>这一组合，其对结论的引用优先于按分数分档。</li>
+  <li><b>例外检查</b>：本切片设定 3 条例外（降权 / 调阈值 / 直接判定），本次<b>触发 0 条</b>，因此结论未被任何例外改写。</li>
+  <li><b>打分与分档</b>：将命中信号按其所属维度加权求和，得到 <b>0.90</b>；该分数落在本切片的最高分档，对应严重度「极高」。</li>
+</ol>
+
+<h3>3. 风险信号明细（9 项）</h3>
+<table>
+  <tr><th>#</th><th>观察点</th><th>依据的输入字段</th><th>判定</th><th>所属维度</th></tr>
+  <tr><td>1</td><td>权属瑕疵</td><td>不动产权属 = 有瑕疵</td><td class="hit">命中</td><td>法律</td></tr>
+  <tr><td>2</td><td>诉讼未决</td><td>未决诉讼金额占比 = 7.5%</td><td class="hit">命中</td><td>法律</td></tr>
+  <tr><td>3</td><td>担保未披露</td><td>对外担保 = 有未披露</td><td class="hit">命中</td><td>交易</td></tr>
+  <tr><td>4</td><td>对赌缺失</td><td>业绩对赌条款 = 有</td><td class="miss">未命中</td><td>交易</td></tr>
+  <tr><td>5</td><td>数据合规风险</td><td>数据合规结论 = 不合规</td><td class="hit">命中</td><td>合规</td></tr>
+  <tr><td>6</td><td>估值偏高</td><td>市盈率 46 ＞ 行业平均 22 × 基准线</td><td class="hit">命中</td><td>估值</td></tr>
+  <tr><td>7</td><td>客户集中度高</td><td>客户集中度 = 58%</td><td class="hit">命中</td><td>经营</td></tr>
+  <tr><td>8</td><td>交易结构复杂</td><td>交易结构 = 现金加换股</td><td class="miss">未命中</td><td>交易</td></tr>
+  <tr><td>9</td><td>国资背景</td><td>标的为国资背景 = 否</td><td class="miss">未命中</td><td>合规</td></tr>
+</table>
+
+<h2>三、结论解读</h2>
+<div class="box">
+  <p class="verdict">法律与合规双重风险（严重度：极高）</p>
+  <p><b>怎么读出来的</b>：标的在<b>权利基础</b>（不动产权属有瑕疵）与<b>数据合规</b>（结论不合规）两处同时失分，这两项在本次输入下同时命中，触发作者设定的组合规则，因此结论取自该组合而非单纯按分数分档；同时估值高于行业均值、诉讼占比不低、客户集中度偏高，共同推高分数至 0.90。</p>
+  <p><b>主要依据</b>：《民法典》物权编 ·《数据安全法》第二十七条</p>
+  <p><b>置信状态</b>：未验证（unverified）—— 表示该切片的置信说明尚未由作者确认，不影响结论本身，但建议在对外使用前与作者核对。</p>
+  <p class="muted">结论来源：组合规则（非例外直接判定）。报告不含方法细节：不披露基准线数值、组合条件原文、例外条件与维度权重。</p>
+</div>
+
+<h2>四、需要你确认的事项</h2>
+<ul>
+  <li>本次 11 项输入<b>齐全</b>，无缺项。</li>
+  <li>若上述输入中有<b>估计值</b>（尤其未决诉讼金额占比、客户集中度、市盈率），请确认口径与基准日；这几项直接决定信号是否命中。</li>
+  <li>本报告为<b>判断依据</b>，不构成法律、审计或投资意见；涉国资、涉诉、涉数据合规等事项请按法定程序另行确认。</li>
+  <li>如需复核，请凭报告编号 <code>decision_skill_a7d4fdfbddfb4204</code> 向数据空间所有者提出。</li>
+</ul>
+
+<p class="muted" style="margin-top:26px;border-top:1px solid #eee;padding-top:10px">
+本次调用：调用方「我的投资部」· 用途「投资判断」· 金额 3 亿元 · 已承诺不得转售 · 档位 audit · 授权检查 6/6 通过。
+</p>
+</body>
+</html>
