@@ -1,83 +1,52 @@
-# Professional skill slices: authoring and review interface redesign (for confirmation)
+# Professional skill slices: page structure design v2, rewritten from your description, for confirmation
 
-> Status: **design only, no code written yet.** Implementation follows confirmation.
-> Goals: (1) make it obvious where the framework is drafted, (2) offer three input methods for three kinds of
-> people, (3) keep review and fine-tuning in one place.
+> Status: design only, no code written. Once you confirm, I will build it one block at a time and verify each
+> block in the browser before showing you.
 
----
+## 1. Page structure, in the order you described
 
-## 1. Where we are, and what is wrong
+Step one chooses the scenario and then my slice. A scenario is a shareable template without your judgment; a slice
+is your personal judgment asset, and one scenario can have several. Below the scenario controls come my existing
+slices, a box to name a new one, and a line showing the current slice with its confidence and a note that saving
+and drafting both write to it. Then the list of my slices appears, one row per slice, clicking a row switching the
+current slice, with a sentence instead of an empty table when there are none.
 
-Today there are two drafting methods side by side in step two, model drafting and line-by-line writing, and the
-line-by-line panel actually holds eight boxes: the information the caller must supply, my baseline, what I observe, when several
-signals appear together, exceptions, priority, my citations and score bands. The three items in the external calls
-and delivery group, namely the call boundaries, the delivery note and billing, can only be edited in the table
-panels above; they are missing from line-by-line entry.
+Step two creates the slice model in one of three ways: draft from the model, write everything at once, or write
+line by line. Each is described in a line, and whichever one you use, saving fills step three automatically and
+scrolls there.
 
-The problems: the drafting entry is buried mid-page with no clear landing point; there is no way to paste content
-prepared elsewhere in one go; line-by-line entry is incomplete precisely for the items a caller will read; and
-nothing explains how the methods relate or that they can be mixed.
+Step three keeps review and fine-tuning exactly as today, with panels grouped by audience, a left index and
+numbering.
 
-## 2. Target structure
+Three differences from today: method one moves out of step one to join the other two as methods of step two; step
+two gains a heading and three mutually exclusive method cards; and saving scrolls to step three. Everything else in
+step one stays untouched, including scenario selection, creating, renaming and deleting scenarios, creating a
+slice, the current-slice line, the slice list and the unassigned area.
 
-The three steps stay, with step two rebuilt: choose the scenario and my slice, draft the framework by one of three
-methods or a mixture, then review and fine-tune as today.
+## 2. The three methods
 
-To make the drafting place findable, step two opens with a line of explanation and three selectable method cards,
-each with a one-line description: the model drafts from a paragraph; write everything at once by pasting a whole
-document; or fill eleven boxes line by line. Choosing a card expands only that method, so three interfaces never
-pile up. A line beneath says that all three edit the same framework and that switching loses nothing. The choice is
-remembered for the session and defaults to model drafting.
+Drafting from the model suits someone who has not settled the structure; writing everything at once suits someone
+who has already written it elsewhere and pastes a whole document with a sample; line-by-line writing suits someone
+who thinks as they type, filling eleven boxes, seven for the model and four for the caller. The cards expand one at
+a time, and a line notes that all three edit the same framework and can be switched without losing anything.
 
-## 3. Method one, model drafting, kept with small changes
+## 3. How this will be implemented, without post-render DOM surgery
 
-A paragraph of natural language still produces a draft. The box now states the four things to cover: which signals
-I watch, what counts as abnormal, how the conclusion changes when several hold at once, and what counts as an
-exception. After generating, the interface jumps to step three with a note to review each item.
+The previous attempt failed because the page was rendered first and then JavaScript searched for elements and moved
+them, so a wrong container silently disabled the cards and all three interfaces remained. This time the cards and
+the step-two heading are written directly into the render template, the three panels are already separate functions
+composed by the template according to the choice, saving reuses the existing global refresh hook and scrolls to
+step three, and each block is verified on the page before being shown to you.
 
-## 4. Method two, write everything at once, with a sample
+## 4. Four blocks, each verified separately
 
-One large text box takes the whole document in a single submission. It uses the same line syntax as method three,
-separated into sections by headers in lenticular brackets, for example the information the caller must supply, my baseline, what I
-observe, when several appear together, exceptions, priority, my citations, score bands, and the three new sections
-for call boundaries, the delivery note and billing.
+First, moving model drafting out of step one and adding the step-two heading. Second, the three method cards with
+mutual exclusion, a remembered choice and model drafting as the default. Third, writing everything at once with a
+large box, a sample and a per-section report. Fourth, line-by-line entry growing from eight boxes to eleven, seven
+for the model and four for the caller, with the caller group collapsible. Finally, saving fills step three and
+scrolls there.
 
-The interface offers a fill-with-sample button, a parse button and a clear button, with a note that every number
-and name in the sample is a placeholder and that leaving billing blank means no billing. The parse result lists, per
-section, how many lines were imported and which lines failed with their original text and reason. A failing section
-is not overwritten, so one bad line cannot destroy reviewed content. On success it points to step three.
+## 5. Points to confirm
 
-The section header is the only new syntax, and it exists so that a line's section no longer depends on which box it
-sits in.
-
-## 5. Method three, line by line, from eight boxes to eleven
-
-The same syntax is split into eleven boxes, one per section. Three are new: call boundaries with amount cap,
-allowed purposes and no resale; the delivery note with what makes the judgment strong, credentials, tier and
-validity; and billing with a price per call and a currency, blank meaning none.
-
-The eleven boxes are grouped by audience exactly as in step three, seven under my judgment model (baseline, signals, combinations, exceptions, priority, citations, score
-bands) and four under external calls and delivery (the information the caller must supply, call boundaries, the
-delivery note and billing), each group with a caption and collapsible as a whole so that eleven boxes are never
-all visible at once.
-
-## 6. How the three relate
-
-All three feed the same framework and then step three. They can be mixed: draft with the model and refine line by
-line, or paste part of a document and fill the rest by hand. A failing section reports without overwriting, and
-switching methods warns once that nothing is written until submit is pressed.
-
-## 7. Effort and risk
-
-Backend work covers three new parsers in the line format module, support for eleven sections, and a function that
-splits a whole document by section headers. Front-end work covers the three method cards with mutually exclusive
-expansion, the large box with its sample and report, and the eleven grouped, collapsible boxes. Tests extend the
-existing line-format cases, add whole-document splitting and the three new sections, and cover the new boxes in the
-render tests. The main risk is drift between the two text methods, avoided by sharing one parser.
-
-## 8. Four points to confirm
-
-Whether the lenticular-bracket section headers are acceptable, or double-hash would be preferred. Whether the
-eleven boxes should be grouped and collapsible as described. Whether the sample above, with all eleven sections and
-placeholder values, is the right one. And whether defaulting to model drafting is right, with the choice remembered
-for the session.
+Whether this page structure is right, whether the method names should be draft from the model, write everything at
+once and write line by line, and whether delivering in four separately verified blocks is acceptable.
