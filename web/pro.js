@@ -569,6 +569,8 @@ function poHasFramework(fw) {
     try { approvedAgents = ((await api("/v1/agents")) || {}).approved || []; }
     catch (e) { approvedAgents = []; agentsErr = (e && (e.message || (e.detail && e.detail.message))) || "读取失败"; }
     window.poAgentsError = agentsErr;   // 读失败别伪装成"没有程序"
+    window.poPrincipals = principals;          // 发布给 IIFE 之外/别的渲染函数用（避免跨作用域引用）
+    window.poApprovedAgents = approvedAgents;
     var pend = null;
     try { pend = sessionStorage.getItem("poProPickSlice"); } catch (e) { pend = null; }
     if (pend) {
@@ -1459,7 +1461,7 @@ function lineImportPanel() {
           (x.status === "confirmed"
             ? '<button class="button" data-unconfirm-slice="' + esc(x.id) + '">退回草稿</button> '
             : '<button class="button primary" data-confirm-slice="' + esc(x.id) + '">确认并启用…</button> ') +
-          (window.poEnableFor === x.id ? granteePicker(principals, approvedAgents) : "") +
+          (window.poEnableFor === x.id ? granteePicker(window.poPrincipals || [], window.poApprovedAgents || []) : "") +
           '<button class="button" data-drop-slice="' + esc(x.id) + '">删除</button>' +
         "</td></tr>";
     }).join("");
