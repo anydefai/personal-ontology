@@ -238,25 +238,40 @@ class MCPServer:
             self._write_session(name)
             result["space"] = "个人可信数据空间"
             # services 说明这个空间对外能提供什么：从数据里长出来，不抄界面菜单。
-            result["services"] = {
-                "capabilities": ["授权检查（会写审计记录）", "场景预演（返回缺项与约束检查）",
-                                 "场景反馈（写回长期偏好）"],
-                "judgments": [],
-            }
+            # 服务目录：一条一行 = 一件能对外调用的事（判定 / 场景动作）。
+            services = []
+            system_tools = ["授权检查（会写审计记录）", "场景预演（返回缺项与约束检查）",
+                            "场景反馈（写回长期偏好）"]
             try:
-                _insts = result.get("scenario_instances") or []
                 for _it in _insts:
+                    _iid = str((_it or {}).get("id") or "")
+                    _rules = [r for r in ((_it or {}).get("authorization_rules") or [])
+                              if isinstance(r, dict) and not r.get("revoked")]
+                    _owner = str((_rules[0].get("grantor_id") if _rules else "") or "") or None
                     _pro = (_it or {}).get("professional")
-                    if not (isinstance(_pro, dict) and not _pro.get("error")):
-                        continue
-                    _bill = _pro.get("billing") or {}
-                    result["services"]["judgments"].append({
-                        "slice_id": str((_it or {}).get("id") or ""), "title": _pro.get("title"),
-                        "model": _pro.get("model"), "purpose": (_pro.get("allowed_purposes") or [None])[0],
-                        "unit_price": _bill.get("unit_price"), "currency": _bill.get("currency") or "CNY",
-                        "max_amount": _pro.get("max_amount"), "no_resale_required": _pro.get("no_resale_required"),
-                        "validity": _pro.get("validity"), "ready": (_pro.get("readiness") or {}).get("ready"),
-                        "call": "POST /v1/scenario-slices/" + str((_it or {}).get("id") or "") + "/judge"})
+                    if isinstance(_pro, dict) and not _pro.get("error"):
+                        _bill = _pro.get("billing") or {}
+                        services.append({
+                            "kind": "judgment", "name": _pro.get("title") or _iid, "owner": _owner,
+                            "call": "POST /v1/scenario-slices/" + _iid + "/judge",
+                            "price": {"unit_price": _bill.get("unit_price"), "currency": _bill.get("currency") or "CNY"},
+                            "limit": {"max_amount": _pro.get("max_amount"),
+                                      "no_resale_required": _pro.get("no_resale_required"),
+                                      "allowed_purposes": _pro.get("allowed_purposes") or []},
+                            "purpose": (_pro.get("allowed_purposes") or [None])[0],
+                            "validity": _pro.get("validity"),
+                            "ready": bool((_pro.get("readiness") or {}).get("ready")),
+                            "inputs": len(_pro.get("fields") or [])})
+                    for _r in _rules:
+                        services.append({
+                            "kind": "scene_action", "name": str(_r.get("action_id") or _iid),
+                            "owner": str(_r.get("grantor_id") or "") or None,
+                            "scene_id": _iid, "rule_id": _r.get("authorization_id"),
+                            "call": "check_authorization / " + _iid,
+                            "effect": _r.get("effect"), "policy_status": _r.get("policy_status"),
+                            "limit": {"conditions": _r.get("conditions")}})
+                result["services"] = {"catalog": services, "count": len(services)}
+                result["system_tools"] = system_tools
                 _owners = {}
                 for _it in _insts:
                     for _r in [x for x in (_it.get("authorization_rules") or []) if isinstance(x, dict)]:
