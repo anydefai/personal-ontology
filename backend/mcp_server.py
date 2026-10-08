@@ -250,10 +250,11 @@ class MCPServer:
                         _g = str(_r.get("grantor_id") or "")
                         if _g:
                             _owners.setdefault(_g, []).append(str(_it.get("id")))
-                result["owners"] = [{"id": _k, "display": _k, "display_mode": mode, "scenarios": _v}
+                result["owners"] = [{"id": _k, "display": _k, "display_mode": "full", "scenarios": _v}
                                     for _k, _v in _owners.items()]
-            except Exception:
-                pass
+            except Exception as _e:      # 不再静默：这类错误必须露出来
+                import sys as _sys
+                print('owners build failed: %r' % (_e,), file=_sys.stderr)
             return result
         if name == "judge_professional_slice":
             sid = str(args.get("slice_id") or "")
