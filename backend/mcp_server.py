@@ -284,7 +284,7 @@ class MCPServer:
                             _sid = str(_it.get("id"))
                             if _sid not in _sc:
                                 _sc.append(_sid)
-                result["owners"] = [{"id": _k, "display": _k, "display_mode": "full", "scenarios": _v}
+                result["owners"] = [{"id": _k, "display": _k, "display_mode": (_mode if _g in _names else "id_only"), "scenarios": _v}
                                     for _k, _v in _owners.items()]
                 _byname = {_g: _names.get(_g, _g) for _g in _owners}
                 for _it in _insts:
