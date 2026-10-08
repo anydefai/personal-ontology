@@ -1465,6 +1465,9 @@
   "// silently did nothing and step three kept showing the old empty state.": "// silently did nothing and step three kept showing the old empty state.",
   "// render() is the page renderer (declared outside this IIFE); typeof keeps this safe either way.": "// render() is the page renderer declared outside this IIFE; typeof keeps this safe either way.",
   "// the review button clears the cache too; without this step three re-renders from stale data": "// the review button clears the cache too; without this step three re-renders from stale data",
+  "// Query helper, hoisted to the top of the IIFE: collect() used it before its own local": "// Query helper, hoisted to the top of the IIFE: collect() used it before its own local",
+  "// declaration, so var hoisting made it undefined and every add-row button threw": "// declaration, so var hoisting made it undefined and every add-row button threw",
+  "// \"q is not a function\".": "// q is not a function.",
   };
 
 

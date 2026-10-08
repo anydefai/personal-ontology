@@ -148,6 +148,11 @@ function poHasFramework(fw) {
 
   var state = null;          // the framework being edited
 
+  // Query helper, hoisted to the top of the IIFE: collect() used it before its own local
+  // declaration, so var hoisting made it undefined and every add-row button threw
+  // "q is not a function".
+  var q = function (a) { return document.querySelectorAll(a); };
+
   // Published for handlers outside the IIFE: clear the editor state and redraw.
   // Needed after parsing or duplicating, otherwise the editor keeps the old empty state.
   // The redraw is delegated to the existing hook, which is assigned by the time this runs.
@@ -1029,7 +1034,6 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         f.billing = { unit_price: pv, currency: (bc && bc.value) || "CNY" };
       }
     }
-    var q = function (a) { return document.querySelectorAll(a); };
     f.inputs = [];
     q("[data-in-name]").forEach(function (el) {
       var n = el.dataset.inName, name = el.value.trim(); if (!name) return;
