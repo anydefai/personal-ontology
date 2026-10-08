@@ -243,6 +243,9 @@ class MCPServer:
             system_tools = ["授权检查（会写审计记录）", "场景预演（返回缺项与约束检查）",
                             "场景反馈（写回长期偏好）"]
             try:
+                # 这两个变量原先由被替换掉的旧代码赋值，补回来以免 NameError 被外层 except 吞掉：
+                _insts = result.get("scenario_instances") or []
+                _names = {}
                 for _it in _insts:
                     _iid = str((_it or {}).get("id") or "")
                     _rules = [r for r in ((_it or {}).get("authorization_rules") or [])
