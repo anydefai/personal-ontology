@@ -1808,6 +1808,14 @@ async def patch_item(collection: str, item_id: str, body: dict[str, Any]):
     try: current = store.get(collection, item_id)
     except KeyError: raise HTTPException(status_code=404, detail="Unknown collection")
     if current is None: raise HTTPException(status_code=404, detail="Record not found")
+    if collection == "scenario-slices" and str(body.get("status")) == "confirmed" \
+            and str(current.get("status")) != "confirmed":
+        # 与 authorizations 的 policy_status 同理：启用是一个有门槛的操作，通用 PATCH 不能绕过它。
+        # 前端「确认并启用」走的正是这条通用更新，所以门槛必须也在这里生效。
+        ready = _slice_readiness({**current, **body})
+        if not ready["ready"]:
+            raise HTTPException(status_code=422,
+                                detail="这条切片还不能启用，还缺：" + "；".join(ready["missing"]))
     if collection == "authorizations" and "policy_status" in body:
         # Activation is a guarded, audited operation: it must run the executability
         # checks and record why a rule became effective. A plain PATCH would bypass

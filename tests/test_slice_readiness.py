@@ -42,6 +42,18 @@ async def main():
           "结论" in str((out2 or {}).get("detail", "")) or "兜底" in str((out2 or {}).get("detail", "")),
           str(out2)[:140])
 
+    # ②b 前端「确认并启用」走的是【通用 PATCH】，所以那条路也必须被同一个门槛挡住
+    st_p, out_p = await call("PATCH", "/v1/scenario-slices/s.empty", body={"status": "confirmed"}, token=token)
+    check("②b 通用 PATCH 改 status=confirmed 也被拒（422）", st_p == 422, f"{st_p} {str(out_p)[:90]}")
+    st_d, det = await call("GET", "/v1/scenario-slices/s.empty", token=token)
+    check("②b 被拒后切片仍是草稿（没有偷偷变成已启用）",
+          (det or {}).get("status") != "confirmed", str((det or {}).get("status")))
+
+    # ②c 内容够了就该放行（PATCH 路径不需要主体，所以这里能测完整切片）
+    await call("POST", "/v1/scenario-slices", body=mk("s.full", FULL, "完整切片"), token=token)
+    st_ok, out_ok = await call("PATCH", "/v1/scenario-slices/s.full", body={"status": "confirmed"}, token=token)
+    check("②c 内容完整的切片可以启用（200）", st_ok in (200, 204), f"{st_ok} {str(out_ok)[:90]}")
+
     # ③ 契约里给出 readiness（界面据此提示还缺什么）
     st3, ct = await call("GET", "/v1/scenario-slices/s.empty/contract", token=token)
     rd = (ct or {}).get("readiness") or {}
