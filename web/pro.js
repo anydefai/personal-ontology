@@ -395,7 +395,7 @@ function poHasFramework(fw) {
           "</select></div>" +
           '<div style="min-width:170px">' + input(plain, 'data-sig-value="' + n + '" placeholder="比什么值"') + "</div>" +
           // 命中分值：留空即 1（与今天一致）；0–1 之间表示「这条只是部分证据」。
-          '<div style="min-width:104px">' + input(sig.score_value == null || sig.score_value === 1 ? "" : sig.score_value, 'data-sig-score="' + n + '" placeholder="分值(默认1)"') + "</div>" +
+          '<div style="min-width:104px">' + input(s.score_value == null || s.score_value === 1 ? "" : s.score_value, 'data-sig-score="' + n + '" placeholder="分值(默认1)"') + "</div>" +
           '<label class="pro-check" style="min-width:200px"><input type="checkbox" data-sig-ref-use="' + n + '"' + (useThreshold ? " checked" : "") + '>× 基准线</label>' +
           '<div style="min-width:150px">' + input(ref, 'data-sig-ref="' + n + '" placeholder="若勾选：乘以哪个字段"') + "</div>" +
           del("signal:" + n));
