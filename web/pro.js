@@ -362,7 +362,7 @@ function poHasFramework(fw) {
     var th = f.thresholds || {};
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>判断的基准线</span></div>' +
-      hint('先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就上调 0.15。') +
+      hint('先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就上调 0.15；右边也可以写 ×1.2 表示乘法。') +
       row('<span class="field-label" style="min-width:96px">基准线</span>' +
         input(th.base, 'data-th-base type="number" step="any" placeholder="例如 1.3"') +
         '<span class="muted">这就是你心里那条线，通常是一个倍数</span>') +
@@ -394,6 +394,8 @@ function poHasFramework(fw) {
             OPS.map(function (o) { return '<option value="' + o[0] + '"' + (spec.op === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") +
           "</select></div>" +
           '<div style="min-width:170px">' + input(plain, 'data-sig-value="' + n + '" placeholder="比什么值"') + "</div>" +
+          // 命中分值：留空即 1（与今天一致）；0–1 之间表示「这条只是部分证据」。
+          '<div style="min-width:104px">' + input(sig.score_value == null || sig.score_value === 1 ? "" : sig.score_value, 'data-sig-score="' + n + '" placeholder="分值(默认1)"') + "</div>" +
           '<label class="pro-check" style="min-width:200px"><input type="checkbox" data-sig-ref-use="' + n + '"' + (useThreshold ? " checked" : "") + '>× 基准线</label>' +
           '<div style="min-width:150px">' + input(ref, 'data-sig-ref="' + n + '" placeholder="若勾选：乘以哪个字段"') + "</div>" +
           del("signal:" + n));
@@ -1066,6 +1068,13 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
       if (useRef && refField) val = { ref: refField, times: "threshold" };
       else { try { val = JSON.parse(raw); } catch (e) { val = /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw; } }
       var when = {}; when[field] = { op: op, value: val };
+      // 命中分值：留空＝1；写 0–1 之间的数表示部分命中；写别的会明确报错并中止保存。
+      var svRaw = ((document.querySelector('[data-sig-score="' + n + '"]') || {}).value || "").trim();
+      var sv = 1;
+      if (svRaw !== "") {
+        sv = parseFloat(svRaw);
+        if (isNaN(sv) || sv < 0 || sv > 1) { throw new Error("「" + name + "」的命中分值要在 0 到 1 之间：" + svRaw); }
+      }
       var sig = { name: name, when: when };
       // Keep fields this row already had: the line box stores a dimension per signal and rebuilding
       // the object from scratch dropped it on every save.
@@ -1073,6 +1082,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
       if (prev && typeof prev === "object") {
         Object.keys(prev).forEach(function (k) { if (!(k in sig)) sig[k] = prev[k]; });
       }
+      sig.score_value = sv;   // 显式写入：清空输入即回到 1，不会被上一轮的旧分值盖回来
       f.signals.push(sig);
     });
     f.combination_rules = [];

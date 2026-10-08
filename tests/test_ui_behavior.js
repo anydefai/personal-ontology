@@ -51,7 +51,12 @@ function makeCtx(doc, { catalogFails }) {
       }
       if (s.indexOf("/v1/scenario-slices") >= 0) {
         return [{ id: "s.1", status: "confirmed", scenario_profile: { kind: "professional" },
-                  analysis: { title: "我的切片" }, framework: {} }];
+                  analysis: { title: "我的切片" },
+                  framework: { model: "scorecard_v1",
+                               inputs: [{ name: "市盈率", type: "number" }],
+                               thresholds: { base: 1.3, adjustments: [] },
+                               signals: [{ name: "贵", dimension: "财务", when: { "市盈率": { op: "gt", value: 43.5 } } }],
+                               industry_map: { "新能源": "科技" }, industry_weights: { "科技": { "财务": 0.4 } } } }];
       }
       return {};
     },
@@ -110,6 +115,12 @@ function textOf(view) {
   check("页面上出现三种生成方式", /方式一/.test(t1) && /方式二/.test(t1) && /方式三/.test(t1));
   check("页面上出现第二步标题", /第二步/.test(t1));
   check("页面上出现判定模型面板（含下拉）", /判定模型/.test(t1) && /pro-model/.test(t1));
+  // 说明：信号行的输入框在【切片为草稿时的编辑区】里渲染，替身用的是已确认切片，
+  // 所以这一条只能做源码级断言（L1/L2），不是 DOM 级。下一步：让替身驱动一份草稿切片，
+  // 把这条升到 DOM 级。
+  check("信号行里有命中分值输入（源码级）", /data-sig-score/.test(src), "源码里没有 data-sig-score");
+  check("保存时会读分值并校验范围（源码级）", /sig\.score_value = sv/.test(src) && /命中分值要在 0 到 1 之间/.test(src));
+  check("「判断的基准线」提示里说明了 × 表示乘法", /表示乘法/.test(t1), "没找到乘法说明");
 
   // ③ 目录接口失败（例如会话 401）时，判定模型面板【不能消失】
   const v2 = buildView();
