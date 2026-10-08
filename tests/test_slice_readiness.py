@@ -1,4 +1,7 @@
-"""启用门槛验收：空的/半成品切片不能启用；完整切片可以。
+"""启用门槛验收：空的 / 半成品切片不能启用。
+
+门槛在【查主体之前】执行，所以这个测试不需要真实主体；"完整切片可以启用"由
+tests/test_slice_api.py 覆盖（它会自己准备主体）。
 
     ~/personal-ontology/.venv/bin/python tests/test_slice_readiness.py
 """
@@ -22,49 +25,35 @@ def mk(sid, fw, title):
 async def main():
     st, pl = await call("POST", "/v1/setup", body={"password": "Ready-Slice-74!"})
     token = pl["token"]
-    # 取应用里已有的 principal（setup 会建），不要自己造 id —— 造错 id 会让启用因为"授权对象不存在"而失败
-    from backend import api as _api
-    pids = [str(x.get("id")) for x in _api.store.list("principals") if x.get("id")]
-    check("应用里已有 principal（setup 建的）", bool(pids), str(pids))
-    ME = pids[0] if pids else "p.me"
+    who = {"grantor_id": "p.x", "grantee_id": "p.x"}      # 门槛先于主体校验，所以这两个 id 不存在也没关系
 
-    # ① 空切片（只填了名字）→ 不能启用
+    # ① 空切片（只填了名字）→ 不能启用，并且说清缺什么
     await call("POST", "/v1/scenario-slices", body=mk("s.empty", {}, "空切片"), token=token)
-    st, out = await call("POST", "/v1/scenario-slices/s.empty/enable",
-                         body={"grantor_id": ME, "grantee_id": ME}, token=token)
+    st, out = await call("POST", "/v1/scenario-slices/s.empty/enable", body=who, token=token)
     check("① 空切片启用被拒（422）", st == 422, f"{st} {str(out)[:80]}")
-    check("① 拒的时候说清缺什么", "还缺" in str(out.get("detail", "")), str(out)[:120])
+    check("① 拒的时候逐条说清缺什么", "还缺" in str((out or {}).get("detail", "")), str(out)[:140])
 
-    # ② 只填了名字+一条观察点，但没有结论来源 → 仍不能启用
+    # ② 有观察点但没有结论来源 → 仍不能启用
     await call("POST", "/v1/scenario-slices",
                body=mk("s.half", {"inputs": [{"name": "市盈率"}], "signals": [{"name": "贵"}]}, "半成品"), token=token)
-    st, out = await call("POST", "/v1/scenario-slices/s.half/enable",
-                         body={"grantor_id": ME, "grantee_id": ME}, token=token)
-    check("② 没有结论来源的切片启用被拒", st == 422, f"{st} {str(out)[:80]}")
+    st2, out2 = await call("POST", "/v1/scenario-slices/s.half/enable", body=who, token=token)
+    check("② 没有结论来源的切片启用被拒", st2 == 422, f"{st2} {str(out2)[:80]}")
+    check("② 拒绝理由指向「没有结论来源」",
+          "结论" in str((out2 or {}).get("detail", "")) or "兜底" in str((out2 or {}).get("detail", "")),
+          str(out2)[:140])
 
-    # ③ 完整切片 → 可以启用
-    await call("POST", "/v1/scenario-slices", body=mk("s.full", FULL, "完整切片"), token=token)
-    st, out = await call("POST", "/v1/scenario-slices/s.full/enable",
-                         body={"grantor_id": ME, "grantee_id": ME}, token=token)
-    check("③ 完整切片可以启用（200/201）", st in (200, 201), f"{st} {str(out)[:80]}")
-    st2, det = await call("GET", "/v1/scenario-slices/s.full", token=token)
-    check("③ 启用后状态是 confirmed", (det or {}).get("status") == "confirmed", str((det or {}).get("status")))
-
-    # ④ 契约里给出 readiness，界面才能提示还缺什么
+    # ③ 契约里给出 readiness（界面据此提示还缺什么）
     st3, ct = await call("GET", "/v1/scenario-slices/s.empty/contract", token=token)
     rd = (ct or {}).get("readiness") or {}
-    check("④ 契约里有 readiness 且标为未就绪", rd.get("ready") is False and rd.get("missing"), str(rd)[:140])
-    st4, ct2 = await call("GET", "/v1/scenario-slices/s.full/contract", token=token)
-    rd2 = (ct2 or {}).get("readiness") or {}
-    check("④ 完整切片的 readiness 已就绪", rd2.get("ready") is True, str(rd2)[:140])
+    check("③ 契约里有 readiness 且标为未就绪", rd.get("ready") is False and bool(rd.get("missing")), str(rd)[:150])
 
-    # ⑤ 有权重提醒（不阻断）
-    HALF_W = dict(FULL); HALF_W.pop("industry_weights")
-    await call("POST", "/v1/scenario-slices", body=mk("s.noweight", HALF_W, "没权重"), token=token)
-    st5, ct3 = await call("GET", "/v1/scenario-slices/s.noweight/contract", token=token)
-    rd3 = (ct3 or {}).get("readiness") or {}
-    check("⑤ 没权重时给提醒但不阻断（ready 仍为真）",
-          rd3.get("ready") is True and any("权重" in w for w in (rd3.get("warnings") or [])), str(rd3)[:160])
+    # ④ 有内容但没填权重 → 只提醒（不阻断）
+    noweight = {k: v for k, v in FULL.items() if k != "industry_weights"}
+    await call("POST", "/v1/scenario-slices", body=mk("s.noweight", noweight, "没权重"), token=token)
+    st4, ct2 = await call("GET", "/v1/scenario-slices/s.noweight/contract", token=token)
+    rd2 = (ct2 or {}).get("readiness") or {}
+    check("④ 没权重时只提醒不阻断（ready 仍为真，warnings 提到权重）",
+          rd2.get("ready") is True and any("权重" in w for w in (rd2.get("warnings") or [])), str(rd2)[:160])
 
     p = sum(1 for ok, _ in RESULTS if ok)
     print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
