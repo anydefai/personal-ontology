@@ -1377,6 +1377,65 @@ function polishPanels(view) {
     };
   }
 
+  // ── Step two: three drafting methods as cards ──
+  // Only the chosen method is expanded, so three interfaces never pile up. The choice lives on window for the
+  // session; the default is model drafting, which is the least effort the first time.
+  var METHOD_KEYS = ["model", "doc", "lines"];
+  var methodRegions = {};
+  Array.prototype.slice.call(ed.querySelectorAll("#pro-doc, #pro-lines")).forEach(function (el) {
+    methodRegions[el.id === "pro-doc" ? "doc" : "lines"] = el;
+  });
+  Array.prototype.slice.call(ed.querySelectorAll("section.panel")).forEach(function (el) {
+    var t = (el.querySelector(".panel-title span") || {}).textContent || "";
+    if (t.indexOf("方式一") >= 0) { methodRegions.model = el; }
+  });
+  if (methodRegions.model && methodRegions.doc && methodRegions.lines && !ed.querySelector("#pro-method-cards")) {
+    var chosen = METHOD_KEYS.indexOf(window.poDraftMethod) >= 0 ? window.poDraftMethod : "model";
+    var bar = document.createElement("div");
+    bar.id = "pro-method-cards";
+    bar.className = "pro-method-cards";
+    bar.innerHTML = [
+      ["model", "方式一 · 让模型起草", "我说一段话，它出草稿（第一次用最省力）"],
+      ["doc", "方式二 · 一次性写入", "我在别处写好，整篇贴进来（带样例）"],
+      ["lines", "方式三 · 逐行输入", "我对着 11 个框，一条一条填"]
+    ].map(function (x) {
+      return '<button class="pro-method' + (x[0] === chosen ? " is-on" : "") + '" data-method="' + x[0] + '">' +
+        "<strong>" + x[1] + "</strong><span>" + x[2] + "</span></button>";
+    }).join("") + '<div class="panel-caption" style="flex:1 1 100%;margin:2px 0 0">三种方式改的是同一份框架，随时可以切换；先写的不会丢。</div>';
+    methodRegions.model.parentNode.insertBefore(bar, methodRegions.model);
+    var apply = function (key) {
+      window.poDraftMethod = key;
+      METHOD_KEYS.forEach(function (k) { methodRegions[k].style.display = (k === key) ? "" : "none"; });
+      Array.prototype.slice.call(bar.querySelectorAll("[data-method]")).forEach(function (b) {
+        b.classList.toggle("is-on", b.dataset.method === key);
+      });
+    };
+    Array.prototype.slice.call(bar.querySelectorAll("[data-method]")).forEach(function (b) {
+      b.onclick = function () { apply(b.dataset.method); };
+    });
+    apply(chosen);
+
+    // Method three: the four caller-facing boxes fold away as one group (the design's default).
+    var linesPanel = methodRegions.lines;
+    if (linesPanel && !linesPanel.querySelector("#pro-lines-caller")) {
+      var boxes = Array.prototype.slice.call(linesPanel.children);
+      var firstCaller = -1;
+      boxes.forEach(function (el, i) {
+        if (el.querySelector && el.querySelector('[data-line-part="inputs"]')) { firstCaller = i; }
+      });
+      if (firstCaller > 0) {
+        var det = document.createElement("details");
+        det.id = "pro-lines-caller";
+        var sum = document.createElement("summary");
+        sum.textContent = "对外调用与交付（4 个框，调用方看得到）";
+        det.appendChild(sum);
+        var moved = boxes.slice(firstCaller);
+        moved.forEach(function (el) { det.appendChild(el); });
+        linesPanel.appendChild(det);
+      }
+    }
+  }
+
   var toc = document.createElement("div");
   toc.className = "pro-toc";
 

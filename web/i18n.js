@@ -1234,6 +1234,17 @@
   "方式二：填入样例 / 提交解析 / 清空": "Chinese syntax sample: 方式二：填入样例 / 提交解析 / 清空",
   "导入": "Chinese syntax sample: 导入",
   "行有问题": "Chinese syntax sample: 行有问题",
+  "方式三 · 逐行输入": "Method three: line by line",
+  "我说一段话，它出草稿（第一次用最省力）": "I describe it in a paragraph and it drafts (least effort the first time)",
+  "我在别处写好，整篇贴进来（带样例）": "I write it elsewhere and paste the whole thing (sample included)",
+  "我对着 11 个框，一条一条填": "I fill eleven boxes one entry at a time",
+  "三种方式改的是同一份框架，随时可以切换；先写的不会丢。": "All three edit the same framework and can be switched at any time; nothing already written is lost.",
+  "对外调用与交付（4 个框，调用方看得到）": "External calls and delivery (four boxes, visible to the caller)",
+  "方式一": "Method one",
+  "我说一段话，它出草稿（第一次用最省力": "I describe it in a paragraph and it drafts (least effort first time",
+  "我在别处写好，整篇贴进来（带样例": "I write it elsewhere and paste the whole thing (sample included",
+  "三种方式改的是同一份框架，随时可以切换；先写的不会丢": "All three edit the same framework and can be switched at any time; nothing already written is lost",
+  "对外调用与交付（4 个框，调用方看得到": "External calls and delivery (four boxes, visible to the caller",
   };
 
 

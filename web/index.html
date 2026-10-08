@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>个人本体治理 · 本地控制台</title>
-  <link rel="stylesheet" href="/assets/app.css?v=20261008c">
-  <script src="/assets/i18n.js?v=20261008c"></script>
-  <script src="/assets/app.js?v=20261008c" defer></script>
-  <script src="/assets/pro.js?v=20261008c"></script>
+  <link rel="stylesheet" href="/assets/app.css?v=20261008d">
+  <script src="/assets/i18n.js?v=20261008d"></script>
+  <script src="/assets/app.js?v=20261008d" defer></script>
+  <script src="/assets/pro.js?v=20261008d"></script>
 <style>
     /* pro-row / pro-grid had no rules at all: the professional panels' controls were plain inline elements,
        so they wrapped onto two lines as soon as the window was narrow. One row per item now. */
@@ -66,6 +66,16 @@
     .pro-copy { white-space: pre-wrap; word-break: break-word; background: rgba(127,127,127,.08);
                 border: 1px solid rgba(127,127,127,.22); border-radius: 8px; padding: 10px;
                 font-size: 12px; line-height: 1.6; max-height: 340px; overflow: auto; margin: 6px 0 0; }
+
+    /* Step two method cards: only the chosen drafting method is expanded. */
+    .pro-method-cards { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+    .pro-method { flex: 1 1 220px; text-align: left; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+                  border: 1px solid rgba(127,127,127,.28); background: rgba(127,127,127,.06); line-height: 1.5; }
+    .pro-method strong { display: block; font-size: 13px; }
+    .pro-method span { font-size: 12px; opacity: .78; }
+    .pro-method.is-on { border-color: #32735a; box-shadow: 0 0 0 2px rgba(50,115,90,.18); background: rgba(50,115,90,.08); }
+    #pro-lines-caller { margin-top: 12px; }
+    #pro-lines-caller > summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
 </style>
 </head>
 <body>
@@ -110,6 +120,6 @@
 
   <dialog id="record-dialog" class="modal"><form method="dialog" class="modal-dismiss"><button aria-label="关闭">×</button></form><div id="dialog-content"></div></dialog>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
-  <div id="build-version" style="position:fixed;right:10px;bottom:8px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#8a94a6;background:rgba(255,255,255,.82);padding:2px 7px;border-radius:5px;pointer-events:none">BUILD 20261008c</div>
+  <div id="build-version" style="position:fixed;right:10px;bottom:8px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#8a94a6;background:rgba(255,255,255,.82);padding:2px 7px;border-radius:5px;pointer-events:none">BUILD 20261008d</div>
 </body>
 </html>

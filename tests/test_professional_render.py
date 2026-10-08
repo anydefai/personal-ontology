@@ -135,8 +135,9 @@ check("权重表的列名来自信号维度（表为空时也不例外，否则�
 check("权重表在为空时也有一行可填（不依赖\u201c加一个行业\u201d按钮）",
       "cats = [\"新行业1\"]" in SRC)
 
-check("面板不再折叠（用户要求去掉收起/展开，全部一直显示）",
-      'createElement("details")' not in SRC and "g.host.appendChild(sec);" in SRC)
+check("核对面板不再折叠，但仍保留方式三对外组的可折叠（按设计）",
+      'createElement("details")' in SRC and 'id = "pro-lines-caller"' in SRC
+      and "g.host.appendChild(sec);" in SRC)
 check("权重面板真的吐出了：加行业按钮 · 行名输入 · 权重输入 · 归类框",
       flags == ["true", "true", "true", "true"], str(flags))
 
