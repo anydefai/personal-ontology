@@ -140,6 +140,27 @@ check("面板不再折叠（用户要求去掉收起/展开，全部一直显示
 check("权重面板真的吐出了：加行业按钮 · 行名输入 · 权重输入 · 归类框",
       flags == ["true", "true", "true", "true"], str(flags))
 
+# 命中分值输入：面板要真的把 score_value 渲染出来（默认 1 时留空）。
+# 放在这里而不是 DOM 行为测试里 —— 直接调用面板函数才是能覆盖信号行的层级
+# （这一层也正是抓到"sig 写成 s"那个 bug 的地方）。
+body_sig = extract("signalsPanel")
+for _label, _sig, _want in [
+    ("不写分值 → 输入框留空（即 1）",
+     {"name": "s1", "dimension": "d", "when": {"a": {"op": "gt", "value": 1}}}, 'value=""'),
+    ("写 0.5 → 输入框显示 0.5",
+     {"name": "s1", "dimension": "d", "score_value": 0.5, "when": {"a": {"op": "gt", "value": 1}}}, 'value="0.5"'),
+]:
+    _script = STUBS + CONSTS + body_sig + f"""
+const FW = {json.dumps({"signals": [_sig]}, ensure_ascii=False)};
+let out = "";
+try {{ out = signalsPanel(FW) || ""; }} catch (e) {{ console.log("THREW:" + e.message); process.exit(0); }}
+console.log("HAS:" + (out.indexOf("data-sig-score") >= 0 ? 1 : 0) + "|VAL:" + (out.indexOf({json.dumps(_want)}) >= 0 ? 1 : 0));
+"""
+    tmp.write_text(_script, encoding="utf-8")
+    _r = subprocess.run(["node", str(tmp)], capture_output=True, text=True)
+    _line = (_r.stdout or "").strip().split("\n")[-1]
+    check(f"信号行的命中分值输入：{_label}", _line.startswith("HAS:1|VAL:1"), _line[-60:])
+
 p = sum(1 for ok, _ in RESULTS if ok)
 print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")
 for ok, l in RESULTS:

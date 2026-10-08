@@ -115,9 +115,9 @@ function textOf(view) {
   check("页面上出现三种生成方式", /方式一/.test(t1) && /方式二/.test(t1) && /方式三/.test(t1));
   check("页面上出现第二步标题", /第二步/.test(t1));
   check("页面上出现判定模型面板（含下拉）", /判定模型/.test(t1) && /pro-model/.test(t1));
-  // 说明：信号行的输入框在【切片为草稿时的编辑区】里渲染，替身用的是已确认切片，
-  // 所以这一条只能做源码级断言（L1/L2），不是 DOM 级。下一步：让替身驱动一份草稿切片，
-  // 把这条升到 DOM 级。
+  // 说明：我实测过 —— 草稿与已确认两种状态下 renderSlices 都没渲染出信号输入行（只有面板标题），
+  // 说明编辑区走的是另一条路径，所以这一条仍是源码级。真正覆盖"分值输入被渲染出来"的是
+  // tests/test_professional_render.py 里直接调用 signalsPanel 的两条断言。
   check("信号行里有命中分值输入（源码级）", /data-sig-score/.test(src), "源码里没有 data-sig-score");
   check("保存时会读分值并校验范围（源码级）", /sig\.score_value = sv/.test(src) && /命中分值要在 0 到 1 之间/.test(src));
   check("「判断的基准线」提示里说明了 × 表示乘法", /表示乘法/.test(t1), "没找到乘法说明");
