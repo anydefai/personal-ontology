@@ -1397,6 +1397,23 @@
   "断言": "Chinese syntax sample: 断言",
   "面板条目被编号": "Chinese syntax sample: 面板条目被编号",
   "才被发现。以后动这一带要跑那个测试": "Chinese syntax sample: 才被发现。以后动这一带要跑那个测试",
+  "⧉ 另存为新切片": "Duplicate as a new slice",
+  "先在上面选中一条我的切片，再另存为。": "Select one of your slices above before duplicating.",
+  "把当前切片另存为一条新切片？": "Duplicate the current slice as a new one?",
+  "\\n\\n会复制：判定模型与全部参数（权重、阈值、信号、规则、公式）、对外边界、交付、计费。": "What is copied: the judgment model and all its parameters, boundaries, delivery and billing.",
+  "\\n不会复制：授权规则、判定记录。": "What is not copied: authorization rules and decision records.",
+  "副本是草稿且未验证，需要你重新确认启用。": "The copy is a draft with unverified confidence that you must confirm again.",
+  "另存为失败：": "Duplicating failed: ",
+  "先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就上调 0.15；右边也可以写": "Chinese syntax sample: 先定一条基准线，再说明什么情况下把它调高或调低。例如：基准 1.3，行业处于上升期就上调 0.15；右边也可以写",
+  "表示乘法": "Chinese syntax sample: 表示乘法",
+  "命中分值：留空即 1（与今天一致）；0": "Chinese syntax sample: 命中分值：留空即 1（与今天一致）；0",
+  "之间表示「这条只是部分证据」": "Chinese syntax sample: 之间表示「这条只是部分证据」",
+  "分值": "Chinese syntax sample: 分值",
+  "默认1": "Chinese syntax sample: 默认1",
+  "命中分值：留空＝1；写 0": "Chinese syntax sample: 命中分值：留空＝1；写 0",
+  "之间的数表示部分命中；写别的会明确报错并中止保存": "Chinese syntax sample: 之间的数表示部分命中；写别的会明确报错并中止保存",
+  "的命中分值要在 0 到 1 之间：": "Chinese syntax sample: 的命中分值要在 0 到 1 之间：",
+  "显式写入：清空输入即回到 1，不会被上一轮的旧分值盖回来": "Chinese syntax sample: 显式写入：清空输入即回到 1，不会被上一轮的旧分值盖回来",
   };
 
 

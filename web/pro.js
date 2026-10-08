@@ -559,6 +559,7 @@ function poHasFramework(fw) {
                        : '<span class="badge">还没有我的切片</span>') +
           '<input class="input" id="pro-new-slice" style="max-width:200px" placeholder="新切片叫什么，例如：互联网版">' +
           '<button class="button primary" id="pro-add-slice">＋ 新建我的切片</button>' +
+          '<button class="button" id="pro-dup-slice">⧉ 另存为新切片</button>' +
         "</div>" +
         (slice
           ? '<div class="panel-caption" style="margin:10px 0 0">当前切片：<strong>' +
@@ -918,6 +919,16 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
       if (out && out.id) { cache["scenario-slices"] = null; sliceId = out.id; state = null; render(); }
       else alert("新建切片失败：" + ((out && (out.detail || out.error)) || "请稍后重试"));
     };
+        var dupSlice = view.querySelector("#pro-dup-slice");
+        if (dupSlice) dupSlice.onclick = async function () {
+          if (!sliceId) { alert("先在上面选中一条我的切片，再另存为。"); return; }
+          var okDup = confirm("把当前切片另存为一条新切片？\n\n会复制：判定模型与全部参数（权重、阈值、信号、规则、公式）、对外边界、交付、计费。\n不会复制：授权规则、判定记录。\n副本是草稿且未验证，需要你重新确认启用。");
+          if (!okDup) { return; }
+          var out = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/duplicate", { method: "POST", body: "{}" });
+          var made = out && (out.scenario || out);
+          if (made && made.id) { cache["scenario-slices"] = null; sliceId = made.id; state = null; render(); }
+          else alert("另存为失败：" + ((out && (out.detail || out.error)) || "请稍后重试"));
+        };
   }
   function collect() {
     var f = ensureShape({ framework_version: state.framework_version, industry_map: clone(state.industry_map) });
