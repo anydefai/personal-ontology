@@ -1492,14 +1492,18 @@ function polishPanels(view) {
     docPanel.dataset.wired = "1";
     var docTa = docPanel.querySelector("[data-doc-input]");
     var docRep = docPanel.querySelector("#doc-report");
-    docPanel.querySelector("[data-doc-sample]").onclick = function () {
+    var btnSample = docPanel.querySelector("[data-doc-sample]");
+    var btnClear = docPanel.querySelector("[data-doc-clear]");
+    var btnParse = docPanel.querySelector("[data-doc-parse]");
+    if (!docTa || !btnSample || !btnClear || !btnParse) { return; }   // 结构不全就跳过绑定，不抛错
+    btnSample.onclick = function () {
       docTa.value = docSample();
       docRep.textContent = "样例已填入，请改成你自己的内容。";
     };
-    docPanel.querySelector("[data-doc-clear]").onclick = function () {
+    btnClear.onclick = function () {
       docTa.value = ""; docRep.textContent = "";
     };
-    docPanel.querySelector("[data-doc-parse]").onclick = async function () {
+    btnParse.onclick = async function () {
       var sid = (window.poProSlice && window.poProSlice.id) || "";
       if (!sid) { alert("请先在上面选一条我的切片。"); return; }
       if (!docTa.value.trim()) { docRep.textContent = "先把整篇贴进上面的框里（或点【填入样例】）。"; return; }
@@ -1619,6 +1623,16 @@ function polishPanels(view) {
       var need = PANEL_FIELD[title];
       if (!shared && need && window.poModelFields.indexOf(need) < 0) { sec.style.display = "none"; }
     }
+    // 给这个面板里的每一条编号（1、2、3……），让面板与左侧索引里的"· N 条"一眼对得上。
+    // 这段曾在 b4e2d7f 被我连同折叠代码一起删掉过，直到界面行为测试（tests/test_ui_behavior.js）
+    // 断言"面板条目被编号"才被发现。以后动这一带要跑那个测试。
+    Array.prototype.slice.call(sec.querySelectorAll(".pro-row")).forEach(function (r, i) {
+      if (r.querySelector(".pro-num")) { return; }
+      var badge = document.createElement("span");
+      badge.className = "pro-num";
+      badge.textContent = String(i + 1);
+      r.insertBefore(badge, r.firstChild);
+    });
     var g = groups[isCallerPanel(title) ? 1 : 0];
     g.host.appendChild(sec);
     var link = document.createElement("a");

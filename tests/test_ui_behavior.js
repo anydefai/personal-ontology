@@ -1,0 +1,143 @@
+// 界面行为测试：在 DOM 替身里【真的跑一遍】renderSlices 与 polishPanels。
+// 目的：覆盖此前只有肉眼能发现的问题 —— 函数未定义、面板整块消失、面板没被编号、互斥展开失效。
+const fs = require("fs"), path = require("path"), vm = require("vm");
+const { El, makeDocument } = require("./dom_stub.js");
+const ROOT = path.resolve(__dirname, "..");
+const src = fs.readFileSync(path.join(ROOT, "web", "pro.js"), "utf8");
+
+const RESULTS = [];
+function check(label, cond, detail) {
+  console.log((cond ? "  ✔ " : "  ✗ ") + label + (cond ? "" : (detail === undefined ? "" : " — " + detail)));
+  RESULTS.push(!!cond);
+}
+
+const MODELS = [
+  { id: "scorecard_v1", version: "1", label_zh: "评分卡（证据累积）", applicable: "证据累积型判断",
+    not_applicable: ["需要顺序分支的判断"], input_contract: { fields: { inputs: "x", signals: "x", industry_weights: "x", thresholds: "x", combination_rules: "x", score_bands: "x", citations: "x" } } },
+  { id: "requirements_v1", version: "1", label_zh: "要件逻辑", applicable: "要件型判断",
+    not_applicable: ["加权排序"], input_contract: { fields: { inputs: "x", signals: "x", combination_rules: "x", citations: "x" } } },
+];
+
+function buildView() {
+  const doc = makeDocument();
+  const view = new El("div"); doc.body.appendChild(view);
+  return { doc, view };
+}
+
+// 复核面板（真实页面由 renderSlices 的模板生成；替身不解析 innerHTML，所以渲染之后手工放进去）
+function addReviewPanels(view) {
+  const ed = new El("div"); ed.attributes.id = "pro-editor"; view.appendChild(ed);
+  [["需要调用方提交的信息", "inputs"], ["不同行业的侧重", "industry_weights"], ["我观察什么", "signals"],
+   ["几个观察点一起出现时", "combination_rules"], ["例外情况", "exception_rules"], ["我的依据", "citations"],
+   ["打分线", "score_bands"], ["公式", "formulas"], ["分档", "bands"], ["对外调用的边界", "boundaries"]].forEach((pair) => {
+    const sec = new El("section"); sec.className = "panel";
+    const h = new El("div"); h.className = "panel-title"; const sp = new El("span"); sp.textContent = pair[0];
+    h.appendChild(sp); sec.appendChild(h);
+    const row = new El("div"); row.className = "pro-row"; sec.appendChild(row);
+    ed.appendChild(sec);
+  });
+  return ed;
+}
+
+function makeCtx(doc, { catalogFails }) {
+  const ctx = {
+    console, setTimeout, clearTimeout, setInterval, clearInterval,
+    document: doc, alert: (m) => { throw new Error("alert: " + m); }, confirm: () => true,
+    api: async (u) => {
+      const s = String(u);
+      if (s.indexOf("/v1/judgment-models") >= 0) {
+        if (catalogFails) throw new Error("401");
+        return { default: MODELS[0].id, models: MODELS };
+      }
+      if (s.indexOf("/v1/scenario-slices") >= 0) {
+        return [{ id: "s.1", status: "confirmed", scenario_profile: { kind: "professional" },
+                  analysis: { title: "我的切片" }, framework: {} }];
+      }
+      return {};
+    },
+    esc: (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
+    fieldLabel: (row, zh, en) => (row && (row[zh] || row[en])) || "",
+    load: async () => [],
+    isProSlice: () => true,
+    displayName: () => "",
+    proModeButtons: () => '<div class="pro-mode-buttons">模式</div>',
+    titleBlock: (a, b) => "<h1>" + b + "</h1>",
+    hint: (t) => '<div class="panel-caption">' + t + "</div>",
+    row: (h) => '<div class="pro-row">' + h + "</div>",
+    input: (v, a) => '<input ' + (a || "") + ">",
+    del: (w) => '<button data-del="' + w + '">x</button>',
+    clone: (o) => JSON.parse(JSON.stringify(o)),
+    requestAnimationFrame: (fn) => setTimeout(fn, 0),
+  };
+  ctx.window = {
+    document: doc, addEventListener: () => {}, removeEventListener: () => {},
+    location: { href: "http://127.0.0.1:8765/", search: "", hash: "" },
+    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    sessionStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    requestAnimationFrame: ctx.requestAnimationFrame, matchMedia: () => ({ matches: false, addListener: () => {} }),
+    CSS: { escape: (x) => String(x) }, poProSlice: { id: "s.1", framework: {} }, poJudgmentModel: null,
+  };
+  ctx.localStorage = ctx.window.localStorage;
+  ctx.sessionStorage = ctx.window.sessionStorage;
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  return ctx;
+}
+
+function textOf(view) {
+  let out = view.innerHTML || "";
+  view.querySelectorAll("*").forEach((e) => { out += " " + (e.innerHTML || "") + " " + (e.textContent || ""); });
+  return out;
+}
+
+(async () => {
+  // ① 加载不抛错（抓 xxx is not defined 这类）
+  let doc = makeDocument();
+  let ctx = makeCtx(doc, { catalogFails: false });
+  let err = null;
+  try { vm.runInContext(src, ctx); } catch (e) { err = e; }
+  check("pro.js 能在 DOM 替身里加载（不抛错）", !err, err && err.message);
+  if (err) { process.exit(1); }
+
+  // ② renderSlices 真跑一遍：三种方式、第二步标题、判定模型面板都要出现
+  const v1 = buildView();
+  ctx = makeCtx(v1.doc, { catalogFails: false });
+  vm.runInContext(src, ctx);
+  ctx.window.poProSlice = { id: "s.1", framework: {} };
+  try { await ctx.window.POPro.renderSlices(v1.view); check("renderSlices 能跑完（不抛错）", true); }
+  catch (e) { check("renderSlices 能跑完（不抛错）", false, e.message); }
+  const t1 = textOf(v1.view);
+  check("页面上出现三种生成方式", /方式一/.test(t1) && /方式二/.test(t1) && /方式三/.test(t1));
+  check("页面上出现第二步标题", /第二步/.test(t1));
+  check("页面上出现判定模型面板（含下拉）", /判定模型/.test(t1) && /pro-model/.test(t1));
+
+  // ③ 目录接口失败（例如会话 401）时，判定模型面板【不能消失】
+  const v2 = buildView();
+  ctx = makeCtx(v2.doc, { catalogFails: true });
+  vm.runInContext(src, ctx);
+  ctx.window.poProSlice = { id: "s.1", framework: {} };
+  try { await ctx.window.POPro.renderSlices(v2.view); } catch (e) {}
+  const t2 = textOf(v2.view);
+  check("目录 401 时判定模型面板仍在（不整块消失）", /判定模型/.test(t2), "没找到");
+  check("并给出明确提示（目录没读到）", /目录没读到/.test(t2), "没找到提示");
+
+  // ④ polishPanels 能跑完并给条目编号（面板会被搬到分组容器里，所以在 view 里找）
+  const v3 = buildView();
+  ctx = makeCtx(v3.doc, { catalogFails: false });
+  vm.runInContext(src, ctx);
+  ctx.window.poProSlice = { id: "s.1", framework: {} };
+  try { await ctx.window.POPro.renderSlices(v3.view); } catch (e) {}
+  addReviewPanels(v3.view);                     // 渲染之后再放（替身的 innerHTML 会清空子节点）
+  try { ctx.window.POPro.polishPanels(v3.view); check("polishPanels 能跑完（不抛错）", true); }
+  catch (e) { check("polishPanels 能跑完（不抛错）", false, e.message); }
+  const nums = v3.view.querySelectorAll(".pro-num");
+  check("面板条目被编号（至少 1 个）", nums.length >= 1, "编号 " + nums.length + " 个");
+  // 替身不支持后代选择器（.pro-toc a），所以检查目录容器本身与它的子项
+  const toc = v3.view.querySelector(".pro-toc");
+  check("左侧目录生成了（且里面有条目）", !!toc && toc.children.length >= 1,
+        toc ? ("子项 " + toc.children.length + " 个") : "没有 .pro-toc");
+
+  const ok = RESULTS.filter(Boolean).length;
+  console.log("\n===== " + ok + "/" + RESULTS.length + " 项通过 =====");
+  process.exit(ok === RESULTS.length ? 0 : 1);
+})();
