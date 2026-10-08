@@ -957,6 +957,33 @@ async def compile_scenario_rules(scenario_id: str, body: dict[str, Any]):
     return {"scenario": stored, "created": created, "authorization_ids": merged, "compile_report": compile_notes}
 
 
+@app.post("/v1/scenario-slices/{scenario_id}/duplicate", status_code=201,
+          dependencies=[Depends(require_session)])
+async def duplicate_scenario_slice(scenario_id: str) -> Any:
+    """另存为新切片：复制框架（含权重、阈值、信号、规则、公式）与边界/交付/计费。
+
+    不复制：授权规则、判定记录、反馈、置信度状态 —— 副本是【草稿】且【未验证】，
+    需要本人重新确认启用，这样复制一个切片不会顺带把授权也复制过去。
+    """
+    src = store.get("scenario-slices", scenario_id)
+    if not src:
+        raise HTTPException(status_code=404, detail=messages.detail("scene_missing"))
+    keep = {k: v for k, v in src.items()
+            if k not in {"id", "scenario_id", "created_at", "updated_at", "status",
+                         "authorizations", "authorization_ids", "decisions", "decision_records",
+                         "feedback", "compiled_rules", "confidence_status"}}
+    item = json.loads(json.dumps(keep, ensure_ascii=False, default=str))
+    base_title = (src.get("analysis") or {}).get("title") or scenario_id
+    item["analysis"] = {**(item.get("analysis") or {}), "title": str(base_title) + " 副本"}
+    item["framework"] = item.get("framework") or {}
+    item["status"] = "draft"
+    item["confidence_status"] = "unverified"
+    item["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    new_id = "s." + uuid4().hex[:10]
+    stored = store.put("scenario-slices", new_id, item, create_only=True)
+    return {"scenario": stored, "duplicated_from": scenario_id}
+
+
 @app.delete("/v1/scenario-slices/{scenario_id}", status_code=204, dependencies=[Depends(require_session)])
 async def delete_scenario_instance(scenario_id: str):
     scene = store.get("scenario-slices", scenario_id)
