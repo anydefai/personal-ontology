@@ -23,8 +23,8 @@ async def main():
     st, pl = await call("POST", "/v1/setup", body={"password": "Ready-Slice-74!"})
     token = pl["token"]
     # 取应用里已有的 principal（setup 会建），不要自己造 id —— 造错 id 会让启用因为"授权对象不存在"而失败
-    from backend import store as S
-    pids = [str(x.get("id")) for x in S.store.list("principals") if x.get("id")]
+    from backend import api as _api
+    pids = [str(x.get("id")) for x in _api.store.list("principals") if x.get("id")]
     check("应用里已有 principal（setup 建的）", bool(pids), str(pids))
     ME = pids[0] if pids else "p.me"
 
