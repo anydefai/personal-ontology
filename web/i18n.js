@@ -1500,6 +1500,8 @@
   "新类别1": "New category 1",
   "同样是并购，科技公司更看技术、传统制造更看财务。这里一行一个【类别】（行业组，名字你自己取，例如「高法律风险」）；调用方提交的是【行业】（例如 房地产），系统按下面的映射把行业归到你建的类别上，再用该类别的权重打分。": "Tech deals weight technology and manufacturers weight finance. Here you list categories, one per line, named however you like, for instance high legal risk. Callers submit an industry such as real estate, the mapping below groups it into your category, and that category supplies the weights.",
   "可选：只有当调用方提交的行业写法与你建的类别不一致时才需要填这里": "Optional: only needed when the industry wording callers submit differs from your categories",
+  "写法（与「方式二」的样例一致）：一行一个类别的归类，一行一个类别的权重。": "Notation, matching the mode two sample: one line per category grouping, one line per category weighting.",
+  "类别名你自己取，例如「高法律风险」；调用方提交的是行业，例如 房地产。": "You name the categories yourself, for instance high legal risk; callers submit an industry such as real estate.",
   };
 
 

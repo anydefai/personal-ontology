@@ -85,15 +85,18 @@ def parse_weights(lines: list[str]) -> tuple[dict, dict, list[dict]]:
         t = _clean(raw)
         if not t or t.startswith("#"):
             continue
+        # 乙：箭头写法与竖线等价（← / → / -> 都当分隔符）
+        for _arrow in ("←", "→", "->"):
+            t = t.replace(_arrow, "|")
         if "|" not in t:
-            bad.append(_err(n, raw, "格式：类别 <类别名> ｜ 行业 <行业1、行业2>，或 权重 <类别名> ｜ <维度> <数> · <维度> <数>"))
+            bad.append(_err(n, raw, "格式：归类 <类别名> ← <行业1、行业2>，或 权重 <类别名> ← <维度> <数> · <维度> <数>"))
             continue
         left, right = t.split("|", 1)
         left, right = left.strip(), right.strip()
-        if left.startswith("类别"):
+        if left.startswith("类别") or left.startswith("归类"):
             cat = left[2:].strip()
             if not cat:
-                bad.append(_err(n, raw, "「类别」后面要写类别名")); continue
+                bad.append(_err(n, raw, "「归类」后面要写类别名")); continue
             rest = right
             for pre in ("行业", "属于", "对应"):
                 if rest.startswith(pre):
@@ -101,7 +104,7 @@ def parse_weights(lines: list[str]) -> tuple[dict, dict, list[dict]]:
                     break
             names = [x.strip() for x in re.split(r"[、,，/]", rest) if x.strip()]
             if not names:
-                bad.append(_err(n, raw, "「行业」后面要写行业名，多个用、分隔")); continue
+                bad.append(_err(n, raw, "「归类」右边要写行业名，多个用、分隔")); continue
             for name in names:
                 imap[name] = cat
             iw.setdefault(cat, {})
@@ -126,7 +129,7 @@ def parse_weights(lines: list[str]) -> tuple[dict, dict, list[dict]]:
             if not got:
                 bad.append(_err(n, raw, "权重一项都没解析出来")); continue
         else:
-            bad.append(_err(n, raw, "这一行要以「类别」或「权重」开头")); continue
+            bad.append(_err(n, raw, "这一行要以「归类」或「权重」开头")); continue
     return imap, iw, bad
 
 
