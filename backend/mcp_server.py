@@ -328,34 +328,61 @@ class MCPServer:
                                    "请在控制台的场景切片页选中它并点确认并启用。")
             result = self._api("POST", "/v1/scenario-slices/" + sid + "/judge",
                                {"data": args.get("data") or {}, "request": args.get("request") or {}})
-            # ── 给调用方的 HTML 报告：只含可公开内容（无基准线数值、无规则原文、无例外条件、无权重）──
+            # ── 给调用方的 HTML 报告：六步逐层推演 + 信号明细；不披露基准线数值/规则原文/例外条件/权重 ──
             def _esc(v):
                 return str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            _j = result.get("judgment") or {}
+            _j = result.get("judgment")
+            _auth = result.get("authorize") or {}
             _data = args.get("data") or {}
             _req = args.get("request") or {}
-            _hits = [k for k, v in (_j.get("signals") or {}).items() if v]
-            _miss = _j.get("missing_inputs") or []
-            _rows_in = "".join("<tr><td>%s</td><td>%s</td></tr>" % (_esc(k), _esc(v)) for k, v in _data.items())
-            _rows_req = "".join("<tr><td>%s</td><td>%s</td></tr>" % (_esc(k), _esc(v)) for k, v in _req.items())
-            _li_hits = "".join("<li>%s</li>" % _esc(x) for x in _hits) or "<li>无</li>"
-            _li_basis = "".join("<li>%s</li>" % _esc(x) for x in (_j.get("basis") or [])) or "<li>无</li>"
-            _li_miss = "".join("<li>%s</li>" % _esc(x) for x in _miss) or "<li>无（信息齐全）</li>"
-            result["report_html"] = (
-                "<!doctype html><html lang=\"zh\"><meta charset=\"utf-8\"><title>判定报告</title>"
-                "<style>body{font:14px/1.7 -apple-system,'PingFang SC',sans-serif;max-width:820px;margin:32px auto;padding:0 20px;color:#222}"
-                "h1{font-size:20px}h2{font-size:15px;margin:22px 0 8px;border-left:3px solid #4a7;padding-left:8px}"
-                "table{border-collapse:collapse;width:100%}td,th{border:1px solid #e3e3e3;padding:6px 9px;text-align:left;font-size:13px}"
-                ".big{font-size:18px;font-weight:600}.muted{color:#777;font-size:12px}</style>"
-                "<h1>判定报告</h1><p class=\"muted\">切片 " + _esc(result.get("slice_id")) + " · 报告编号 " + _esc(result.get("decision_id")) + "</p>"
-                "<h2>一、本次输入</h2><table><tr><th>字段</th><th>值</th></tr>" + _rows_in + "</table>"
-                "<h2>二、本次请求</h2><table><tr><th>项</th><th>值</th></tr>" + _rows_req + "</table>"
-                "<h2>三、判定过程（可公开部分）</h2><p>命中的风险信号（" + str(len(_hits)) + " 项）：</p><ul>" + _li_hits + "</ul>"
-                "<p>结论来源：" + _esc(_j.get("decided_by") or "—") + " · 分数：" + _esc(_j.get("score")) + " · 档位：" + _esc(_j.get("tier") or "—") + "</p>"
-                "<h2>四、结论</h2><p class=\"big\">" + _esc(_j.get("decision")) + "（严重度：" + _esc(_j.get("severity")) + "）</p>"
-                "<p>依据：</p><ul>" + _li_basis + "</ul>"
-                "<h2>五、需要你确认的事项</h2><ul>" + _li_miss + "</ul>"
-                "<p class=\"muted\">本报告由本机判定引擎生成，结论来自切片作者设定的方法；报告不含方法细节。如需复核，请凭报告编号向数据空间所有者提出。</p></html>")
+            _CSS = ("<style>body{font:14px/1.8 -apple-system,'PingFang SC',sans-serif;max-width:860px;margin:36px auto;padding:0 26px;color:#1f2937}"
+                    "h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:30px 0 10px;padding:7px 0 7px 11px;border-left:3px solid #2f7d5f;background:#f6faf8}"
+                    "table{border-collapse:collapse;width:100%}td,th{border:1px solid #e5e7eb;padding:7px 10px;text-align:left;font-size:13px}"
+                    "th{background:#f6f8f7}.hit{color:#15803d;font-weight:600}.miss{color:#9ca3af}.muted{color:#6b7280;font-size:12px}"
+                    ".kpi div{border:1px solid #e5e7eb;border-radius:8px;padding:9px 14px;display:inline-block;margin:0 10px 8px 0}"
+                    ".kpi b{display:block;font-size:17px}li{margin:4px 0}</style>")
+            if _j:
+                _sigs = _j.get("signals") or {}
+                _hits = [k for k, v in _sigs.items() if v]
+                _miss = _j.get("missing_inputs") or []
+                _decided = _j.get("decided_by") or "—"
+                _rows_in = "".join("<tr><td>%s</td><td>%s</td></tr>" % (_esc(k), _esc(v)) for k, v in list(_data.items())[:6])
+                _rows_sig = "".join("<tr><td>%s</td><td>%s</td></tr>" % (_esc(k), ("<span class='hit'>命中</span>" if v else "<span class='miss'>未命中</span>")) for k, v in _sigs.items())
+                _li_basis = "".join("<li>%s</li>" % _esc(x) for x in (_j.get("basis") or [])) or "<li>无</li>"
+                _li_miss = "".join("<li>%s</li>" % _esc(x) for x in _miss) or "<li>无（信息齐全）</li>"
+                result["report_html"] = (
+                    "<!doctype html><html lang=\"zh\"><meta charset=\"utf-8\"><title>判定报告</title>" + _CSS +
+                    "<h1>判定报告</h1><p class=\"muted\">切片 " + _esc(result.get("slice_id")) + " · 报告编号 " + _esc(result.get("decision_id")) +
+                    " · 档位 " + _esc(_j.get("tier") or "—") + "</p>"
+                    "<div class=\"kpi\"><div>结论<b>" + _esc(_j.get("decision")) + "</b></div><div>严重度<b>" + _esc(_j.get("severity")) +
+                    "</b></div><div>分数<b>" + _esc(_j.get("score")) + "</b></div><div>命中信号<b>" + str(len(_hits)) + " / " + str(len(_sigs)) +
+                    "</b></div><div>缺项<b>" + str(len(_miss)) + "</b></div></div>"
+                    "<h2>一、本次输入</h2><table><tr><th>字段</th><th>提交值</th></tr>" + _rows_in + "</table>"
+                    "<p class=\"muted\">共 " + str(len(_data)) + " 项；调用方 " + _esc(_req.get("caller")) + " · 用途 " + _esc(_req.get("purpose")) +
+                    " · 金额 " + _esc(_req.get("amount")) + " · 不转售 " + _esc(_req.get("no_resale")) + "</p>"
+                    "<h2>二、逐层推演</h2><ol>"
+                    "<li><b>行业归类</b>：按作者设定的归类表确定本次所属类别，类别决定各维度在打分中的相对分量（明细不披露）。</li>"
+                    "<li><b>动态基准线</b>：依据本次条件触发若干项调整，警戒水平相应变动（具体数值不披露）。</li>"
+                    "<li><b>风险信号判定</b>：共 " + str(len(_sigs)) + " 个观察点，命中 " + str(len(_hits)) + " 项，明细见下表。</li>"
+                    "<li><b>组合规则匹配</b>：命中信号中满足作者设定组合条件者被引用；本次结论来源为 " + _esc(_decided) + "。</li>"
+                    "<li><b>例外检查</b>：本次" + ("触发了例外并直接改写结论" if "例外" in _decided else "未触发任何例外，结论未被改写") + "。</li>"
+                    "<li><b>打分与分档</b>：命中信号按维度加权求和得 " + _esc(_j.get("score")) + "，据此定档为严重度「" + _esc(_j.get("severity")) + "」。</li></ol>"
+                    "<h3>风险信号明细</h3><table><tr><th>观察点</th><th>判定</th></tr>" + _rows_sig + "</table>"
+                    "<h2>三、结论解读</h2><p style=\"font-size:17px;font-weight:600\">" + _esc(_j.get("decision")) + "（严重度：" + _esc(_j.get("severity")) + "）</p>"
+                    "<p>依据：</p><ul>" + _li_basis + "</ul>"
+                    "<p class=\"muted\">置信状态：" + _esc(_j.get("confidence_status")) + "（不影响结论，建议对外使用前与作者核对）。报告不含方法细节：不披露基准线数值、组合条件原文、例外条件与维度权重。</p>"
+                    "<h2>四、需要你确认的事项</h2><ul>" + _li_miss +
+                    "<li>若输入含估计值（金额占比、集中度、市盈率等），请确认口径与基准日，这几项直接决定信号是否命中。</li>"
+                    "<li>本报告是判断依据，不构成法律、审计或投资意见；涉国资、涉诉、涉数据合规请按法定程序另行确认。</li>"
+                    "<li>复核请凭报告编号 " + _esc(result.get("decision_id")) + " 向数据空间所有者提出。</li></ul></html>")
+            else:
+                _li = "".join("<li>%s — %s</li>" % (_esc(c.get("check")), _esc(c.get("detail") or ("通过" if c.get("ok") else "不通过"))) for c in (_auth.get("checks") or []))
+                result["report_html"] = ("<!doctype html><html lang=\"zh\"><meta charset=\"utf-8\"><title>未通过授权检查</title>" + _CSS +
+                    "<h1>本次调用<strong>未通过授权检查</strong>，没有生成判定</h1>"
+                    "<p class=\"muted\">切片 " + _esc(result.get("slice_id")) + " · 调用方 " + _esc(_req.get("caller")) + "</p>"
+                    "<h2>未通过的原因</h2><ul>" + _li + "</ul>"
+                    "<h2>你需要做什么</h2><p>请让数据空间所有者为这条切片补上【允许用途】与【金额上限】并保存（控制台里该栏名为 allowed_scenarios）。未声明的空白不等于默许，因此默认拒绝。</p>"
+                    "<p class=\"muted\">本次没有结论，因此没有任何判定内容可提供。</p></html>")
 
             self._write_session(name)
             return result
