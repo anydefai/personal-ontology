@@ -235,23 +235,23 @@ class MCPServer:
                 principals = self._api("GET", "/v1/principals").get("items", [])
                 result["principals"] = [self._present_principal(item, mode) for item in principals]
                 result["principal_display_mode"] = mode
-                result["space"] = "个人可信数据空间"
-                result["services"] = ["读取可信数据空间目录", "授权检查", "场景预演", "场景反馈"]
-                try:
-                    _insts = result.get("scenario_instances") or []
-                    if _insts:
-                        result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_insts))
-                    _owners = {}
-                    for _it in _insts:
-                        for _r in (_it.get("authorization_rules") or []):
-                            _g = str(_r.get("grantor_id") or "")
-                            if _g:
-                                _owners.setdefault(_g, []).append(str(_it.get("id")))
-                    result["owners"] = [{"id": _k, "display": _k, "display_mode": mode, "scenarios": _v}
-                                        for _k, _v in _owners.items()]
-                except Exception:
-                    pass
             self._write_session(name)
+            result["space"] = "个人可信数据空间"
+            result["services"] = ["读取可信数据空间目录", "授权检查", "场景预演", "场景反馈"]
+            try:
+                _insts = result.get("scenario_instances") or []
+                if _insts:
+                    result["services"].append("按专业切片给出判断（%d 条已启用）" % len(_insts))
+                _owners = {}
+                for _it in _insts:
+                    for _r in (_it.get("authorization_rules") or []):
+                        _g = str(_r.get("grantor_id") or "")
+                        if _g:
+                            _owners.setdefault(_g, []).append(str(_it.get("id")))
+                result["owners"] = [{"id": _k, "display": _k, "display_mode": mode, "scenarios": _v}
+                                    for _k, _v in _owners.items()]
+            except Exception:
+                pass
             return result
         if name == "judge_professional_slice":
             sid = str(args.get("slice_id") or "")
