@@ -2341,6 +2341,9 @@ def _slice_validity(slice_id: str, item: dict[str, Any]) -> dict[str, Any]:
     except ValueError:
         return {"valid_days": days, "expires_at": None, "expired": False}
     expires = begun + timedelta(days=days)
+    # 切片的 updated_at 可能不带时区（旧数据）；naive 一律按 UTC 解释，否则和 now 比较会 TypeError → 500
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
     return {"valid_days": days, "expires_at": expires.isoformat().replace("+00:00", "Z"),
             "expired": datetime.now(timezone.utc) > expires}
 
