@@ -2403,6 +2403,29 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
     }
 
 
+async def _record_refusal(slice_id: str, who: str, reason: str, body: Any = None, detail: Any = None) -> None:
+    """Refused calls leave a record too.
+
+    A refusal is the most interesting audit event there is (who tried to call what, and why it was refused),
+    so it must not be silent. Failing to write the refusal record never masks the refusal itself.
+    """
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    record = {
+        "phase": "pre_execution", "sequence": 0, "result_id": "deny",
+        "reason_key": "skill.refused." + str(reason),
+        "reason_params": {"slice_id": slice_id, "caller": who, "reason": str(reason),
+                          "detail": detail if isinstance(detail, (str, int, float, bool, type(None))) else str(detail)},
+        "reason_display": {"zh": "调用被拒绝（" + str(reason) + "）", "en": "Refused (" + str(reason) + ")"},
+        "input_params": (body or {}).get("request") if isinstance(body, dict) else {},
+        "cited_assertions": [], "timestamp": stamp,
+    }
+    try:
+        await asyncio.to_thread(store.put, "decisions", "decision_skill_" + uuid4().hex[:16], record, create_only=True)
+    except Exception:                                     # noqa: BLE001 - never mask the refusal itself
+        pass
+
+
+
 @app.post("/v1/scenario-slices/{slice_id}/judge")
 async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(require_session)) -> Any:
     """按这条已启用的切片给出判断。这是给调用方用的对外接口。
@@ -2419,10 +2442,12 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
     # 交付有效期：说明里写明的 valid_days 过了就不再给结论，避免拿一份过期的判断去用。
     validity = _slice_validity(slice_id, item)
     if validity.get("expired"):
+        await _record_refusal(slice_id, who, "delivery_expired", body, validity.get("expires_at"))
         raise HTTPException(status_code=403, detail={"error": "slice_delivery_expired",
             "message": "这条切片的交付已过期（有效期 " + str(validity.get("valid_days")) + " 天，到期 " +
                        str(validity.get("expires_at")) + "）。请在控制台调整有效期或重新启用后再调用。"})
     if str(item.get("status") or "") != "confirmed":
+        await _record_refusal(slice_id, who, "slice_not_enabled", body)
         raise HTTPException(status_code=409, detail={"error": "slice_not_enabled",
                                                      "message": "这条切片还没有确认并启用，不能对外调用。"})
 
@@ -2435,6 +2460,7 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
                        if display and str(x.get("display_name_zh") or "") == display}
         rules = [r for r in store.list("authorizations") if str(r.get("source")) == f"skill-slice:{slice_id}"]
         if not any((not r.get("revoked")) and str(r.get("grantee_id")) in grantee_ids for r in rules):
+            await _record_refusal(slice_id, who, "not_granted_to_caller", body, caller_key)
             raise HTTPException(status_code=403, detail={"error": "slice_not_granted_to_agent",
                                                          "message": f"这条切片没有授权给 {display or caller_key}。"})
 
@@ -2442,6 +2468,7 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
     # 这个接口是给外部调用方的，宁可拒答也不在"需确认/被拒"的情况下递出结论。
     authz = authorization.authorize(item.get("boundaries"), (body or {}).get("request") or {})
     if str(authz.get("result")) != "allow":
+        await _record_refusal(slice_id, who, "boundaries_" + str(authz.get("result")), body)
         return {"slice_id": slice_id, "caller": who, "authorize": authz, "judgment": None,
                 "refused": "boundaries"}
 
