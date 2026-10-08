@@ -68,9 +68,16 @@ def compute_threshold(framework: dict[str, Any], data: dict[str, Any]) -> tuple[
     for adj in cfg.get("adjustments") or []:
         cond = adj.get("condition") or {}
         if match_conditions(cond, data, None)[0]:
-            base += float(adj.get("delta", 0))
-            steps.append({"applied": adj.get("reason") or str(cond), "delta": adj.get("delta"),
-                          "value": round(base, 4)})
+            # 条件调整可以加（delta）也可以乘（factor）：写 × 的走乘法，用来表达「按比例缩放基准线」。
+            factor = adj.get("factor")
+            if factor is not None:
+                base *= float(factor)
+                steps.append({"applied": adj.get("reason") or str(cond), "delta": None,
+                              "factor": float(factor), "value": round(base, 4)})
+            else:
+                base += float(adj.get("delta", 0))
+                steps.append({"applied": adj.get("reason") or str(cond), "delta": adj.get("delta"),
+                              "value": round(base, 4)})
     return base, steps
 
 
@@ -224,7 +231,10 @@ def judge(framework: dict[str, Any], data: dict[str, Any],
         dim = sig.get("dimension")
         if not dim or not signals.get(sig.get("name")):
             continue
-        score += float(weights.get(dim, 0.0)) * float(weight_factors.get(dim, 1.0))
+        # 命中分值：不写就是 1（与拆分前完全一致）；写在 signals[].score_value 表示「部分证据」。
+        sv = sig.get("score_value")
+        sv = 1.0 if sv is None else float(sv)
+        score += float(weights.get(dim, 0.0)) * sv * float(weight_factors.get(dim, 1.0))
     score = round(score, 6)
 
     # ── 第 6 步：综合判定 ──
