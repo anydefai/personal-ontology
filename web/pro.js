@@ -579,9 +579,10 @@ function poHasFramework(fw) {
         }
         // 当前模型：切片自己带的 model 优先（老切片没有此字段 → 默认模型）
         if (!window.poJudgmentModel) { window.poJudgmentModel = (state.model || m.id); }
-        var opts = (models || []).map(function (x) {
-          return '<option value="' + esc(x.id) + '"' + (x.id === window.poJudgmentModel ? " selected" : "") + ">" + esc(x.label_zh || x.id) + "</option>";
-        }).join("");
+// 目录拿不到或为空时，下拉里也要有兜底的默认模型 —— 不能给出一个空的选择框。
+var opts = (models && models.length ? models : [m]).map(function (x) {
+  return '<option value="' + esc(x.id) + '"' + (x.id === window.poJudgmentModel ? " selected" : "") + ">" + esc(x.label_zh || x.id) + "</option>";
+}).join("");
         var na = (m.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
         return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
           '<div class="panel-title"><span>判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
