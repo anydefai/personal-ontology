@@ -29,6 +29,8 @@ from .scenario_llm import ScenarioProviderError, analyze as analyze_scenario, co
 from .model_service import ModelServiceError, attach_store as attach_model_store, export_for_container as export_model_service_for_container, public_settings as public_model_settings, save_settings as save_model_settings, test_connection as test_model_connection
 from .vault import ContainerCorrupt, VaultError, WrongPassword
 
+from backend import engine  # 判定引擎：接口 + 注册表 + 调度（不含算法）
+
 async def language_dependency(request: Request) -> None:
     """把请求语言写进 contextvars。必须用**依赖**而不是中间件：
 
@@ -2228,6 +2230,12 @@ def _slice_validity(slice_id: str, item: dict[str, Any]) -> dict[str, Any]:
 
 
 
+@app.get("/v1/judgment-models", dependencies=[Depends(require_session)])
+async def judgment_models() -> Any:
+    """有哪些判定模型、各自适用什么、输入与输出契约是什么。判定模型不写在引擎里。"""
+    return {"default": engine.DEFAULT_MODEL, "models": engine.model_catalog()}
+
+
 @app.get("/v1/scenario-slices/{slice_id}/contract", dependencies=[Depends(require_session)])
 async def slice_contract(slice_id: str, request: Request) -> Any:
     """调用说明：要传什么、什么格式、会给回什么、边界与计费。
@@ -2291,6 +2299,10 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
             "if_not_authorized": "调用会被拒绝（该切片未授权给你的程序）。",
             "contract_vs_authorization": "本说明是接口说明书；授权是你能不能调用的前提，二者是两件事。",
         },
+        "model": engine.get_model(item).id,
+        "model_version": engine.get_model(item).version,
+        "model_contract": engine.get_model(item).input_contract(),
+        "model_output_contract": engine.get_model(item).output_contract(),
         "validity": validity,
         "language": language,
     }
@@ -2353,6 +2365,7 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
         "result_id": "allow" if concluded else "pause",
         "reason_key": "skill." + str(pkg.get("decision") or "no_conclusion"),
         "reason_params": {"slice_id": slice_id, "caller": who, "severity": pkg.get("severity"),
+                          "model": pkg.get("model"), "model_version": pkg.get("model_version"),
                           "score": pkg.get("score"), "missing_inputs": pkg.get("missing_inputs") or []},
         "reason_display": {"zh": str(pkg.get("decision") or ""), "en": str(pkg.get("decision") or "")},
         "input_params": (body or {}).get("request") or {},

@@ -1222,6 +1222,22 @@
   "导入": "Chinese syntax sample: 导入",
   "行有问题": "Chinese syntax sample: 行有问题",
   "没有解析到内容，请检查小节标题": "Chinese syntax sample: 没有解析到内容，请检查小节标题",
+  "判定模型 · ": "Judgment model: ",
+  "这条切片的结论由哪个模型算出。模型不写在引擎里，": "Which model produced this slice's conclusions. Models are not hard-wired into the engine; ",
+  "每个模型自带适用边界；调用说明与判定记录里都会记下它用了哪个模型、哪个版本。": "each carries its own applicable scope, and both the call contract and the decision record name the model and its version.",
+  "适合：": "Suits: ",
+  "不适合：": "Does not suit: ",
+  "目前只有这一个模型；按设计还要加「要件逻辑」（任一满足/排除条件）与「领域公式」（剂量、折现现金流）。": "Only this model exists so far; the design adds requirement logic for any-of and exclusion, and domain formulas such as dosage or discounted cash flow.",
+  "评分卡（证据累积）": "Scorecard, accumulating evidence",
+  "证据累积型判断：把若干可观察信号按重要性加权，累积成总分，再落到几个档位。风控评分卡、保险核保、术前风险分级、合规清单都属于这一族。": "Judgments that accumulate evidence: observable signals weighted by importance, summed into a score, then mapped to bands. Credit scorecards, insurance underwriting, pre-operative risk grading and compliance checklists belong here.",
+  "需要顺序分支的判断（先看 A 再决定看不看 B）": "Judgments needing sequential branching",
+  "要件组合型（任一满足 / 排除条件 / 嵌套逻辑）": "Requirement combinations with any-of, exclusions or nesting",
+  "领域公式型（剂量、折现现金流、精算现值）": "Domain formulas such as dosage, discounted cash flow or actuarial present value",
+  "概率型结论（只给分档，不给概率）": "Probabilistic conclusions, since only bands are given",
+  "没有标维度，这个信号不会计分": "has no dimension, so it will not score",
+  "维度「": "dimension ",
+  "」在权重表里没有同名列，这个信号会按 0 分计": " has no matching column in the weights table, so this signal scores zero",
+  "没有填「行业 → 类别」，任何行业都取不到权重，打分只能是 0": "No industry-to-category mapping, so no industry resolves to weights and the score can only be zero",
   };
 
 

@@ -447,7 +447,14 @@ function poHasFramework(fw) {
       '<button class="button" data-add="log">＋ 记一条调整</button></section>';
   }
 
+  // 判定模型目录：界面与调用说明都从这里取（模型不写在引擎里）。
+  async function loadModelCatalog() {
+    try { var d = await api("/v1/judgment-models"); return (d && d.models) || []; }
+    catch (e) { return []; }
+  }
+
   async function renderSlices(view) {
+    var models = await loadModelCatalog();
     var defs = await load("scenario-definitions");
     if (!defId || !defs.some(function (d) { return d.id === defId; })) defId = defs[0] ? defs[0].id : null;
     // Idempotent migration: move the personal asset still sitting on a shared scenario definition onto my slice.
@@ -527,6 +534,18 @@ function poHasFramework(fw) {
         "</section>" +
       sliceTable(mine, sliceId, nameOfSlice) +
       orphanPanel(orphans, defs, nameOfSlice) +
+      (function (m) {
+        if (!m) { return ""; }
+        var na = (m.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
+        return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+          '<div class="panel-title"><span>判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
+          '<div class="panel-caption" style="margin:6px 0 8px">这条切片的结论由哪个模型算出。模型不写在引擎里，' +
+          "每个模型自带适用边界；调用说明与判定记录里都会记下它用了哪个模型、哪个版本。</div>" +
+          '<div class="panel-caption"><strong>适合：</strong>' + esc(m.applicable || "—") + "</div>" +
+          (na ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + na + "</ul></div>" : "") +
+          '<div class="panel-caption" style="margin-top:6px">目前只有这一个模型；按设计还要加「要件逻辑」（任一满足/排除条件）与「领域公式」（剂量、折现现金流）。</div>' +
+          "</section>";
+      })(models[0]) +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
         '<div class="panel-title" id="pro-step2"><span>第二步 · 创建切片模型（三种方式，选一种）</span></div>' +
         '<div class="panel-caption" style="margin:6px 0 10px">三种方式改的是同一份框架，选一种即可，随时可以换。</div>' +
@@ -849,6 +868,8 @@ function poHasFramework(fw) {
     var f = ensureShape({ framework_version: state.framework_version, industry_map: clone(state.industry_map) });
     // Fields that have no panel inputs (they come from the line boxes) must be carried over,
     // otherwise ensureShape blanks them out and every save silently discards them.
+    // 声明这条切片用哪个判定模型（模型不写在引擎里；缺省即评分卡）。
+    f.model = window.poJudgmentModel || "scorecard_v1";
     ["citations", "score_bands", "fallback", "source", "billing"].forEach(function (key) {
       var kept = (state && state[key] !== undefined) ? state[key] : f[key];
       if (kept !== undefined) f[key] = clone(kept);
