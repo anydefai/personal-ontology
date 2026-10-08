@@ -1373,6 +1373,10 @@
   "对外调用": "Chinese syntax sample: 对外调用",
   "对外交付": "Chinese syntax sample: 对外交付",
   "兜底": "Chinese syntax sample: 兜底",
+  "模型目录没读到（多半是登录已失效）—— 下面是默认模型；登录后这里会出现完整列表与切换。": "The model catalogue could not be read, most likely because the session expired; the default model is shown below, and signing in restores the full list and switching.",
+  "证据累积型判断：把若干可观察信号按重要性加权，累积成总分，再落到几个档位。": "Judgments that accumulate evidence: observable signals weighted by importance, summed, then mapped to bands.",
+  "需要顺序分支的判断": "Judgments needing sequential branching",
+  "概率型结论": "Probabilistic conclusions",
   };
 
 
