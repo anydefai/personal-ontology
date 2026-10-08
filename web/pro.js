@@ -1474,7 +1474,7 @@ window.addEventListener("unhandledrejection", function (e) {
   // Also write it to the console with the stack: the alert alone made these errors impossible to
   // diagnose (the page showed a message while the console stayed empty).
   console.error("操作失败：", r, (r && r.stack) || "");
-  alert("操作失败：" + msg);
+  alert("操作失败：" + msg + "\n\n" + String((r && r.stack) || "").slice(0, 700));
 });
 
 // -- Choose who may call this slice: the grantor (you) and the grantee (the caller) must both be principals --

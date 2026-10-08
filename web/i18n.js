@@ -1474,6 +1474,8 @@
   "bindRowButtons(view);   // bind add/remove/type-change buttons on every render": "bindRowButtons(view);   // bind add/remove/type-change buttons on every render",
   "// Also write it to the console with the stack: the alert alone made these errors impossible to": "// Also write it to the console with the stack: the alert alone made these errors impossible to",
   "// diagnose (the page showed a message while the console stayed empty).": "// diagnose (the page showed a message while the console stayed empty).",
+  "// Same treatment for synchronous errors: show the message and the first stack lines IN the alert,": "// Same treatment for synchronous errors: show the message and the first stack lines IN the alert,",
+  "// so a failure can be read and copied without having to find the browser console.": "// so a failure can be read and copied without having to find the browser console.",
   };
 
 
