@@ -1533,8 +1533,15 @@ function polishPanels(view) {
       docTa.value = ""; docRep.textContent = "";
     };
     btnParse.onclick = async function () {
-      var sid = window.poCurrentSliceId || "";
-      if (!sid) { alert("请先在上面选一条我的切片。"); return; }
+      var sel = document.querySelector("#pro-slice");
+      var sid = (sel && sel.value) || window.poCurrentSliceId || "";
+      if (!sid) {
+        var nSlices = document.querySelectorAll("[data-pick-slice]").length;
+        alert("还不能解析：页面上没有当前切片。\n\n诊断：场景=" + (window.poCurrentDefId || "(未选)") +
+          "，场景下的切片数=" + nSlices + "，下拉框值=\"" + ((sel && sel.value) || "") + "\"。\n" +
+          (nSlices ? "请在下拉框里选中一条我的切片再试。" : "这个场景下还没有你的切片，请先在第一步新建。"));
+        return;
+      }
       if (!docTa.value.trim()) { docRep.textContent = "先把整篇贴进上面的框里（或点【填入样例】）。"; return; }
       docRep.textContent = "解析中…";
       var parsed = null;
@@ -1611,8 +1618,15 @@ function polishPanels(view) {
       bar.querySelectorAll("[data-contract-btn]").forEach(function (btn) {
         btn.onclick = async function () {
           var note = bar.querySelector("[data-contract-note]");
-          var sid = window.poCurrentSliceId || "";
-          if (!sid) { alert("请先在上面选一条我的切片。"); return; }
+          var sel = document.querySelector("#pro-slice");
+          var sid = (sel && sel.value) || window.poCurrentSliceId || "";
+          if (!sid) {
+            var nSlices = document.querySelectorAll("[data-pick-slice]").length;
+            alert("还不能解析：页面上没有当前切片。\n\n诊断：场景=" + (window.poCurrentDefId || "(未选)") +
+              "，场景下的切片数=" + nSlices + "，下拉框值=\"" + ((sel && sel.value) || "") + "\"。\n" +
+              (nSlices ? "请在下拉框里选中一条我的切片再试。" : "这个场景下还没有你的切片，请先在第一步新建。"));
+            return;
+          }
           note.textContent = "读取中…";
           var c = null;
           try { c = await api("/v1/scenario-slices/" + encodeURIComponent(sid) + "/contract"); }

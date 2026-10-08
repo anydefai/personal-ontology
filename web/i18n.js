@@ -1447,6 +1447,13 @@
   "就地更新下面那段说明（重画整页会弄丢你正在填的内容": "Chinese syntax sample: 就地更新下面那段说明（重画整页会弄丢你正在填的内容",
   "每个模型的说明存到全局：切换处理在另一个作用域里（拿不到这里的 models": "Chinese syntax sample: 每个模型的说明存到全局：切换处理在另一个作用域里（拿不到这里的 models",
   "曾经因此报过 Uncaught ReferenceError": "Chinese syntax sample: 曾经因此报过 Uncaught ReferenceError",
+  "还不能解析：页面上没有当前切片。": "Cannot parse yet: the page has no current slice.",
+  "诊断：场景=": "Diagnostics: scenario=",
+  "，场景下的切片数=": ", slices in this scenario=",
+  "，下拉框值=": ", dropdown value=",
+  "请在下拉框里选中一条我的切片再试。": "Select one of your slices in the dropdown and try again.",
+  "这个场景下还没有你的切片，请先在第一步新建。": "This scenario has no slice of yours yet; create one in step one first.",
+  "(未选)": "(none)",
   };
 
 

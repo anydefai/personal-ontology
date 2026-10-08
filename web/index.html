@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>个人本体治理 · 本地控制台</title>
-  <link rel="stylesheet" href="/assets/app.css?v=20261009b">
-  <script src="/assets/i18n.js?v=20261009b"></script>
-  <script src="/assets/app.js?v=20261009b" defer></script>
-  <script src="/assets/pro.js?v=20261009b"></script>
+  <link rel="stylesheet" href="/assets/app.css?v=20261009c">
+  <script src="/assets/i18n.js?v=20261009c"></script>
+  <script src="/assets/app.js?v=20261009c" defer></script>
+  <script src="/assets/pro.js?v=20261009c"></script>
 <style>
     /* pro-row / pro-grid had no rules at all: the professional panels' controls were plain inline elements,
        so they wrapped onto two lines as soon as the window was narrow. One row per item now. */
@@ -66,6 +66,7 @@
     .pro-copy { white-space: pre-wrap; word-break: break-word; background: rgba(127,127,127,.08);
                 border: 1px solid rgba(127,127,127,.22); border-radius: 8px; padding: 10px;
                 font-size: 12px; line-height: 1.6; max-height: 340px; overflow: auto; margin: 6px 0 0; }
+    #po-build-stamp{position:fixed;right:8px;bottom:6px;font-size:11px;opacity:.45;z-index:9;pointer-events:none}
 </style>
 </head>
 <body>
@@ -110,6 +111,8 @@
 
   <dialog id="record-dialog" class="modal"><form method="dialog" class="modal-dismiss"><button aria-label="关闭">×</button></form><div id="dialog-content"></div></dialog>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
-  <div id="build-version" style="position:fixed;right:10px;bottom:8px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#8a94a6;background:rgba(255,255,255,.82);padding:2px 7px;border-radius:5px;pointer-events:none">BUILD 20261009b</div>
+  <div id="build-version" style="position:fixed;right:10px;bottom:8px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#8a94a6;background:rgba(255,255,255,.82);padding:2px 7px;border-radius:5px;pointer-events:none">BUILD 20261009c</div>
+  <div id="po-build-stamp"></div>
+  <script>document.addEventListener("DOMContentLoaded",function(){var b=(document.documentElement.innerHTML.match(/BUILD ([0-9a-z]+)/)||[])[1]||"";var e=document.getElementById("po-build-stamp");if(e){e.textContent=b?"构建 "+b:"";}});</script>
 </body>
 </html>

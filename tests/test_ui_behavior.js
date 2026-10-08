@@ -149,9 +149,15 @@ function textOf(view) {
   // 所以渲染时把当前切片 id 发布到 window.poCurrentSliceId —— 这条断言它真的被发布了。
   check("渲染时把当前切片 id 发布到 window.poCurrentSliceId（DOM 级，切换后解析才不会误报未选切片）",
         (c1.window && c1.window.poCurrentSliceId) === "s.1", "实际值：" + String(c1.window && c1.window.poCurrentSliceId));
-  check("解析处理读 window.poCurrentSliceId，且不再读从未赋值的 window.poProSlice",
-        !/window\.poProSlice && window\.poProSlice\.id/.test(src) && /var sid = window\.poCurrentSliceId \|\| ""/.test(src),
-        "读取来源不对");
+  // 解析取当前切片：优先读下拉框（页面真实状态），全局只作兜底，且不读从未赋值的 poProSlice；
+  // 万一都为空，提示里要带诊断信息（场景 / 切片数 / 下拉值），便于一次定位。
+  check("解析优先读下拉框 #pro-slice（不再只依赖发布的全局）",
+        /document\.querySelector\("#pro-slice"\)/.test(src) && /var sid = \(sel && sel\.value\)/.test(src),
+        "没有优先读下拉框");
+  check("解析仍然不读从未赋值的 window.poProSlice",
+        !/window\.poProSlice && window\.poProSlice\.id/.test(src), "仍在读 poProSlice");
+  check("拿不到切片时的提示带诊断信息（场景 / 切片数 / 下拉值）",
+        /页面上没有当前切片/.test(src) && /切片数=/.test(src), "提示没有诊断信息");
   // 标题同样不能停在旧模型上（用户报过："判定模型 · 评分卡（证据累积） v1"不跟着切换变）
   const titleMap = (c1.window && c1.window.poModelTitle) || {};
   check("渲染后标题表里有三个模型", Object.keys(titleMap).length >= 3, "键：" + Object.keys(titleMap).join(","));
