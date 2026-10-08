@@ -352,11 +352,12 @@ function poHasFramework(fw) {
         (dimList.length ? "" : '<div class="panel-caption" style="margin-top:8px">这张表按「维度」分列，而你的信号还没标维度：请到上面【我观察什么】，在信号那一行的末尾加上 ｜ 维度名（例如 ｜ 财务），保存后回到这里就会出现对应的列。</div>') +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<div style="margin-top:12px">' +
-        '<details open style="margin-top:10px"><summary class="panel-caption" style="cursor:pointer"><strong>每个类别包含哪些行业</strong> —— 调用方提交的行业必须在这里归到某个类别，否则打不了分</summary><div style="margin-top:6px">' +
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e6e6e6">' +
+      '<div class="panel-title" style="font-size:13px">每个类别包含哪些行业（必填）</div>' +
         hint('一行一条：行业 → 上表里的类别。调用方提交的每一个行业都要出现在这里（例如 房地产 → 高法律风险）。') +
         '<textarea class="input mono" data-im-lines rows="3" style="width:100%" placeholder="行业 → 类别（例如 房地产 → 高法律风险）">' +
         Object.keys(f.industry_map || {}).map(function (k) { return esc(k) + " → " + esc(f.industry_map[k]); }).join("\n") +
-        '</textarea></div></details>' +
+        '</textarea></div></div>' +
       '<button class="button" data-add="weight-cat">＋ 加一个类别（行业组）</button>' +
       '<button class="button" data-add="weight-dim">＋ 加一个侧重维度</button>' +
       '<span class="panel-caption" style="margin:0">数值加起来是 1 就行；没把握就先平均。</span></div></section>';

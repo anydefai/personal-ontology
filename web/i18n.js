@@ -1506,6 +1506,7 @@
   " —— 调用方提交的行业必须在这里归到某个类别，否则打不了分": " - every industry callers submit must be grouped here, otherwise no score can be produced",
   "一行一条：行业 → 上表里的类别。调用方提交的每一个行业都要出现在这里（例如 房地产 → 高法律风险）。": "One per line: industry, then the category above. Every industry callers submit must appear here, for example real estate, then high legal risk.",
   "行业 → 类别（例如 房地产 → 高法律风险）": "industry, then category, for example real estate, then high legal risk",
+  "每个类别包含哪些行业（必填）": "Which industries each category covers (required)",
   };
 
 
