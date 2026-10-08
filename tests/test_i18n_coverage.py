@@ -10,7 +10,7 @@
 import json, pathlib, re, subprocess, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-BASELINE = 128   # 含方式二专业样例：那是中文语法示例本身，故意不翻译           # 2026-10-02：含词典/RULES 内中文注释的扫描噪音
+BASELINE = 140   # 新增【不同行业的侧重】小节：示例文本本身是中文（内容示例，不译）   # 含方式二专业样例：那是中文语法示例本身，故意不翻译           # 2026-10-02：含词典/RULES 内中文注释的扫描噪音
 
 def scan():
     script = '''

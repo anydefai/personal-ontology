@@ -37,11 +37,11 @@ async function boot(){
   document.querySelector('#auth-form').dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
   for(let i=0;i<80;i++){await new Promise(r=>setTimeout(r,150));
     const v=document.querySelector('#view');
-    if(v&&v.textContent.includes('本体治理总览')){log("✔ 已进入总览页");break}
+    if(v&&v.textContent.includes('个人可信数据空间总览')){log("✔ 已进入总览页");break}
     const err=document.querySelector('#auth-error');if(err&&err.textContent){log("✗ 认证错误: "+err.textContent);return finish(false)}
   }
   const view=document.querySelector('#view').textContent;
-  const okDash=view.includes('本体治理总览');
+  const okDash=view.includes('个人可信数据空间总览');
   const okScene=view.includes('预订酒店');
   const okStat=view.includes('已发布场景')&&view.includes('生效中的规则');
   // 迁移后模型服务配置必须仍可用（含 API Key）
