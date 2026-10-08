@@ -363,8 +363,8 @@ CALLER_TIER_FIELDS: dict[str, list[str]] = {
     "basic": ["decision", "severity", "score", "confidence_status"],
     "standard": ["decision", "severity", "score", "confidence_status", "basis",
                  "required_inputs", "missing_inputs"],
-    "professional": list(CALLER_KEYS) + ["reasoning_steps"],
-    "audit": list(CALLER_KEYS) + ["reasoning_steps", "tier", "model", "model_version"],
+    "professional": list(CALLER_KEYS) + ["reasoning_steps", "decided_by"],
+    "audit": list(CALLER_KEYS) + ["reasoning_steps", "decided_by", "tier", "model", "model_version"],
 }
 
 
@@ -396,6 +396,18 @@ def for_caller(package: dict[str, Any], tier: str | None = None) -> dict[str, An
         ] or None
         if out["reasoning_steps"] is None:
             out.pop("reasoning_steps")
+    # 结论是怎么来的：只写【哪条例外 / 哪条组合规则】，不写权重、阈值、算式（那些是作者的资产）。
+    if name in ("professional", "audit"):
+        _forced = [s for s in (package.get("exceptions_applied") or []) if "直接判定" in str(s)]
+        _cited = package.get("rule_cited") or []
+        if _forced:
+            out["decided_by"] = "例外：" + str(_forced[0])   # 保留原因（例如「标的为国资背景」）便于溯源
+        elif _cited:
+            out["decided_by"] = "组合规则：" + str(_cited[0])
+        elif package.get("score") is not None:
+            out["decided_by"] = "打分线"
+        else:
+            out["decided_by"] = "兜底"
     out["tier"] = name
     if name == "audit":
         out.setdefault("model", package.get("model"))
