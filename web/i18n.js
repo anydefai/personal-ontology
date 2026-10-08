@@ -1492,6 +1492,14 @@
   "读取已批准程序失败：": "Could not read approved programs: ",
   "多半是控制台登录已失效（会话 30 分钟）。重新登录后刷新本页即可；数据没有被改动。": "Most likely the console session expired after 30 minutes. Sign in again and refresh; no data was changed.",
   "// 发布给 IIFE 之外/别的渲染函数用（避免跨作用域引用）": "// Published for renderers outside this scope, to avoid cross-scope references",
+  "类别（行业组）": "Category (industry group)",
+  "还没有类别。": "No category yet.",
+  "一行一条：数据里的写法 → 上表里的类别。写法一致就不用填。": "One per line: the wording in your data, then the category above. Leave empty when they match.",
+  "数据里的写法 → 表里的类别": "data wording, then category",
+  "＋ 加一个类别（行业组）": "Add a category",
+  "新类别1": "New category 1",
+  "同样是并购，科技公司更看技术、传统制造更看财务。这里一行一个【类别】（行业组，名字你自己取，例如「高法律风险」）；调用方提交的是【行业】（例如 房地产），系统按下面的映射把行业归到你建的类别上，再用该类别的权重打分。": "Tech deals weight technology and manufacturers weight finance. Here you list categories, one per line, named however you like, for instance high legal risk. Callers submit an industry such as real estate, the mapping below groups it into your category, and that category supplies the weights.",
+  "可选：只有当调用方提交的行业写法与你建的类别不一致时才需要填这里": "Optional: only needed when the industry wording callers submit differs from your categories",
   };
 
 
