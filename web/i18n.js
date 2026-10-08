@@ -1477,6 +1477,11 @@
   "// Same treatment for synchronous errors: show the message and the first stack lines IN the alert,": "// Same treatment for synchronous errors: show the message and the first stack lines IN the alert,",
   "// so a failure can be read and copied without having to find the browser console.": "// so a failure can be read and copied without having to find the browser console.",
   "取权重的路径是【行业 → 类别 → 各维度权重】，所以下面必须有一项「行业」字段（已给），并在「不同行业的侧重」里把行业映射到类别、给各维度填权重；缺任何一环，分数都会是 0": "Weights are found by industry, then category, then dimension, so the sample now includes an industry field; map industries to categories and fill the weights, or the score stays zero.",
+  "并在「不同行业的侧重」里做两件事：": "In the weights panel do two things: ",
+  "#     ① 加一个类别（例如「高法律风险」），类别名你自己取；② 把该类别映射到行业（写 房地产），再给各维度填权重": "#     1) add a category, naming it yourself; 2) map it to an industry and fill the dimension weights",
+  "#     例：类别「高法律风险」→ 行业 房地产 ｜ 法律 0.4 · 交易 0.2 · 合规 0.2 · 估值 0.15 · 经营 0.05": "#     example: category High legal risk, industry 房地产, weights 法律 0.4 · 交易 0.2 · 合规 0.2 · 估值 0.15 · 经营 0.05",
+  "#     维度名必须与「我观察什么」里 ｜ 后面的名字逐字一致（法律 / 交易 / 合规 / 估值 / 经营），写错按 0 分算": "#     dimension names must match those after the bar in the signals exactly, or they score zero",
+  "房地产、制造业、新能源、互联网、医药、金融": "real estate, manufacturing, new energy, internet, pharma, finance",
   };
 
 
