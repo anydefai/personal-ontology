@@ -58,3 +58,13 @@ ctx.globalThis=ctx; vm.createContext(ctx); vm.runInContext(src,ctx);
 // 用途：把「加一条 XXX」这条路真的跑一遍（此前的界面行为测试里没有这些按钮，所以这条路从未被测过）。
 //   node tests/probe_add_buttons.js
 // 期望：每个 data-add 按钮都绑定了 onclick，且点击不抛错。
+
+// 一致性检查：样例里有「打分线」就必须有「行业」字段 —— 打分路径是 行业→类别→权重，
+// 少了行业，分数会恒为 0（这正是我先前样例的毛病）。
+{
+  const doc = ctx.docSample();
+  const hasScore = doc.indexOf("【打分线】") >= 0;
+  const hasIndustry = /(^|\n)行业 ｜ /.test(doc);
+  console.log("   一致性：有打分线=" + hasScore + " 有行业字段=" + hasIndustry +
+              (hasScore && !hasIndustry ? "  ✗ 打分线永远不会触发" : "  ✓"));
+}

@@ -1476,6 +1476,7 @@
   "// diagnose (the page showed a message while the console stayed empty).": "// diagnose (the page showed a message while the console stayed empty).",
   "// Same treatment for synchronous errors: show the message and the first stack lines IN the alert,": "// Same treatment for synchronous errors: show the message and the first stack lines IN the alert,",
   "// so a failure can be read and copied without having to find the browser console.": "// so a failure can be read and copied without having to find the browser console.",
+  "取权重的路径是【行业 → 类别 → 各维度权重】，所以下面必须有一项「行业」字段（已给），并在「不同行业的侧重」里把行业映射到类别、给各维度填权重；缺任何一环，分数都会是 0": "Weights are found by industry, then category, then dimension, so the sample now includes an industry field; map industries to categories and fill the weights, or the score stays zero.",
   };
 
 
