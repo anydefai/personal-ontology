@@ -56,6 +56,34 @@ function docSample() {
 return DOC_SECTIONS.map(function (x) { return "【" + x[0] + "】\n" + x[1]; }).join("\n\n");
 }
 
+/* The formula and band panels are used by the renderer below, which lives OUTSIDE the IIFE, so they must
+ * live outside it too; they only build strings.
+ */
+// ── 公式与分档（领域公式模型用）──
+// 这两块只有 formula_v1 需要；界面按模型只显示该模型要的输入（见 MODEL_PANEL_FIELDS）。
+function formulasPanel(f) {
+var rows = (f.formulas && typeof f.formulas === "object") ? f.formulas : {};
+var lines = Object.keys(rows).map(function (k) { return k + " = " + rows[k]; }).join("\n");
+var bands = (f.bands || f.score_bands || []);
+var bandLines = (Array.isArray(bands) ? bands : []).map(function (b) {
+  var lo = (b.min === undefined || b.min === null) ? "" : b.min;
+  var hi = (b.max === undefined || b.max === null) ? "" : b.max;
+  return (lo === "" ? "" : lo + " ") + (hi === "" ? "以上" : "到 " + hi) + " → " + (b.conclusion || "") +
+    (b.severity ? "（" + b.severity + "）" : "");
+}).join("\n");
+return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+  '<div class="panel-title"><span>公式</span></div>' +
+  '<div class="panel-caption" style="margin:6px 0 4px">一行一条：名称 = 表达式。可用字段名、其它公式名、' +
+    '+ - * / 括号、min/max/abs/round；不能用属性访问或下标（引擎自己解析，不用 eval）。</div>' +
+  '<textarea class="input mono" rows="4" style="width:100%" data-formulas placeholder="剂量 = round(体重 * 肾功能系数, 1)">' +
+    esc(lines) + "</textarea>" +
+  '<div class="panel-title" style="margin-top:12px"><span>分档</span></div>' +
+  '<div class="panel-caption" style="margin:6px 0 4px">一行一条：结果区间 → 结论（严重度）。' +
+    '例：20 到 80 → 常规剂量（中）／80 以上 → 高剂量（高）</div>' +
+  '<textarea class="input mono" rows="4" style="width:100%" data-bands placeholder="20 到 80 → 常规剂量（中）">' +
+    esc(bandLines) + "</textarea></section>";
+}
+
 /* The contract text helpers below are used by polishPanels, which lives OUTSIDE the IIFE further down,
  * so they must live outside it too; they only rely on the global esc().
  */
@@ -455,6 +483,10 @@ function poHasFramework(fw) {
 
   async function renderSlices(view) {
     var models = await loadModelCatalog();
+    var pickModel = window.poJudgmentModel || "scorecard_v1";
+    var pickedModel = (models || []).filter(function (x) { return x.id === pickModel; })[0] || (models || [])[0];
+    var pickedContract = (pickedModel && pickedModel.input_contract) ? pickedModel.input_contract : null;
+    window.poModelFields = (pickedContract && pickedContract.fields) ? Object.keys(pickedContract.fields) : null;
     var defs = await load("scenario-definitions");
     if (!defId || !defs.some(function (d) { return d.id === defId; })) defId = defs[0] ? defs[0].id : null;
     // Idempotent migration: move the personal asset still sitting on a shared scenario definition onto my slice.
@@ -573,7 +605,7 @@ function poHasFramework(fw) {
         deliveryPanel(slice || {}) +
         inputsPanel(state) + weightsPanel(state) + thresholdsPanel(state) + signalsPanel(state) +
         rulesPanel(state) + exceptionsPanel(state) + citationsPanel(state) +
-        scoreBandsPanel(state) + billingPanel(state) + tailPanels(state) +
+        scoreBandsPanel(state) + formulasPanel(state) + billingPanel(state) + tailPanels(state) +
       "</div>";
     bind(view);
     polishPanels(view);
@@ -880,6 +912,45 @@ function poHasFramework(fw) {
     // otherwise ensureShape blanks them out and every save silently discards them.
     // 声明这条切片用哪个判定模型（模型不写在引擎里；缺省即评分卡）。
     f.model = window.poJudgmentModel || "scorecard_v1";
+
+    // 领域公式模型：公式（名称 = 表达式）与分档（区间 → 结论）各一行一条
+    var fTa = document.querySelector("[data-formulas]");
+    if (fTa) {
+      var fmap = {};
+      (fTa.value || "").split("\n").forEach(function (line) {
+        var t = line.trim(); if (!t || t.charAt(0) === "#") { return; }
+        var i = t.indexOf("=");
+        if (i <= 0) { throw new Error("公式要写成「名称 = 表达式」：" + t); }
+        fmap[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+      });
+      if (Object.keys(fmap).length) { f.formulas = fmap; } else { delete f.formulas; }
+    }
+    var bTa = document.querySelector("[data-bands]");
+    if (bTa) {
+      var list = [];
+      (bTa.value || "").split("\n").forEach(function (line) {
+        var t = line.trim(); if (!t || t.charAt(0) === "#") { return; }
+        var arrow = t.indexOf("→");
+        if (arrow < 0) { throw new Error("分档要写成「区间 → 结论」：" + t); }
+        var left = t.slice(0, arrow).trim(), right = t.slice(arrow + 1).trim();
+        var sev = "中", m2 = right.match(/[（(](低|中|高|极高)[）)]\s*$/);
+        if (m2) { sev = m2[1]; right = right.slice(0, m2.index).trim(); }
+        var band = { conclusion: right, severity: sev };
+        var mm = left.match(/^(\d+(?:\.\d+)?)\s*(?:到|-|~)\s*(\d+(?:\.\d+)?)$/);
+        if (mm) { band.min = parseFloat(mm[1]); band.max = parseFloat(mm[2]); }
+        else {
+          var m3 = left.match(/^(\d+(?:\.\d+)?)\s*以上$/);
+          if (m3) { band.min = parseFloat(m3[1]); }
+          else {
+            var m4 = left.match(/^(\d+(?:\.\d+)?)\s*以下$/);
+            if (m4) { band.max = parseFloat(m4[1]); }
+            else { throw new Error("分档区间看不懂（写 20 到 80 或 80 以上 或 20 以下）：" + left); }
+          }
+        }
+        list.push(band);
+      });
+      if (list.length) { f.bands = list; } else { delete f.bands; }
+    }
     ["citations", "score_bands", "fallback", "source", "billing"].forEach(function (key) {
       var kept = (state && state[key] !== undefined) ? state[key] : f[key];
       if (kept !== undefined) f[key] = clone(kept);
@@ -1522,6 +1593,21 @@ function polishPanels(view) {
             '<pre class="pro-copy">' + esc(head.concat(contractLines(c)).join("\n")) + "</pre>";
         };
       });
+    }
+    // 按模型显示：只留该模型 input_contract().fields 里提到的字段对应的面板，
+    // 加上所有模型共用的那几个（调用方信息、依据、兜底、对外边界/交付/计费、模型自身、调整记录）。
+    var PANEL_FIELD = {
+      "不同行业的侧重": "industry_weights", "判断的基准线": "thresholds", "我观察什么": "signals",
+      "几个观察点一起出现时": "combination_rules", "例外情况": "exception_rules",
+      "哪个观察点更重要": "signal_priority", "打分线": "score_bands",
+      "公式": "formulas", "分档": "bands"
+    };
+    var SHARED_PANELS = ["需要调用方提交的信息", "我要知道的信息", "我的依据", "对外调用", "对外交付",
+                         "计费", "判定模型", "我的调整记录", "兜底"];
+    if (window.poModelFields && window.poModelFields.length) {
+      var shared = SHARED_PANELS.some(function (x) { return title.indexOf(x) >= 0; });
+      var need = PANEL_FIELD[title];
+      if (!shared && need && window.poModelFields.indexOf(need) < 0) { sec.style.display = "none"; }
     }
     var g = groups[isCallerPanel(title) ? 1 : 0];
     g.host.appendChild(sec);

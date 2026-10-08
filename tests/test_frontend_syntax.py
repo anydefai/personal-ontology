@@ -42,7 +42,7 @@ def check_iife_scope():
     """
     src = (ROOT / "web" / "pro.js").read_text(encoding="utf-8")
     lines = src.split("\n")
-    close = next((k for k, l in enumerate(lines) if l.strip() == "})();"), None)
+    close = next((k for k, l in enumerate(lines) if l.startswith("})();")), None)   # 行首才算 IIFE 结束（内联自执行函数不算）
     if close is None:
         return True, "没有 IIFE（无需检查）"
     inner, declared = set(), set()
