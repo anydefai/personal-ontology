@@ -107,6 +107,7 @@ function textOf(view) {
   // ② renderSlices 真跑一遍：三种方式、第二步标题、判定模型面板都要出现
   const v1 = buildView();
   ctx = makeCtx(v1.doc, { catalogFails: false });
+  const c1 = ctx;
   vm.runInContext(src, ctx);
   ctx.window.poProSlice = { id: "s.1", framework: {} };
   try { await ctx.window.POPro.renderSlices(v1.view); check("renderSlices 能跑完（不抛错）", true); }
@@ -119,7 +120,7 @@ function textOf(view) {
   // 这个 bug 真的报错过：切换模型时 Uncaught ReferenceError: models is not defined
   // —— 切换处理在另一个作用域，拿不到 renderSlices 的局部变量 models。
   // 现在渲染时把每个模型的说明放进 window.poModelDesc，切换时直接取。
-  const descMap = v1.ctx.window.poModelDesc || {};
+  const descMap = (c1.window && c1.window.poModelDesc) || {};
   check("渲染后 window.poModelDesc 里有三个模型（切换时直接取，不依赖局部变量）",
         Object.keys(descMap).length >= 3 && /适合/.test(descMap["requirements_v1"] || ""),
         "键：" + Object.keys(descMap).join(","));
