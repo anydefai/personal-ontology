@@ -8,7 +8,7 @@ import subprocess
 import sys
 import secrets
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -2187,6 +2187,38 @@ async def disable_slice(slice_id: str) -> Any:
     return {"slice_id": slice_id, "status": "analyzed", "revoked": revoked}
 
 
+def _slice_validity(slice_id: str, item: dict[str, Any]) -> dict[str, Any]:
+    """交付有效期：由 framework.delivery.valid_days 与授权规则的创建时间算出来。
+
+    没有规则的切片（例如走 MCP 的本机调用）以切片更新时间起算。valid_days 为空、为 0
+    或为负数表示不设期限。
+    """
+    delivery = ((item.get("framework") or {}).get("delivery") or {}) if isinstance(item.get("framework"), dict) else {}
+    raw = delivery.get("valid_days")
+    try:
+        days = int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        days = None
+    if days is None or days <= 0:
+        return {"valid_days": None, "expires_at": None, "expired": False}
+    start = None
+    for rule in store.list("authorizations"):
+        if str(rule.get("source")) == f"skill-slice:{slice_id}" and not rule.get("revoked"):
+            start = rule.get("created_at") or rule.get("updated_at")
+            break
+    start = start or item.get("updated_at")
+    if not start:
+        return {"valid_days": days, "expires_at": None, "expired": False}
+    try:
+        begun = datetime.fromisoformat(str(start).replace("Z", "+00:00"))
+    except ValueError:
+        return {"valid_days": days, "expires_at": None, "expired": False}
+    expires = begun + timedelta(days=days)
+    return {"valid_days": days, "expires_at": expires.isoformat().replace("+00:00", "Z"),
+            "expired": datetime.now(timezone.utc) > expires}
+
+
+
 @app.get("/v1/scenario-slices/{slice_id}/contract", dependencies=[Depends(require_session)])
 async def slice_contract(slice_id: str, request: Request) -> Any:
     """调用说明：要传什么、什么格式、会给回什么、边界与计费。
@@ -2199,6 +2231,7 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
     fw = item.get("framework") or {}
     b = item.get("boundaries") or {}
     bill = (fw.get("billing") or {}) if isinstance(fw.get("billing"), dict) else {}   # 前端把计费存在框架里
+    validity = _slice_validity(slice_id, item)
     fields = []
     for x in (fw.get("inputs") or []):
         if not isinstance(x, dict):
@@ -2249,6 +2282,7 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
             "if_not_authorized": "调用会被拒绝（该切片未授权给你的程序）。",
             "contract_vs_authorization": "本说明是接口说明书；授权是你能不能调用的前提，二者是两件事。",
         },
+        "validity": validity,
         "language": language,
     }
 
@@ -2266,6 +2300,12 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
     最后按框架判定；声明在 inputs 里的字段都是必填（约定 B），缺一项即返回「信息不足，无法判断」。
     """
     item = _slice_or_404(slice_id)
+    # 交付有效期：说明里写明的 valid_days 过了就不再给结论，避免拿一份过期的判断去用。
+    validity = _slice_validity(slice_id, item)
+    if validity.get("expired"):
+        raise HTTPException(status_code=403, detail={"error": "slice_delivery_expired",
+            "message": "这条切片的交付已过期（有效期 " + str(validity.get("valid_days")) + " 天，到期 " +
+                       str(validity.get("expires_at")) + "）。请在控制台调整有效期或重新启用后再调用。"})
     if str(item.get("status") or "") != "confirmed":
         raise HTTPException(status_code=409, detail={"error": "slice_not_enabled",
                                                      "message": "这条切片还没有确认并启用，不能对外调用。"})
