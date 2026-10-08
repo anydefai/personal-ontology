@@ -85,6 +85,9 @@ def parse_thresholds(lines: list[str]) -> tuple[dict, list[dict]]:
         if "→" not in raw and "->" not in raw:
             bad.append(_err(n, raw, "格式：条件=值 → 调整量（例如 监管环境=收紧 → -0.10）")); continue
         left, right = re.split(r"→|->", raw, maxsplit=1)
+        left_clean = _clean(left)
+        # 表达式：支持 且 / 或 / 非 / 括号（可嵌套）；旧的「信号 且 信号」写法仍然有效。
+        expr = re.sub(r"\s+", " ", left_clean).strip()
         d = _num(right)
         if d is None:
             bad.append(_err(n, raw, "箭头右边要写数字，例如 +0.15")); continue
@@ -136,6 +139,22 @@ def parse_signals(lines: list[str]) -> tuple[list[dict], list[dict]]:
     return ok, bad
 
 
+def _expr_names(expr: str) -> list[str]:
+    """从要件表达式里取出信号名（去掉 且/或/非/括号）。"""
+    t = expr
+    for op in ("且", "或", "非", "and", "or", "not", "(", ")", "（", "）", "，", ","):
+        t = t.replace(op, " ")
+    return [x.strip() for x in t.split() if x.strip()]
+
+
+def _has_logic(expr: str) -> bool:
+    """是否含「且」以外的逻辑（或/非/括号）——含了就该由要件逻辑模型来算。"""
+    e = expr
+    for op in ("且",):
+        e = e.replace(op, " ")
+    return any(k in e for k in ("或", "非", "and", "or", "not", "(", ")", "（", "）"))
+
+
 def parse_rules(lines: list[str], signal_names: list[str]) -> tuple[list[dict], list[dict]]:
     ok, bad = [], []
     for n, raw in enumerate(lines, 1):
@@ -145,19 +164,27 @@ def parse_rules(lines: list[str], signal_names: list[str]) -> tuple[list[dict], 
         if "→" not in raw and "->" not in raw:
             bad.append(_err(n, raw, "格式：信号 且 信号 → 结论（严重度）")); continue
         left, right = re.split(r"→|->", raw, maxsplit=1)
-        sigs = [x.strip() for x in re.split(r"且|,|、", _clean(left)) if x.strip()]
+        left_clean = _clean(left)
+        # 表达式：支持 且 / 或 / 非 / 括号（可嵌套）；旧的「信号 且 信号」写法仍然有效。
+        expr = re.sub(r"\s+", " ", left_clean).strip()
+        names = _expr_names(expr)
+        sigs = [x.strip() for x in re.split(r"且|,|、", left_clean) if x.strip()]
         right = right.strip()
         m = re.match(r"^(.*?)[（(](低|中|高|极高)[）)]?$", right)
         if m:
             conclusion, severity = m.group(1).strip(), m.group(2)
         else:
             conclusion, severity = right, "中"
-        if not sigs or not conclusion:
-            bad.append(_err(n, raw, "「且」左边要有信号，箭头右边要有结论")); continue
-        unknown = [x for x in sigs if signal_names and x not in signal_names]
+        if not names or not conclusion:
+            bad.append(_err(n, raw, "左侧要有要件（可用 且/或/非/括号），箭头右边要有结论")); continue
+        unknown = [x for x in names if signal_names and x not in signal_names]
         if unknown:
             bad.append(_err(n, raw, f"这些信号还没定义：{'、'.join(unknown)}")); continue
-        ok.append({"all_of": sigs, "conclusion": conclusion, "severity": severity})
+        rule: dict = {"expr": expr, "conclusion": conclusion, "severity": severity}
+        # 纯「且」时同时给出 all_of：评分卡据此判定，老写法与老模型都不受影响。
+        if not _has_logic(expr):
+            rule["all_of"] = names
+        ok.append(rule)
     return ok, bad
 
 

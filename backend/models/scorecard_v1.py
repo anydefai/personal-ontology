@@ -440,6 +440,14 @@ class ScorecardV1:
             elif dims and dim not in dims:
                 problems.append({"level": "warn", "where": f"信号「{name}」",
                                  "reason": f"维度「{dim}」在权重表里没有同名列，这个信号会按 0 分计"})
+        for n, rule in enumerate(framework.get("combination_rules") or [], 1):
+            if not isinstance(rule, dict):
+                continue
+            expr = str(rule.get("expr") or "")
+            if expr and not rule.get("all_of") and any(k2 in expr for k2 in ("或", "非", "(", ")", "or", "not")):
+                problems.append({"level": "warn", "where": "第 %d 条规则" % n,
+                                 "reason": "含「或/非/括号」的规则，评分卡只支持「且」，不会被采用；"
+                                           "请把判定模型切成「要件逻辑」"})
         if (framework.get("signals") or []) and not (framework.get("industry_map") or {}):
             problems.append({"level": "warn", "where": "行业归类",
                              "reason": "没有填「行业 → 类别」，任何行业都取不到权重，打分只能是 0"})

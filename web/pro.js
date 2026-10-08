@@ -536,11 +536,21 @@ function poHasFramework(fw) {
       orphanPanel(orphans, defs, nameOfSlice) +
       (function (m) {
         if (!m) { return ""; }
+        // 当前模型：切片自己带的 model 优先（老切片没有此字段 → 默认模型）
+        if (!window.poJudgmentModel) { window.poJudgmentModel = (state.model || m.id); }
+        var opts = (models || []).map(function (x) {
+          return '<option value="' + esc(x.id) + '"' + (x.id === window.poJudgmentModel ? " selected" : "") + ">" + esc(x.label_zh || x.id) + "</option>";
+        }).join("");
         var na = (m.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
         return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
           '<div class="panel-title"><span>判定模型 · ' + esc(m.label_zh || m.id) + " v" + esc(m.version || "1") + "</span></div>" +
           '<div class="panel-caption" style="margin:6px 0 8px">这条切片的结论由哪个模型算出。模型不写在引擎里，' +
           "每个模型自带适用边界；调用说明与判定记录里都会记下它用了哪个模型、哪个版本。</div>" +
+          '<div style="margin:6px 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<span class="field-label" style="min-width:56px">判定模型</span>' +
+          '<select class="select" id="pro-model" style="max-width:340px">' + opts + "</select>" +
+          '<span class="panel-caption" id="pro-model-note" style="margin:0">切到别的模型会按新模型重新校验；已填内容不会丢。</span>' +
+          "</div>" +
           '<div class="panel-caption"><strong>适合：</strong>' + esc(m.applicable || "—") + "</div>" +
           (na ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + na + "</ul></div>" : "") +
           '<div class="panel-caption" style="margin-top:6px">目前只有这一个模型；按设计还要加「要件逻辑」（任一满足/排除条件）与「领域公式」（剂量、折现现金流）。</div>' +
@@ -1380,6 +1390,22 @@ function polishPanels(view) {
     return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
   };
   // Method two: fill in the sample, parse it, or clear it. The panel lives in the view, not inside the editor.
+  // 判定模型选择：切换前确认（不同模型支持的字段不同），选择记在 window.poJudgmentModel。
+  var modelSel = view.querySelector("#pro-model");
+  if (modelSel && !modelSel.dataset.wired) {
+    modelSel.dataset.wired = "1";
+    modelSel.onchange = function () {
+      var pick = modelSel.value, cur = window.poJudgmentModel || "";
+      if (pick === cur) { return; }
+      var okSwitch = confirm("切到「" + pick + "」后，判定按新模型重算。\n已填内容不会丢；" +
+        "但有些字段可能不再参与判定（例如权重表只对评分卡有意义）。\n\n确定切换吗？");
+      if (!okSwitch) { modelSel.value = cur; return; }
+      window.poJudgmentModel = pick;
+      var note = view.querySelector("#pro-model-note");
+      if (note) { note.textContent = "已切到 " + pick + "；保存后这条切片就会按它判定。"; }
+    };
+  }
+
   var docPanel = view.querySelector("#pro-doc");
   if (docPanel && !docPanel.dataset.wired) {
     docPanel.dataset.wired = "1";
