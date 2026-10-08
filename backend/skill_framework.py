@@ -18,6 +18,8 @@ from backend.models.scorecard_v1 import (  # noqa: F401 - 原样导出，保持�
     TIERS,
     ALWAYS,
     CALLER_KEYS,
+    CALLER_TIER_FIELDS,   # api 的档位分层要用；转发层必须一并导出（第一天就栽在这类漏导出上）
+    CALLER_TIER_ORDER,
     compute_threshold,
     match_conditions,
     eval_signals,
