@@ -2247,6 +2247,29 @@ _SLICE_READY_ITEMS = {
 }
 
 
+def _caller_tier(item: dict[str, Any], body: Any = None) -> str:
+    """调用方拿到哪一层：切片自己的档位是上限，规范里可以请求【更低】的一层（便于测试）。"""
+    ceiling = _slice_tier(item)
+    req = (body or {}).get("request") if isinstance(body, dict) else None
+    want = str((req or {}).get("tier") or "").strip().lower() if isinstance(req, dict) else ""
+    order = skill_framework.CALLER_TIER_ORDER
+    if want in order and order.index(want) <= order.index(ceiling):
+        return want
+    return ceiling
+
+
+def _slice_tier(item: dict[str, Any]) -> str:
+    """调用方拿到哪一层：边界 default_tier 优先，其次交付说明档位，都没有则 professional。"""
+    fw = item.get("framework") or {}
+    b = fw.get("boundaries") or {}
+    d = fw.get("delivery") or {}
+    for raw in (b.get("default_tier"), b.get("tier"), d.get("tier")):
+        name = str(raw or "").strip().lower()
+        if name in ("basic", "standard", "professional", "audit"):
+            return name
+    return "professional"
+
+
 def _not_ready(missing: list[str]) -> dict[str, Any]:
     """把门槛条目键拼成一条双语消息（文案放 messages.py）。"""
     return messages.detail("slice_not_ready",
@@ -2502,4 +2525,4 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
                                                      "detail": str(exc)}) from exc
     # 递给调用方的是"可以给"的版本：结论与说明齐全，作者的权重与阈值不在其中。
     return {"slice_id": slice_id, "caller": who, "authorize": authz,
-            "judgment": skill_framework.for_caller(pkg), "decision_id": decision_id}
+            "judgment": skill_framework.for_caller(pkg, _caller_tier(item, body)), "decision_id": decision_id}

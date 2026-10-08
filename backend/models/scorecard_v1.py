@@ -356,7 +356,19 @@ CALLER_KEYS = ("definition_id", "slice_id", "tier", "decision", "severity", "sco
                "required_inputs", "missing_inputs", "signals", "matched_rules", "fallback_used")
 
 
-def for_caller(package: dict[str, Any]) -> dict[str, Any]:
+# 调用方可见字段按档位分层；任何档位都不含权重、阈值、规则原文（作者的资产）。
+# professional = 升级前的集合（外加 reasoning_steps），不传档位时行为与以前一致。
+CALLER_TIER_ORDER = ["basic", "standard", "professional", "audit"]   # 由松到紧
+CALLER_TIER_FIELDS: dict[str, list[str]] = {
+    "basic": ["decision", "severity", "score", "confidence_status"],
+    "standard": ["decision", "severity", "score", "confidence_status", "basis",
+                 "required_inputs", "missing_inputs"],
+    "professional": list(CALLER_KEYS) + ["reasoning_steps"],
+    "audit": list(CALLER_KEYS) + ["reasoning_steps", "tier", "model", "model_version"],
+}
+
+
+def for_caller(package: dict[str, Any], tier: str | None = None) -> dict[str, Any]:
     """把判定包整理成可以递给调用方的版本。
 
     调用方要拿到的是**结论**与**可追溯的说明**，不是作者的计算方法：
@@ -365,7 +377,10 @@ def for_caller(package: dict[str, Any]) -> dict[str, Any]:
       · 推理步骤只保留"第几步、做了什么"，去掉其中写着的权重表与阈值算术
     设计文档第七步：调用方拿不到框架、权重与阈值。
     """
-    out = {k: package.get(k) for k in CALLER_KEYS if k in package}
+    name = str(tier or package.get("tier") or "professional").strip().lower()
+    if name not in CALLER_TIER_FIELDS:
+        name = "professional"
+    out = {k: package.get(k) for k in CALLER_TIER_FIELDS[name] if k in package}
     # matched_rules carries the author's combination conditions; the caller only needs to know which of the
     # signals fired, which is already in `signals`.
     out.pop("matched_rules", None)
@@ -374,12 +389,17 @@ def for_caller(package: dict[str, Any]) -> dict[str, Any]:
     if isinstance(out.get("evidence"), list):
         out["evidence"] = [{k: v for k, v in row.items() if k in ("factor", "value", "source")}
                            for row in out["evidence"] if isinstance(row, dict)]
-    out["reasoning_steps"] = [
-        {"step": step.get("step"), "name": step.get("name")}
-        for step in (package.get("reasoning_path") or [])
-    ] or None
-    if out["reasoning_steps"] is None:
-        out.pop("reasoning_steps")
+    if "reasoning_steps" in CALLER_TIER_FIELDS[name]:
+        out["reasoning_steps"] = [
+            {"step": step.get("step"), "name": step.get("name")}
+            for step in (package.get("reasoning_path") or [])
+        ] or None
+        if out["reasoning_steps"] is None:
+            out.pop("reasoning_steps")
+    out["tier"] = name
+    if name == "audit":
+        out.setdefault("model", package.get("model"))
+        out.setdefault("model_version", package.get("model_version"))
     return out
 
 # ── 判定模型适配器：把本文件的算法包成一个可注册的模型（引擎只认这个接口）──
