@@ -1487,6 +1487,10 @@
   "个人可信数据空间首页": "Personal Trusted Data Space home",
   "个人可信数据空间总览": "Trusted Data Space overview",
   "通过 MCP 连接个人可信数据空间": "Connect to the Personal Trusted Data Space over MCP",
+  "读取失败：": "Read failed: ",
+  "读取失败": "Read failed",
+  "读取已批准程序失败：": "Could not read approved programs: ",
+  "多半是控制台登录已失效（会话 30 分钟）。重新登录后刷新本页即可；数据没有被改动。": "Most likely the console session expired after 30 minutes. Sign in again and refresh; no data was changed.",
   };
 
 

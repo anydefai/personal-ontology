@@ -565,7 +565,10 @@ function poHasFramework(fw) {
     try { principals = (await api("/v1/principals")) || []; } catch (e) { principals = []; }
     if (!Array.isArray(principals)) principals = principals.items || [];
     var approvedAgents = [];
-    try { approvedAgents = ((await api("/v1/agents")) || {}).approved || []; } catch (e) { approvedAgents = []; }
+    var approvedAgents = [], agentsErr = "";
+    try { approvedAgents = ((await api("/v1/agents")) || {}).approved || []; }
+    catch (e) { approvedAgents = []; agentsErr = (e && (e.message || (e.detail && e.detail.message))) || "读取失败"; }
+    window.poAgentsError = agentsErr;   // 读失败别伪装成"没有程序"
     var pend = null;
     try { pend = sessionStorage.getItem("poProPickSlice"); } catch (e) { pend = null; }
     if (pend) {

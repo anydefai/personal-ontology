@@ -132,7 +132,15 @@ async function renderServiceMonitor(view){
  $("#manager-start").onclick=()=>act("start");$("#manager-restart").onclick=()=>act("restart");
 }
 async function renderAgentAccess(view){
- const data=await api("/v1/agents");
+ let data={};
+ try { data=await api("/v1/agents"); }
+ catch (e) {
+   view.innerHTML=`${titleBlock("CONFIGURATION · ACCESS","智能体授权","")}`+
+     `<section class="panel" style="padding:18px 20px"><div class="panel-title">读取失败</div>`+
+     `<p class="panel-caption" style="color:#d9534f">读取已批准程序失败：${esc((e&&(e.message||(e.detail&&e.detail.message)))||e)}</p>`+
+     `<p class="panel-caption">多半是控制台登录已失效（会话 30 分钟）。重新登录后刷新本页即可；数据没有被改动。</p></section>`;
+   return;
+ }
  const remote=await api("/v1/settings/remote-agents");
  const scopes=data.scopes||{},pending=data.pending||[],approved=data.approved||[],denied=data.denied||[];
  const scopeBoxes=(selected,idPrefix)=>{const set=new Set(selected||[]);return Object.entries(scopes).map(([key,label])=>
