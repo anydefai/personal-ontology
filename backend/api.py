@@ -2096,7 +2096,16 @@ async def import_slice_lines(slice_id: str, body: dict[str, Any]) -> Any:
     原样输入会存进 framework.source，便于以后回看与再次导入。
     """
     item = _slice_or_404(slice_id)
-    texts = (body or {}).get("texts")
+    # 方式二：整篇一次性写入。前端把整篇原文发过来，这里按【小节标题】切分后再解析；
+    # 切分本身的错误（认不出标题、正文出现在标题之前）也一并返回，不静默丢弃。
+    split_errors: list[dict[str, Any]] = []
+    document = (body or {}).get("document")
+    if isinstance(document, str) and document.strip():
+        sections, split_errors = line_format.split_document(document)
+        given = (body or {}).get("texts") if isinstance((body or {}).get("texts"), dict) else {}
+        texts = {**sections, **{kk: vv for kk, vv in given.items() if isinstance(vv, str) and vv.strip()}}
+    else:
+        texts = (body or {}).get("texts")
     if not isinstance(texts, dict):
         raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
     current = item.get("framework") if isinstance(item.get("framework"), dict) else {}
@@ -2109,7 +2118,7 @@ async def import_slice_lines(slice_id: str, body: dict[str, Any]) -> Any:
         updated = dict(item)
         updated["framework"] = fw
         store.put("scenario-slices", slice_id, updated)
-    return {"framework": fw, "report": result["report"], "error_count": errors,
+    return {"framework": fw, "report": result["report"], "split_errors": split_errors, "error_count": errors,
             "saved": bool((body or {}).get("save")), "slice_id": slice_id}
 
 

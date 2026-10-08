@@ -1,3 +1,61 @@
+/* The document sample for method two is used from polishPanels, which lives outside the IIFE, so it must
+ * live outside it as well; it only builds strings.
+ */
+var DOC_SECTIONS = [
+  ["判断的基准线",
+   "基准 1.3\n行业周期位置=上升期 → +0.15\n行业周期位置=下行期 → -0.15\n监管环境=收紧 → -0.10\n监管环境=宽松 → +0.10"],
+  ["我观察什么",
+   "市盈率超阈值 = 市盈率 大于 行业平均市盈率 × 基准线 ｜ 财务\n" +
+   "客户集中度>50 = 客户集中度 大于 50 ｜ 市场\n" +
+   "客户集中度>70 = 客户集中度 大于 70 ｜ 市场\n" +
+   "营收增长率>50 = 营收增长率 大于 50 ｜ 财务\n" +
+   "团队流失高 = 核心团队流失风险 等于 高 ｜ 团队\n" +
+   "现金流危机 = 现金流状况 等于 危机 ｜ 财务\n" +
+   "技术壁垒极高 = 技术壁垒 等于 极高 ｜ 技术\n" +
+   "已专利化 = 技术专利化程度 等于 已专利化 ｜ 技术\n" +
+   "竞业全覆盖 = 竞业协议覆盖 等于 全覆盖 ｜ 团队"],
+  ["几个观察点一起出现时",
+   "市盈率超阈值 且 客户集中度>50 且 团队流失高 → 估值偏高（高）\n" +
+   "市盈率超阈值 且 技术壁垒极高 且 已专利化 → 估值可接受（低）\n" +
+   "市盈率超阈值 且 团队流失高 且 竞业全覆盖 → 估值偏高但可控（中）\n" +
+   "市盈率超阈值 且 现金流危机 → 估值偏高（高）\n" +
+   "市盈率超阈值 且 客户集中度>70 且 现金流危机 且 团队流失高 → 估值严重偏高（极高）"],
+  ["例外情况",
+   "已专利化 且 技术壁垒极高 → 团队权重 ×0.5\n" +
+   "行业周期位置=上升期 且 营收增长率>50 → 基准线 ×1.2\n" +
+   "监管环境=收紧 且 行业=金融 → 直接判 估值偏高"],
+  ["哪个更重要",
+   "现金流危机 > 团队流失高 > 客户集中度>70 > 市盈率超阈值"],
+  ["我的依据",
+   "# 一行一条：依据名，或 依据名 → 信号1 且 信号2（后者要这些信号全部命中才附上）\n" +
+   "# 法律判断没有依据就不可信 —— 下面两行请换成你真实的依据，去掉行首的 #\n" +
+   "# 某法第二十六条 → 市盈率超阈值 且 客户集中度>50\n" +
+   "# 某执业指引第 3.2 条"],
+  ["打分线",
+   "# 打分线只决定「多少分 → 什么结论」；打分公式是内建的，不用写在这里：\n" +
+   "#   分数 = Σ（命中的信号 → 取「该行业类别 × 该信号所属维度」的权重）；命中算满，未命中不算\n" +
+   "#   例外的「权重 ×0.5」在这里生效；未标维度的信号不计分\n" +
+   "# 下面 0.5 与 0.3 是占位 —— 请按你的专业判断改成你的数\n" +
+   "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"],
+  ["需要调用方提交的信息",
+   "行业 ｜ 文字\n市盈率 ｜ 数字\n市销率 ｜ 数字\n行业平均市盈率 ｜ 数字\n行业平均市销率 ｜ 数字\n" +
+   "营收增长率 ｜ 数字\n客户集中度 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机\n" +
+   "技术壁垒 ｜ 选项 ｜ 极高、高、中、低\n技术专利化程度 ｜ 选项 ｜ 已专利化、部分专利化、未专利化\n" +
+   "核心团队流失风险 ｜ 选项 ｜ 高、中、低\n竞业协议覆盖 ｜ 选项 ｜ 全覆盖、部分覆盖、无\n" +
+   "行业周期位置 ｜ 选项 ｜ 上升期、平稳期、下行期\n监管环境 ｜ 选项 ｜ 宽松、中性、收紧"],
+  ["对外调用的边界",
+   "金额上限 1000000000\n允许用途 并购尽调、投资决策\n不得转售"],
+  ["对外交付时附上的说明",
+   "强在哪：普通判断只看市盈率是否超行业平均；本判断同时考虑行业周期、监管环境、客户集中度、现金流、技术壁垒、专利化程度、竞业协议覆盖，并按周期动态调整阈值\n" +
+   "档位：audit\n资历：执业 15 年，并购领域\n有效期：1 天"],
+  ["计费（演示）",
+   "每次 200 CNY"]
+];
+
+function docSample() {
+return DOC_SECTIONS.map(function (x) { return "【" + x[0] + "】\n" + x[1]; }).join("\n\n");
+}
+
 /* The contract text helpers below are used by polishPanels, which lives OUTSIDE the IIFE further down,
  * so they must live outside it too; they only rely on the global esc().
  */
@@ -478,6 +536,7 @@ function poHasFramework(fw) {
           '' +
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
+      docImportPanel() +
       lineImportPanel() +
       '<div class="panel-title" id="pro-step3" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
         '<div id="pro-editor">' +
@@ -1143,7 +1202,22 @@ window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
 
   // -- Unassigned slices: their scenario was deleted, so they must be recoverable --
   // -- Line-based entry: one line per item, with the format shown inline --
-  function lineImportPanel() {
+  function docImportPanel() {
+  return '<section class="panel" id="pro-doc" style="padding:16px;margin-bottom:12px">' +
+    '<div class="panel-title"><span>方式二 · 一次性写入（整篇贴进来）</span></div>' +
+    '<div class="panel-caption">整篇一次写完、一次提交。用【小节标题】分段，标题下面一行一条，语法与下面的逐行输入完全相同。</div>' +
+    '<div class="panel-caption">样例里的名字与数字都是占位，请全部换成你自己的；计费留空即不计费。</div>' +
+    '<textarea class="input mono" rows="16" style="width:100%;margin-top:8px" data-doc-input ' +
+      'placeholder="点下面的【填入样例】看整篇长什么样，再照着改"></textarea>' +
+    '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
+      '<button class="button" data-doc-sample>填入样例</button>' +
+      '<button class="button primary" data-doc-parse>提交解析</button>' +
+      '<button class="button" data-doc-clear>清空</button>' +
+      '<span class="panel-caption" id="doc-report"></span>' +
+    "</div></section>";
+}
+
+function lineImportPanel() {
     var parts = [
       ["inputs", "我要知道的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
       ["thresholds", "判断的基准线", "基准 1.3　以及　条件=值 → 调整量", "基准 1.3\n监管环境=收紧 → -0.10"],
@@ -1155,7 +1229,7 @@ window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
       ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"]
     ];
     return '<section class="panel" id="pro-lines" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span>方式二 · 一行一条自己写</span></div>' +
+      '<div class="panel-title"><span>方式三 · 逐行写入（8 个框，一行一条）</span></div>' +
       '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>两种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补</div>' +
       parts.map(function (p, i) {
         return '<div style="margin-top:10px">' +
@@ -1284,6 +1358,47 @@ function polishPanels(view) {
     if (title.indexOf("计费") >= 0) { return true; }
     return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
   };
+  // Method two: fill in the sample, parse it, or clear it. The panel lives in the view, not inside the editor.
+  var docPanel = view.querySelector("#pro-doc");
+  if (docPanel && !docPanel.dataset.wired) {
+    docPanel.dataset.wired = "1";
+    var docTa = docPanel.querySelector("[data-doc-input]");
+    var docRep = docPanel.querySelector("#doc-report");
+    docPanel.querySelector("[data-doc-sample]").onclick = function () {
+      docTa.value = docSample();
+      docRep.textContent = "样例已填入，请改成你自己的内容。";
+    };
+    docPanel.querySelector("[data-doc-clear]").onclick = function () {
+      docTa.value = ""; docRep.textContent = "";
+    };
+    docPanel.querySelector("[data-doc-parse]").onclick = async function () {
+      var sid = (window.poProSlice && window.poProSlice.id) || "";
+      if (!sid) { alert("请先在上面选一条我的切片。"); return; }
+      if (!docTa.value.trim()) { docRep.textContent = "先把整篇贴进上面的框里（或点【填入样例】）。"; return; }
+      docRep.textContent = "解析中…";
+      var parsed = null;
+      try {
+        parsed = await api("/v1/scenario-slices/" + encodeURIComponent(sid) + "/import-lines",
+          { method: "POST", body: JSON.stringify({ document: docTa.value, save: true }) });
+      } catch (err) {
+        docRep.textContent = ""; alert("解析失败：" + (err && err.message ? err.message : err)); return;
+      }
+      var reportLines = [];
+      var rep = (parsed && parsed.report) || {};
+      Object.keys(rep).forEach(function (kk) {
+        var n = rep[kk].imported || 0, errs = rep[kk].errors || [];
+        reportLines.push("【" + kk + "】导入 " + n + " 条" + (errs.length ? ("，有 " + errs.length + " 行有问题") : ""));
+        errs.forEach(function (e) { reportLines.push("   第 " + e.line + " 行：" + e.text + " → " + e.reason); });
+      });
+      ((parsed && parsed.split_errors) || []).forEach(function (e) {
+        reportLines.push("   第 " + e.line + " 行：" + e.text + " → " + e.reason);
+      });
+      docRep.textContent = reportLines.length ? reportLines.join("\n") : "没有解析到内容，请检查小节标题。";
+      docRep.style.whiteSpace = "pre-wrap";
+      if (parsed && parsed.framework && typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
+    };
+  }
+
   var toc = document.createElement("div");
   toc.className = "pro-toc";
 
