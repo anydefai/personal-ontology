@@ -1471,6 +1471,9 @@ function lineImportPanel() {
 window.addEventListener("unhandledrejection", function (e) {
   var r = e.reason;
   var msg = (r && (r.message || r.detail || r.error)) || r || "未知错误";
+  // Also write it to the console with the stack: the alert alone made these errors impossible to
+  // diagnose (the page showed a message while the console stayed empty).
+  console.error("操作失败：", r, (r && r.stack) || "");
   alert("操作失败：" + msg);
 });
 

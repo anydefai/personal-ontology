@@ -1472,6 +1472,8 @@
   "// exercised by the probe (tests/probe_add_buttons.js) instead of only by eye.": "// exercised by the probe (tests/probe_add_buttons.js) instead of only by eye.",
   "// published: handlers outside the IIFE, and the probe": "// published: handlers outside the IIFE, and the probe",
   "bindRowButtons(view);   // bind add/remove/type-change buttons on every render": "bindRowButtons(view);   // bind add/remove/type-change buttons on every render",
+  "// Also write it to the console with the stack: the alert alone made these errors impossible to": "// Also write it to the console with the stack: the alert alone made these errors impossible to",
+  "// diagnose (the page showed a message while the console stayed empty).": "// diagnose (the page showed a message while the console stayed empty).",
   };
 
 
