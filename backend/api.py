@@ -1814,8 +1814,7 @@ async def patch_item(collection: str, item_id: str, body: dict[str, Any]):
         # 前端「确认并启用」走的正是这条通用更新，所以门槛必须也在这里生效。
         ready = _slice_readiness({**current, **body})
         if not ready["ready"]:
-            raise HTTPException(status_code=422,
-                                detail="这条切片还不能启用，还缺：" + "；".join(ready["missing"]))
+            raise HTTPException(status_code=422, detail=_not_ready(ready["missing"]))
     if collection == "authorizations" and "policy_status" in body:
         # Activation is a guarded, audited operation: it must run the executability
         # checks and record why a rule became effective. A plain PATCH would bypass
@@ -2194,7 +2193,7 @@ async def enable_slice(slice_id: str, body: dict[str, Any]) -> Any:
     item = _slice_or_404(slice_id)
     readiness = _slice_readiness(item)
     if not readiness["ready"]:
-        raise HTTPException(status_code=422, detail="这条切片还不能启用，还缺：" + "；".join(readiness["missing"]))
+        raise HTTPException(status_code=422, detail=_not_ready(readiness["missing"]))
     grantor = str((body or {}).get("grantor_id") or "")
     grantee = str((body or {}).get("grantee_id") or "")
     for who in (grantor, grantee):
@@ -2236,6 +2235,24 @@ async def disable_slice(slice_id: str) -> Any:
     return {"slice_id": slice_id, "status": "analyzed", "revoked": revoked}
 
 
+# 启用门槛的条目文案（放在表里，经 messages.detail 输出，便于双语与集中维护）
+_SLICE_READY_ITEMS = {
+    "inputs": "「我要知道的信息」一项都没有（不知道要调用方提交什么）",
+    "signals": "观察点（我观察什么）一条都没有",
+    "conclusion": "没有任何能给出结论的东西（组合判断 / 打分线 / 兜底 都没有）",
+    "requirements": "要件规则一条都没有（这个模型靠要件成立来给结论）",
+    "formulas": "公式一条都没有",
+    "bands": "分档一条都没有（公式结果落不到结论上）",
+    "weights": "没有填「不同行业的侧重」（权重）—— 这样打分永远是 0",
+}
+
+
+def _not_ready(missing: list[str]) -> dict[str, Any]:
+    """把门槛条目键拼成一条双语消息（文案放 messages.py）。"""
+    return messages.detail("slice_not_ready",
+                           missing="；".join(_SLICE_READY_ITEMS.get(k, k) for k in missing))
+
+
 def _slice_readiness(item: dict[str, Any]) -> dict[str, Any]:
     """启用门槛：空的或半成品切片不能对外启用。
 
@@ -2247,26 +2264,30 @@ def _slice_readiness(item: dict[str, Any]) -> dict[str, Any]:
     missing: list[str] = []
     warnings: list[str] = []
     if not (fw.get("inputs") or []):
-        missing.append("「我要知道的信息」一项都没有（不知道要调用方提交什么）")
+        missing.append("inputs")
     if model == "requirements_v1":
         if not (fw.get("combination_rules") or []):
-            missing.append("要件规则一条都没有（这个模型靠要件成立来给结论）")
+            missing.append("requirements")
         if not (fw.get("signals") or []):
-            missing.append("要件（我观察什么）一条都没有")
+            missing.append("signals")
     elif model == "formula_v1":
         if not (fw.get("formulas") or {}):
-            missing.append("公式一条都没有")
+            missing.append("formulas")
         if not (fw.get("bands") or fw.get("score_bands") or []):
-            missing.append("分档一条都没有（公式结果落不到结论上）")
+            missing.append("bands")
     else:
         if not (fw.get("signals") or []):
-            missing.append("观察点（我观察什么）一条都没有")
+            missing.append("signals")
         if not (fw.get("combination_rules") or []) and not (fw.get("score_bands") or {}) \
                 and not (fw.get("fallback") or {}):
-            missing.append("没有任何能给出结论的东西（组合判断 / 打分线 / 兜底 都没有）")
+            missing.append("conclusion")
     if model == "scorecard_v1" and (fw.get("signals") or []) and not (fw.get("industry_weights") or {}):
-        warnings.append("没有填「不同行业的侧重」（权重）—— 这样打分永远是 0")
-    return {"ready": not missing, "missing": missing, "warnings": warnings,
+        warnings.append("weights")
+    # 同时给出键与可显示文本：键用于消息目录（双语），文本给界面直接显示。
+    return {"ready": not missing, "missing": missing,
+            "missing_text": [_SLICE_READY_ITEMS.get(k, k) for k in missing],
+            "warnings": warnings,
+            "warnings_text": [_SLICE_READY_ITEMS.get(k, k) for k in warnings],
             "model": model}
 
 

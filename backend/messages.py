@@ -23,6 +23,11 @@ def current_language() -> str:
 
 
 MESSAGES: dict[str, dict[str, str]] = {
+    "slice_not_ready": {
+        "zh": "这条切片还不能启用，还缺：{missing}",
+        "en": "This slice cannot be enabled yet. Still missing: {missing}",
+    },
+
     # 登录与账户
     "login_password_required": {"zh": "请输入登录密码。", "en": "Enter the login password."},
     "current_password_required": {"zh": "请输入当前密码。", "en": "Enter the current password."},

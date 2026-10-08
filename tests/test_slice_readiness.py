@@ -57,7 +57,8 @@ async def main():
     # ③ 契约里给出 readiness（界面据此提示还缺什么）
     st3, ct = await call("GET", "/v1/scenario-slices/s.empty/contract", token=token)
     rd = (ct or {}).get("readiness") or {}
-    check("③ 契约里有 readiness 且标为未就绪", rd.get("ready") is False and bool(rd.get("missing")), str(rd)[:150])
+    check("③ 契约里有 readiness 且标为未就绪（含可显示文本）",
+          rd.get("ready") is False and bool(rd.get("missing")) and bool(rd.get("missing_text")), str(rd)[:150])
 
     # ④ 有内容但没填权重 → 只提醒（不阻断）
     noweight = {k: v for k, v in FULL.items() if k != "industry_weights"}
@@ -65,7 +66,7 @@ async def main():
     st4, ct2 = await call("GET", "/v1/scenario-slices/s.noweight/contract", token=token)
     rd2 = (ct2 or {}).get("readiness") or {}
     check("④ 没权重时只提醒不阻断（ready 仍为真，warnings 提到权重）",
-          rd2.get("ready") is True and any("权重" in w for w in (rd2.get("warnings") or [])), str(rd2)[:160])
+          rd2.get("ready") is True and any("权重" in w for w in (rd2.get("warnings_text") or [])), str(rd2)[:160])
 
     p = sum(1 for ok, _ in RESULTS if ok)
     print(f"\n===== {p}/{len(RESULTS)} 项通过 =====")

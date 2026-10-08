@@ -52,7 +52,8 @@ function makeCtx(doc, { catalogFails }) {
         return { default: MODELS[0].id, models: MODELS };
       }
       if (s.indexOf("/v1/scenario-slices") >= 0) {
-        return [{ id: "s.1", status: "confirmed", scenario_profile: { kind: "professional" },
+        return [{ id: "s.1", status: "confirmed", scenario_definition_id: "d.1",
+                  scenario_profile: { kind: "professional" },
                   analysis: { title: "我的切片" },
                   framework: { model: "scorecard_v1",
                                inputs: [{ name: "市盈率", type: "number" }],
@@ -64,7 +65,19 @@ function makeCtx(doc, { catalogFails }) {
     },
     esc: (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
     fieldLabel: (row, zh, en) => (row && (row[zh] || row[en])) || "",
-    load: async () => [],
+    load: async (what) => {
+      const w = String(what);
+      if (w.indexOf("scenario-definitions") >= 0) return [{ id: "d.1", display_name_zh: "测试场景" }];
+      if (w.indexOf("scenario-slices") >= 0) {
+        return [{ id: "s.1", status: "draft", scenario_definition_id: "d.1",
+                  scenario_profile: { kind: "professional" }, analysis: { title: "我的切片" },
+                  framework: { model: "scorecard_v1", inputs: [{ name: "市盈率", type: "number" }],
+                               thresholds: { base: 1.3, adjustments: [] },
+                               signals: [{ name: "贵", dimension: "财务", when: { "市盈率": { op: "gt", value: 43.5 } } }],
+                               industry_map: { "新能源": "科技" }, industry_weights: { "科技": { "财务": 0.4 } } } }];
+      }
+      return [];
+    },
     isProSlice: () => true,
     displayName: () => "",
     proModeButtons: () => '<div class="pro-mode-buttons">模式</div>',
@@ -129,12 +142,16 @@ function textOf(view) {
   check("切换处理不再引用局部变量 models（防同类作用域报错）",
         !/var pickedModel = \(models/.test(src.slice(src.indexOf("pro-model"))), "仍在引用 models");
   check("切换处理用的是 descHtml（来自全局说明表）", /desc\.innerHTML = descHtml/.test(src), "没找到");
-  // 用户报过：新建切片后点【提交解析】提示"请先在上面选一条我的切片"。
-  // 根因是解析读的是 window.poProSlice（真实界面里从未被赋值，只有测试替身设了它），
-  // 而不是页面自己的 sliceId。这条断言防止它再退化。
-  check("方式二/三的解析读页面自己的 sliceId（绝不能读 window.poProSlice）",
-        !/window\.poProSlice && window\.poProSlice\.id/.test(src) && /var sid = sliceId \|\| ""/.test(src),
-        "仍在读全局 poProSlice");
+  // The user reported that parsing right after creating a slice said to select one first.
+  // The cause was that parsing read window.poProSlice, which the real page never assigns and only this stub set,
+  // instead of the page's own sliceId, so this assertion keeps it from regressing.
+  // 那段解析处理在 IIFE 之外，看不到 IIFE 内的 sliceId（改回读局部变量会 ReferenceError），
+  // 所以渲染时把当前切片 id 发布到 window.poCurrentSliceId —— 这条断言它真的被发布了。
+  check("渲染时把当前切片 id 发布到 window.poCurrentSliceId（DOM 级，切换后解析才不会误报未选切片）",
+        (c1.window && c1.window.poCurrentSliceId) === "s.1", "实际值：" + String(c1.window && c1.window.poCurrentSliceId));
+  check("解析处理读 window.poCurrentSliceId，且不再读从未赋值的 window.poProSlice",
+        !/window\.poProSlice && window\.poProSlice\.id/.test(src) && /var sid = window\.poCurrentSliceId \|\| ""/.test(src),
+        "读取来源不对");
   // 标题同样不能停在旧模型上（用户报过："判定模型 · 评分卡（证据累积） v1"不跟着切换变）
   const titleMap = (c1.window && c1.window.poModelTitle) || {};
   check("渲染后标题表里有三个模型", Object.keys(titleMap).length >= 3, "键：" + Object.keys(titleMap).join(","));

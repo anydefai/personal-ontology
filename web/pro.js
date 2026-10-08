@@ -487,6 +487,7 @@ function poHasFramework(fw) {
       if (mine.some(function (x) { return x.id === pend; })) sliceId = pend;
     }
     if (!sliceId || !mine.some(function (x) { return x.id === sliceId; })) sliceId = mine[0] ? mine[0].id : null;
+    window.poCurrentSliceId = sliceId || "";   // published for handlers that live outside the IIFE
     // 未归属切片：所属场景已被删除（或从未归属）—— 不该消失，应当能捞回来
     var defIds = defs.map(function (d) { return d.id; });
     var orphans = allSlices.filter(function (x) {
@@ -1532,7 +1533,7 @@ function polishPanels(view) {
       docTa.value = ""; docRep.textContent = "";
     };
     btnParse.onclick = async function () {
-      var sid = sliceId || "";
+      var sid = window.poCurrentSliceId || "";
       if (!sid) { alert("请先在上面选一条我的切片。"); return; }
       if (!docTa.value.trim()) { docRep.textContent = "先把整篇贴进上面的框里（或点【填入样例】）。"; return; }
       docRep.textContent = "解析中…";
@@ -1610,7 +1611,7 @@ function polishPanels(view) {
       bar.querySelectorAll("[data-contract-btn]").forEach(function (btn) {
         btn.onclick = async function () {
           var note = bar.querySelector("[data-contract-note]");
-          var sid = sliceId || "";
+          var sid = window.poCurrentSliceId || "";
           if (!sid) { alert("请先在上面选一条我的切片。"); return; }
           note.textContent = "读取中…";
           var c = null;
