@@ -328,6 +328,9 @@ class MCPServer:
                                    "请在控制台的场景切片页选中它并点确认并启用。")
             result = self._api("POST", "/v1/scenario-slices/" + sid + "/judge",
                                {"data": args.get("data") or {}, "request": args.get("request") or {}})
+            # 版本钢印：报告与 stderr 都带上，用来判断这份报告是哪一版代码生成的。
+            _ver = "mcp@%s" % __import__("time").strftime("%m-%d %H:%M", __import__("time").localtime(os.path.getmtime(__file__)))
+            print("MCP 版本 %s 已加载（文件 %s）" % (_ver, __file__), file=sys.stderr)
             # ── 给调用方的 HTML 报告：六步逐层推演 + 信号明细；不披露基准线数值/规则原文/例外条件/权重 ──
             def _esc(v):
                 return str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -374,7 +377,8 @@ class MCPServer:
                     "<h2>四、需要你确认的事项</h2><ul>" + _li_miss +
                     "<li>若输入含估计值（金额占比、集中度、市盈率等），请确认口径与基准日，这几项直接决定信号是否命中。</li>"
                     "<li>本报告是判断依据，不构成法律、审计或投资意见；涉国资、涉诉、涉数据合规请按法定程序另行确认。</li>"
-                    "<li>复核请凭报告编号 " + _esc(result.get("decision_id")) + " 向数据空间所有者提出。</li></ul></html>")
+                    "<li>复核请凭报告编号 " + _esc(result.get("decision_id")) + " 向数据空间所有者提出。</li></ul>"
+        "<p class=\"muted\">报告由 " + _ver + " 生成</p></html>")
             else:
                 _li = "".join("<li>%s — %s</li>" % (_esc(c.get("check")), _esc(c.get("detail") or ("通过" if c.get("ok") else "不通过"))) for c in (_auth.get("checks") or []))
                 result["report_html"] = ("<!doctype html><html lang=\"zh\"><meta charset=\"utf-8\"><title>未通过授权检查</title>" + _CSS +
@@ -382,7 +386,7 @@ class MCPServer:
                     "<p class=\"muted\">切片 " + _esc(result.get("slice_id")) + " · 调用方 " + _esc(_req.get("caller")) + "</p>"
                     "<h2>未通过的原因</h2><ul>" + _li + "</ul>"
                     "<h2>你需要做什么</h2><p>请让数据空间所有者为这条切片补上【允许用途】与【金额上限】并保存（控制台里该栏名为 allowed_scenarios）。未声明的空白不等于默许，因此默认拒绝。</p>"
-                    "<p class=\"muted\">本次没有结论，因此没有任何判定内容可提供。</p></html>")
+                    "<p class=\"muted\">本次没有结论，因此没有任何判定内容可提供。 · " + _ver + "</p></html>")
 
             self._write_session(name)
             return result
