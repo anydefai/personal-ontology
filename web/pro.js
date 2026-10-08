@@ -707,6 +707,10 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
       docImportPanel() +
       lineImportPanel() +
       '<div class="panel-title" id="pro-step3" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
+      '<div style="margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+        '<button class="button primary" data-save-review>保存这次微调</button>' +
+        '<span class="panel-caption" style="margin:0">把下面各面板里改过的内容存进这条切片（与「方式三」的保存互不影响）</span>' +
+      '</div>' +
         '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
         deliveryPanel(slice || {}) +
@@ -785,7 +789,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
     // Re-render on type or exception-kind change so only the needed inputs show.
     view.querySelectorAll("[data-in-type]").forEach(function (s) { s.onchange = function () { state = collect(); render(); }; });
     view.querySelectorAll("[data-ex-kind]").forEach(function (s) { s.onchange = function () { state = collect(); render(); }; });
-    view.querySelectorAll("[data-save-framework]").forEach(function (b) {
+    view.querySelectorAll("[data-save-framework], [data-save-review]").forEach(function (b) {
       b.onclick = async function () {
         if (!sliceId) { alert("请先点上面的「＋ 新建我的切片」建一条切片，框架保存在切片上。"); return; }
         if (slice && slice.status === "confirmed" &&

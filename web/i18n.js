@@ -1507,6 +1507,8 @@
   "一行一条：行业 → 上表里的类别。调用方提交的每一个行业都要出现在这里（例如 房地产 → 高法律风险）。": "One per line: industry, then the category above. Every industry callers submit must appear here, for example real estate, then high legal risk.",
   "行业 → 类别（例如 房地产 → 高法律风险）": "industry, then category, for example real estate, then high legal risk",
   "每个类别包含哪些行业（必填）": "Which industries each category covers (required)",
+  "保存这次微调": "Save these adjustments",
+  "把下面各面板里改过的内容存进这条切片（与「方式三」的保存互不影响）": "Save what you changed in the panels below into this slice, independently of the mode three save.",
   };
 
 
