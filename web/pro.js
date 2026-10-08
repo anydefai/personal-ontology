@@ -1,24 +1,3 @@
-/* The document sample for method two is used from polishPanels, which lives outside the IIFE, so it must
- * live outside it as well; it only builds strings.
- */
-var DOC_SECTIONS = [
-["判断的基准线", "基准 1.3\n监管环境=收紧 → -0.10"],
-["我观察什么", "团队流失高 = 核心团队流失风险 等于 高"],
-["几个观察点一起出现时", "团队流失高 且 现金流危机 → 估值偏高（高）"],
-["例外情况", "技术已专利化 且 技术壁垒极高 → 团队流失权重 ×0.5"],
-["哪个更重要", "现金流危机 > 团队流失高"],
-["我的依据", "反垄断法第二十六条 → 团队流失高 且 现金流危机"],
-["打分线", "打分 0.5 以上 → 估值偏高（高）\n其余 → 估值中性（中）"],
-["需要调用方提交的信息", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
-["对外调用的边界", "金额上限 1000000\n允许用途 估值、尽调\n不得转售"],
-["对外交付时附上的说明", "强在哪：普通判断只看一个指标，本判断还看行业与周期\n档位：audit\n有效期：30 天"],
-["计费（演示）", "每次 （留空表示不计费）"]
-];
-
-function docSample() {
-return DOC_SECTIONS.map(function (x) { return "【" + x[0] + "】\n" + x[1]; }).join("\n\n");
-}
-
 /* The contract text helpers below are used by polishPanels, which lives OUTSIDE the IIFE further down,
  * so they must live outside it too; they only rely on the global esc().
  */
@@ -234,7 +213,7 @@ function poHasFramework(fw) {
   // ── 1 · 我要知道的信息 ──
   function inputsPanel(f) {
     return '<section class="panel" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span>需要调用方提交的信息</span></div>' +
+      '<div class="panel-title"><span>我要知道的信息</span></div>' +
       hint('每次做判断之前都要先问清楚的信息，一条一行。') +
       hint('调用这条判断的人必须提供下面这些值；少任何一项，判定会返回「信息不足，无法判断」。') +
       f.inputs.map(function (i, n) {
@@ -495,7 +474,7 @@ function poHasFramework(fw) {
         "</div></section>" +
       sliceTable(mine, sliceId, nameOfSlice) +
       orphanPanel(orphans, defs, nameOfSlice) +
-      docImportPanel() + lineImportPanel() +
+      lineImportPanel() +
       '<div class="panel-title" id="pro-step3" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
         '<div id="pro-editor">' +
         boundariesPanel((slice && slice.boundaries) || {}) +
@@ -703,7 +682,7 @@ function poHasFramework(fw) {
       var desc = (view.querySelector("#pro-desc") || {}).value || "";
       var h2 = view.querySelector("#pro-hint"); if (h2) h2.textContent = "正在让模型起草…（大约十几秒）";
       var out = await api("/v1/scenario-slices/" + encodeURIComponent(sliceId) + "/draft", { method: "POST", body: JSON.stringify({ description: desc }) });
-      if (parsed && parsed.framework) { state = ensureShape(out.framework); state.__slice = sliceId; render(); }
+      if (out && out.framework) { state = ensureShape(out.framework); state.__slice = sliceId; render(); }
       else if (h2) { h2.textContent = "起草失败：" + ((out && (out.detail || out.error)) || "请检查模型服务"); }
     };
     view.querySelectorAll("[data-pick-slice]").forEach(function (b) {
@@ -1154,60 +1133,28 @@ function scoreBandsPanel(f) {
     '</section>';
 }
 
-// polishPanels lives outside the IIFE, so the refresh entry point is exposed globally (same pattern as
-// poEnableFor).
-window.poRefreshSlice = render;
-
 window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
 })();
 
 
   // -- Unassigned slices: their scenario was deleted, so they must be recoverable --
   // -- Line-based entry: one line per item, with the format shown inline --
-  // ── 方式二 · 一次性写入 ──
-// One textarea holds a whole document; the backend splits it by section headers. The sample below is built
-// from the same table as the line boxes, so the two methods can never drift apart.
-function docImportPanel() {
-  return '<section class="panel" id="pro-doc" style="padding:16px;margin-bottom:12px">' +
-    '<div class="panel-title"><span>方式二 · 一次性写入（整篇贴进来）</span></div>' +
-    '<div class="panel-caption">整篇一次写完、一次提交。用【小节标题】分段，标题下面一行一条，语法与下面的逐行输入完全相同。</div>' +
-    '<div class="panel-caption">样例里的名字与数字都是占位，请全部换成你自己的；计费留空即不计费。</div>' +
-    '<textarea class="input mono" rows="16" style="width:100%;margin-top:8px" data-doc-input ' +
-      'placeholder="点下面的【填入样例】看整篇长什么样，再照着改"></textarea>' +
-    '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
-      '<button class="button" data-doc-sample>填入样例</button>' +
-      '<button class="button primary" data-doc-parse>提交解析</button>' +
-      '<button class="button" data-doc-clear>清空</button>' +
-      '<span class="panel-caption" id="doc-report"></span>' +
-    "</div></section>";
-}
-
-function lineImportPanel() {
+  function lineImportPanel() {
     var parts = [
+      ["inputs", "我要知道的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
       ["thresholds", "判断的基准线", "基准 1.3　以及　条件=值 → 调整量", "基准 1.3\n监管环境=收紧 → -0.10"],
       ["signals", "我观察什么", "信号名 = 字段 大于/小于/等于/属于/包含 值（可写「字段 × 基准线」）", "团队流失高 = 核心团队流失风险 等于 高"],
       ["rules", "几个观察点一起出现时", "信号 且 信号 → 结论（严重度）", "团队流失高 且 现金流危机 → 估值偏高（高）"],
       ["exceptions", "例外情况", "条件 且 条件 → 某维度权重 ×0.5 / 基准线 ×1.2 / 直接判 结论", "技术已专利化 且 技术壁垒极高 → 团队流失权重 ×0.5"],
       ["priority", "哪个更重要", "更重要的 > 次重要的（> 两边留空格）", "现金流危机 > 团队流失高"],
       ["citations", "我的依据", "依据名　或　依据名 → 信号1 且 信号2（全部命中才附上）", "反垄断法第二十六条 → 团队流失高 且 现金流危机\n证券法第七十八条"],
-      ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"],
-      ["inputs", "需要调用方提交的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
-      ["boundaries", "对外调用的边界", "金额上限 1000000　允许用途 甲、乙　不得转售", "金额上限 1000000\n允许用途 估值、尽调\n不得转售"],
-      ["delivery", "对外交付时附上的说明", "强在哪：…　资历：…　档位：audit　有效期：30 天", "强在哪：普通判断只看一个指标，本判断还看行业与周期\n有效期：30 天"],
-      ["billing", "计费（演示）", "每次 <价格> <币种>；不填表示不计费", "每次 （留空表示不计费）"]
+      ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"]
     ];
     return '<section class="panel" id="pro-lines" style="padding:16px;margin-bottom:12px">' +
       '<div class="panel-title"><span>方式二 · 一行一条自己写</span></div>' +
-      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>三种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或整篇贴进来后再逐条微调</div>' +
-      '<div class="panel-caption" style="margin:8px 0 2px"><strong>我的判断模型</strong>（前 7 个框：你的判断方法，调用方看不到）</div>' +
+      '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>两种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补</div>' +
       parts.map(function (p, i) {
-        var groupHead = (i === 0 || p[0] === "inputs")
-          ? '<div class="panel-caption" style="margin:14px 0 2px"><strong>' +
-            (p[0] === "inputs" ? "对外调用与交付（写给调用方，这 4 个框调用方看得到）" : "我的判断模型") +
-            (p[0] === "inputs" ? "（" + (parts.length - 7) + " 个框）" : "（前 7 个框：你的判断方法，调用方看不到）") +
-            "</strong></div>"
-          : "";
-        return groupHead + '<div style="margin-top:10px">' +
+        return '<div style="margin-top:10px">' +
           '<div class="field-label">' + p[1] + '</div>' +
           '<div class="panel-caption" style="margin:2px 0 4px">格式：' + esc(p[2]) + '</div>' +
           '<textarea class="input mono" rows="3" style="width:100%" data-line-part="' + p[0] + '" placeholder="' + esc(p[3]) + '"></textarea>' +
@@ -1331,111 +1278,8 @@ function polishPanels(view) {
   // audience answers at a glance which parts are written for the caller.
   var isCallerPanel = function (title) {
     if (title.indexOf("计费") >= 0) { return true; }
-    return title.indexOf("对外") >= 0 || title.indexOf("需要调用方提交的信息") >= 0 || title.indexOf("我要知道的信息") >= 0;
+    return title.indexOf("对外") >= 0 || title.indexOf("我要知道的信息") >= 0;
   };
-  // Method two: fill in the sample, parse it, or clear the box.
-  var docPanel = view.querySelector("#pro-doc");
-  if (docPanel && !docPanel.dataset.wired) {
-    docPanel.dataset.wired = "1";
-    var docTa = docPanel.querySelector("[data-doc-input]");
-    var docRep = docPanel.querySelector("#doc-report");
-    docPanel.querySelector("[data-doc-sample]").onclick = function () {
-      docTa.value = docSample();
-      docRep.textContent = "样例已填入，请改成你自己的内容。";
-    };
-    docPanel.querySelector("[data-doc-clear]").onclick = function () {
-      docTa.value = "";
-      docRep.textContent = "";
-    };
-    docPanel.querySelector("[data-doc-parse]").onclick = async function () {
-      var sid = (window.poProSlice && window.poProSlice.id) || "";
-      if (!sid) { alert("请先在上面选一条我的切片。"); return; }
-      if (!docTa.value.trim()) { docRep.textContent = "先把整篇贴进上面的框里（或点【填入样例】）。"; return; }
-      docRep.textContent = "解析中…";
-      var parsed = null;
-      try {
-        parsed = await api("/v1/scenario-slices/" + encodeURIComponent(sid) + "/import-lines",
-          { method: "POST", body: JSON.stringify({ document: docTa.value, save: true }) });
-      } catch (err) {
-        docRep.textContent = "";
-        alert("解析失败：" + (err && err.message ? err.message : err));
-        return;
-      }
-      var lines = [];
-      var rep = (parsed && parsed.report) || {};
-      Object.keys(rep).forEach(function (k) {
-        var n = rep[k].imported || 0, errs = rep[k].errors || [];
-        lines.push("【" + k + "】导入 " + n + " 条" + (errs.length ? ("，有 " + errs.length + " 行有问题") : ""));
-        errs.forEach(function (e) { lines.push("   第 " + e.line + " 行：" + e.text + " → " + e.reason); });
-      });
-      ((parsed && parsed.split_errors) || []).forEach(function (e) {
-        lines.push("   第 " + e.line + " 行：" + e.text + " → " + e.reason);
-      });
-      docRep.textContent = lines.length ? lines.join("\n") : "没有解析到内容，请检查小节标题。";
-      docRep.style.whiteSpace = "pre-wrap";
-      if (parsed && parsed.framework && typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
-    };
-  }
-
-  // ── Step two: three drafting methods as cards ──
-  // Only the chosen method is expanded, so three interfaces never pile up. The choice lives on window for the
-  // session; the default is model drafting, which is the least effort the first time.
-  var METHOD_KEYS = ["model", "doc", "lines"];
-  var methodRegions = {};
-  Array.prototype.slice.call(view.querySelectorAll("#pro-doc, #pro-lines")).forEach(function (el) {
-    methodRegions[el.id === "pro-doc" ? "doc" : "lines"] = el;
-  });
-  Array.prototype.slice.call(view.querySelectorAll("section.panel")).forEach(function (el) {
-    var t = (el.querySelector(".panel-title span") || {}).textContent || "";
-    if (t.indexOf("方式一") >= 0) { methodRegions.model = el; }
-  });
-  if (methodRegions.model && methodRegions.doc && methodRegions.lines && !view.querySelector("#pro-method-cards")) {
-    var chosen = METHOD_KEYS.indexOf(window.poDraftMethod) >= 0 ? window.poDraftMethod : "model";
-    var bar = document.createElement("div");
-    bar.id = "pro-method-cards";
-    bar.className = "pro-method-cards";
-    bar.innerHTML = [
-      ["model", "方式一 · 让模型起草", "我说一段话，它出草稿（第一次用最省力）"],
-      ["doc", "方式二 · 一次性写入", "我在别处写好，整篇贴进来（带样例）"],
-      ["lines", "方式三 · 逐行输入", "我对着 11 个框，一条一条填"]
-    ].map(function (x) {
-      return '<button class="pro-method' + (x[0] === chosen ? " is-on" : "") + '" data-method="' + x[0] + '">' +
-        "<strong>" + x[1] + "</strong><span>" + x[2] + "</span></button>";
-    }).join("") + '<div class="panel-caption" style="flex:1 1 100%;margin:2px 0 0">三种方式改的是同一份框架，随时可以切换；先写的不会丢。</div>';
-    methodRegions.model.parentNode.insertBefore(bar, methodRegions.model);
-    var apply = function (key) {
-      window.poDraftMethod = key;
-      METHOD_KEYS.forEach(function (k) { methodRegions[k].style.display = (k === key) ? "" : "none"; });
-      Array.prototype.slice.call(bar.querySelectorAll("[data-method]")).forEach(function (b) {
-        b.classList.toggle("is-on", b.dataset.method === key);
-      });
-    };
-    Array.prototype.slice.call(bar.querySelectorAll("[data-method]")).forEach(function (b) {
-      b.onclick = function () { apply(b.dataset.method); };
-    });
-    apply(chosen);
-
-    // Method three: the four caller-facing boxes fold away as one group (the design's default).
-    var linesPanel = methodRegions.lines;
-    if (linesPanel && !linesPanel.querySelector("#pro-lines-caller")) {
-      var boxes = Array.prototype.slice.call(linesPanel.children);
-      var firstCaller = -1;
-      boxes.forEach(function (el, i) {
-        if (el.querySelector && el.querySelector('[data-line-part="inputs"]')) { firstCaller = i; }
-      });
-      if (firstCaller > 0) {
-        var det = document.createElement("details");
-        det.id = "pro-lines-caller";
-        var sum = document.createElement("summary");
-        sum.textContent = "对外调用与交付（4 个框，调用方看得到）";
-        det.appendChild(sum);
-        var moved = boxes.slice(firstCaller);
-        moved.forEach(function (el) { det.appendChild(el); });
-        linesPanel.appendChild(det);
-      }
-    }
-  }
-
   var toc = document.createElement("div");
   toc.className = "pro-toc";
 
