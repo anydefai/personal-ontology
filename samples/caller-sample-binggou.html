@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh">
+<meta charset="utf-8">
+<title>智能体（调用方）调用样例 · 并购估值</title>
+<style>
+  body{font:14px/1.75 -apple-system,"PingFang SC",sans-serif;max-width:920px;margin:32px auto;padding:0 24px;color:#1f2937}
+  h1{font-size:21px;margin:0 0 6px}h2{font-size:15px;margin:26px 0 8px;border-left:3px solid #3f8f6f;padding-left:9px}
+  h3{font-size:13.5px;margin:16px 0 6px;color:#374151}
+  .muted{color:#6b7280;font-size:12px}
+  pre{background:#f7f9f8;border:1px solid #e5e9e7;border-radius:8px;padding:14px 16px;overflow:auto;font-size:13px;line-height:1.7}
+  table{border-collapse:collapse;width:100%;margin:6px 0 4px}
+  td,th{border:1px solid #e5e7eb;padding:6px 10px;text-align:left;font-size:13px;vertical-align:top}
+  th{background:#f6f8f7;font-weight:600}
+  .ok{color:#15803d}.warn{color:#b45309}.bad{color:#b91c1c}
+  code{background:#eef2f0;padding:1px 4px;border-radius:4px}
+  .card{border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin:10px 0}
+</style>
+
+<h1>智能体（调用方）调用样例 · 并购估值</h1>
+<p class="muted">切片 <code>scenario_slice_2d9336d1c2f5</code> · 工具 <code>judge_professional_slice</code> · 11 项全部必填 · 用途必须是 <code>投资判断</code></p>
+
+<h2>一、智能体说什么（一句话）</h2>
+<pre>请调用 judge_professional_slice 做一次投资判断，按下面参数原样传；把返回的 decision / severity / score /
+basis / signals / decided_by / missing_inputs / decision_id 贴给我，并把 report_html 存成 html 文件。</pre>
+
+<h2>二、它要传的参数（可直接复制）</h2>
+<pre>slice_id: scenario_slice_2d9336d1c2f5
+
+data:
+  行业: 新能源
+  不动产权属: 有瑕疵
+  未决诉讼金额占比: 7.5        ← 百分数（7.5 表示 7.5%），不是 0.075
+  对外担保: 有未披露
+  业绩对赌条款: 有
+  数据合规结论: 不合规
+  市盈率: 46
+  行业平均市盈率: 22
+  客户集中度: 58              ← 数字（百分数），不是「高」
+  交易结构: 现金加换股
+  标的为国资背景: 否
+
+request:
+  caller: 我的投资部
+  purpose: 投资判断            ← 必须是切片允许的用途之一（另一个是「并购尽调」）
+  amount: 300000000           ← 必须 ≤ 1000000000
+  no_resale: true             ← 必须
+  tier: professional          ← 可写 basic/standard/professional/audit，只能降不能升</pre>
+
+<h2>三、它会收到什么（返回 JSON）</h2>
+<pre>{
+  "slice_id": "scenario_slice_2d9336d1c2f5",
+  "caller": "agent:e7837a39f2cb365cf30f",
+  "authorize": { "result": "allow", "over_limit": false, "checks": [
+      {"check": "调用方已标明", "ok": true},
+      {"check": "用途在允许范围内", "ok": true},
+      {"check": "已承诺不得转售", "ok": true},
+      {"check": "金额未超上限", "ok": true} ] },
+  "judgment": {
+    "decision": "法律与合规双重风险",
+    "severity": "极高",
+    "score": 0.9,
+    "basis": ["《民法典》物权编", "《数据安全法》第二十七条"],
+    "signals": { "权属瑕疵": true, "诉讼未决": true, "数据合规风险": true,
+                 "估值偏高": true, "客户集中度高": true,
+                 "担保未披露": true, "对赌缺失": false, "交易结构复杂": true, "国资背景": false },
+    "decided_by": "组合规则：权属瑕疵 且 数据合规风险",
+    "required_inputs": ["行业", "…共 11 项…"],
+    "missing_inputs": [],
+    "confidence_status": "unverified",
+    "tier": "professional",
+    "reasoning_steps": [ {"step":1,"name":"行业分类"}, {"step":2,"name":"动态阈值计算"},
+                         {"step":3,"name":"风险交叉验证"}, {"step":4,"name":"例外识别"},
+                         {"step":5,"name":"信号优先级"}, {"step":6,"name":"综合判定"} ]
+  },
+  "decision_id": "decision_skill_2c40e3a69c474d5c",
+  "report_html": "&lt;!doctype html&gt;…（整段自包含 HTML，可直接存盘打开）"
+}</pre>
+
+<h2>四、report_html 长什么样（预览）</h2>
+<div class="card">
+  <h1 style="font-size:19px;margin:0 0 4px">判定报告</h1>
+  <p class="muted" style="margin:0 0 12px">切片 scenario_slice_2d9336d1c2f5 · 报告编号 decision_skill_2c40e3a69c474d5c</p>
+
+  <h3>一、本次输入</h3>
+  <table>
+    <tr><th style="width:38%">字段</th><th>值</th></tr>
+    <tr><td>行业</td><td>新能源</td></tr>
+    <tr><td>不动产权属</td><td>有瑕疵</td></tr>
+    <tr><td>未决诉讼金额占比</td><td>7.5</td></tr>
+    <tr><td>客户集中度</td><td>58</td></tr>
+    <tr><td>标的为国资背景</td><td>否</td></tr>
+    <tr><td class="muted">…其余 6 项同</td><td class="muted">…</td></tr>
+  </table>
+
+  <h3>二、本次请求</h3>
+  <table>
+    <tr><th style="width:38%">项</th><th>值</th></tr>
+    <tr><td>caller / purpose</td><td>我的投资部 / 投资判断</td></tr>
+    <tr><td>amount / no_resale</td><td>300000000 / true</td></tr>
+  </table>
+
+  <h3>三、判定过程（可公开部分）</h3>
+  <p style="margin:4px 0">命中的风险信号（6 项）：</p>
+  <ul style="margin:4px 0 8px 18px">
+    <li>权属瑕疵</li><li>诉讼未决</li><li>数据合规风险</li>
+    <li>估值偏高</li><li>客户集中度高</li><li>担保未披露</li>
+  </ul>
+  <p style="margin:4px 0">结论来源：组合规则：权属瑕疵 且 数据合规风险 · 分数：0.9 · 档位：professional</p>
+
+  <h3>四、结论</h3>
+  <p style="font-size:17px;font-weight:600;margin:4px 0" class="warn">法律与合规双重风险（严重度：极高）</p>
+  <p style="margin:4px 0">依据：</p>
+  <ul style="margin:4px 0 8px 18px"><li>《民法典》物权编</li><li>《数据安全法》第二十七条</li></ul>
+
+  <h3>五、需要你确认的事项</h3>
+  <ul style="margin:4px 0 8px 18px"><li>无（信息齐全）</li></ul>
+  <p class="muted" style="margin:8px 0 0">本报告由本机判定引擎生成，结论来自切片作者设定的方法；报告不含方法细节。如需复核，请凭报告编号向数据空间所有者提出。</p>
+</div>
+<p class="muted">报告里<b>不会</b>出现：有效基准线的数值 · 组合规则原文与阈值 · 例外条件写法 · 维度权重 —— 那些是切片作者的方法资产。</p>
+
+<h2>五、五个必踩的坑（照上面填就不会被拒）</h2>
+<table>
+  <tr><th>坑</th><th>正确做法</th></tr>
+  <tr><td class="bad">purpose 写成「并购尽调」</td><td class="ok">写 <code>投资判断</code>（切片允许的两个之一）</td></tr>
+  <tr><td class="bad">amount 超过 10 亿</td><td class="ok">≤ 1000000000</td></tr>
+  <tr><td class="bad">no_resale 缺省或 false</td><td class="ok">必须 <code>true</code></td></tr>
+  <tr><td class="bad">未决诉讼金额占比填 0.075</td><td class="ok">填百分数 <code>7.5</code>（阈值是「大于 5」）</td></tr>
+  <tr><td class="bad">客户集中度填「高」</td><td class="ok">填数字 <code>58</code>（阈值是「大于 50」）</td></tr>
+</table>
+
+<h2>六、拿到报告后怎么判断它是不是在正常判定</h2>
+<pre>换一组低风险输入（权属=清晰、诉讼=2、合规=合规、担保=无、市盈率=22、集中度=10）再调一次：
+  两次结论不同 ⇒ 正常 ✓
+  两次结论逐字节相同（只有 decision_id 变）⇒ 有例外被无条件触发，先看 decided_by 是不是「例外：…直接判定」</pre>
+
+</body>
+</html>
