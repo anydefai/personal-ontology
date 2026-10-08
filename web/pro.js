@@ -152,12 +152,13 @@ function poHasFramework(fw) {
   // Needed after parsing or duplicating, otherwise the editor keeps the old empty state.
   // The redraw is delegated to the existing hook, which is assigned by the time this runs.
   window.poReloadSlice = function () {
-    state = null;
-    // Reaching here means the parse already succeeded; failures return earlier.
-    if (typeof window.poReloadSlice === "function") { window.poReloadSlice(); }
-    else if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
-    var ed = document.querySelector("#pro-editor");
-    if (ed && ed.scrollIntoView) { try { ed.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }
+    // Re-entrancy guard: refreshing may itself end up here, which previously recursed forever.
+    if (window.poReloading) { return; }
+    window.poReloading = true;
+    try {
+      state = null;
+      if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
+    } finally { window.poReloading = false; }
   };
   var defId = null;          // current scenario-definition id
   var sliceId = null;        // the slice currently selected (personal asset)

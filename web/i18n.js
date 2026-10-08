@@ -1460,6 +1460,7 @@
   "// Reload the slice the way the review button does, otherwise step three stays empty.": "// Reload the slice the way the review button does, otherwise step three stays empty.",
   "// NOTE: this handler lives outside the IIFE; it only calls the published hook": "// NOTE: this handler lives outside the IIFE; it only calls the published hook",
   "// no condition needed: reaching here means the parse already succeeded": "// no condition needed: reaching here means the parse already succeeded",
+  "// Re-entrancy guard: refreshing may itself end up here, which previously recursed forever.": "// Re-entrancy guard: refreshing may itself end up here, which previously recursed forever.",
   };
 
 
