@@ -1459,6 +1459,7 @@
   "// The redraw is delegated to the existing hook, which is assigned by the time this runs.": "// The redraw is delegated to the existing hook, which is assigned by the time this runs.",
   "// Reload the slice the way the review button does, otherwise step three stays empty.": "// Reload the slice the way the review button does, otherwise step three stays empty.",
   "// NOTE: this handler lives outside the IIFE; it only calls the published hook": "// NOTE: this handler lives outside the IIFE; it only calls the published hook",
+  "// no condition needed: reaching here means the parse already succeeded": "// no condition needed: reaching here means the parse already succeeded",
   };
 
 

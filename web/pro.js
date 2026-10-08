@@ -153,12 +153,11 @@ function poHasFramework(fw) {
   // The redraw is delegated to the existing hook, which is assigned by the time this runs.
   window.poReloadSlice = function () {
     state = null;
-    // Reload the slice the way the review button does, otherwise step three stays empty.
-    if (parsed) {
-      if (typeof window.poReloadSlice === "function") { window.poReloadSlice(); }
-      var ed = document.querySelector("#pro-editor");
-      if (ed && ed.scrollIntoView) { try { ed.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }
-    }
+    // Reaching here means the parse already succeeded; failures return earlier.
+    if (typeof window.poReloadSlice === "function") { window.poReloadSlice(); }
+    else if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
+    var ed = document.querySelector("#pro-editor");
+    if (ed && ed.scrollIntoView) { try { ed.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }
   };
   var defId = null;          // current scenario-definition id
   var sliceId = null;        // the slice currently selected (personal asset)
@@ -1577,7 +1576,7 @@ function polishPanels(view) {
       docRep.textContent = reportLines.length ? reportLines.join("\n") : "没有解析到内容，请检查小节标题。";
       docRep.style.whiteSpace = "pre-wrap";
       // Reload the slice the way the review button does, otherwise step three stays empty.
-      if (parsed) {
+      {   // no condition needed: reaching here means the parse already succeeded
         if (typeof window.poReloadSlice === "function") { window.poReloadSlice(); }
         else if (typeof window.poRefreshSlice === "function") { window.poRefreshSlice(); }
         var ed = document.querySelector("#pro-editor");
