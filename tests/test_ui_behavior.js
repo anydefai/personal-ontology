@@ -116,6 +116,10 @@ function textOf(view) {
   check("页面上出现第二步标题", /第二步/.test(t1));
   check("页面上出现判定模型面板（含下拉）", /判定模型/.test(t1) && /pro-model/.test(t1));
   check("第一步有「另存为新切片」按钮（DOM 级）", /另存为新切片/.test(t1) && /pro-dup-slice/.test(t1), "没找到按钮");
+  // 切换模型时说明必须跟着变；且不能靠重画整页（那会弄丢用户正在填的内容）
+  check("说明块有 id 且切换时会被就地更新（源码级）",
+        /id="pro-model-desc"/.test(src) && /desc\.innerHTML = /.test(src), "没有就地更新逻辑");
+  check("过时文案「目前只有这一个模型」已删除", !/目前只有这一个模型/.test(src), "还留着过时文案");
   // 说明：我实测过 —— 草稿与已确认两种状态下 renderSlices 都没渲染出信号输入行（只有面板标题），
   // 说明编辑区走的是另一条路径，所以这一条仍是源码级。真正覆盖"分值输入被渲染出来"的是
   // tests/test_professional_render.py 里直接调用 signalsPanel 的两条断言。

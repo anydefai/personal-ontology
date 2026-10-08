@@ -608,9 +608,10 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
           '<select class="select" id="pro-model" style="max-width:340px">' + opts + "</select>" +
           '<span class="panel-caption" id="pro-model-note" style="margin:0">切到别的模型会按新模型重新校验；已填内容不会丢。</span>' +
           "</div>" +
-          '<div class="panel-caption"><strong>适合：</strong>' + esc(m.applicable || "—") + "</div>" +
-          (na ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + na + "</ul></div>" : "") +
-          '<div class="panel-caption" style="margin-top:6px">目前只有这一个模型；按设计还要加「要件逻辑」（任一满足/排除条件）与「领域公式」（剂量、折现现金流）。</div>' +
+          '<div id="pro-model-desc">' +
+            '<div class="panel-caption"><strong>适合：</strong>' + esc(m.applicable || "—") + "</div>" +
+            (na ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + na + "</ul></div>" : "") +
+          "</div>" +
           "</section>";
       })(models[0]) +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
@@ -1515,6 +1516,14 @@ function polishPanels(view) {
         "但有些字段可能不再参与判定（例如权重表只对评分卡有意义）。\n\n确定切换吗？");
       if (!okSwitch) { modelSel.value = cur; return; }
       window.poJudgmentModel = pick;
+      // 就地更新下面那段说明（重画整页会弄丢你正在填的内容）。
+      var desc = view.querySelector("#pro-model-desc");
+      var pickedModel = (models || []).filter(function (x) { return x.id === pick; })[0];
+      if (desc && pickedModel) {
+        var na2 = (pickedModel.not_applicable || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("");
+        desc.innerHTML = '<div class="panel-caption"><strong>适合：</strong>' + esc(pickedModel.applicable || "—") + "</div>" +
+          (na2 ? '<div class="panel-caption" style="margin-top:4px"><strong>不适合：</strong><ul style="margin:4px 0 0 18px">' + na2 + "</ul></div>" : "");
+      }
       var note = view.querySelector("#pro-model-note");
       if (note) { note.textContent = "已切到 " + pick + "；保存后这条切片就会按它判定。"; }
     };
