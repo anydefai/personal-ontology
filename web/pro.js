@@ -466,14 +466,18 @@ function poHasFramework(fw) {
             esc((slice.analysis && slice.analysis.title) || slice.original_text || slice.id) + "</strong> · 置信度 " +
             esc(slice.confidence_status || "未验证") + " · 保存与起草都写在这条切片上</div>"
           : '<div class="panel-caption" style="margin:10px 0 0">先新建一条「我的切片」，框架保存在切片上</div>') +
-        '<div class="panel-title" style="margin-top:8px"><span>方式一 · 让模型起草</span></div><div class="panel-caption" style="margin:2px 0 6px">用平时说话的方式讲你的判断，模型起草后你再到下面逐条核对</div><textarea class="input" id="pro-desc" rows="4" style="width:100%;margin-top:10px" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
+        "</section>" +
+      sliceTable(mine, sliceId, nameOfSlice) +
+      orphanPanel(orphans, defs, nameOfSlice) +
+      '<section class="panel" style="padding:16px;margin-bottom:12px">' +
+        '<div class="panel-title" id="pro-step2"><span>第二步 · 创建切片模型（三种方式，选一种）</span></div>' +
+        '<div class="panel-caption" style="margin:6px 0 10px">三种方式改的是同一份框架，选一种即可，随时可以换。</div>' +
+        '<div class="panel-title" style="margin-top:8px"><span>方式一 · 模型起草框架</span></div><div class="panel-caption" style="margin:2px 0 6px">用平时说话的方式讲你的判断，模型起草后你再到下面逐条核对</div><textarea class="input" id="pro-desc" rows="4" style="width:100%;margin-top:10px" placeholder="用平时说话的方式讲就行，例如：我判断并购估值会先分行业，不同行业看重的点不一样……"></textarea>' +
         '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
           '<button class="button primary" id="pro-gen">让模型起草框架</button>' +
           '' +
           '<span class="panel-caption" style="margin:0" id="pro-hint">下面各部分可以先不管，等草稿出来再逐条核对着改。</span>' +
         "</div></section>" +
-      sliceTable(mine, sliceId, nameOfSlice) +
-      orphanPanel(orphans, defs, nameOfSlice) +
       lineImportPanel() +
       '<div class="panel-title" id="pro-step3" style="margin:14px 0 8px"><span>第三步 · 核对与微调</span></div>' +
         '<div id="pro-editor">' +

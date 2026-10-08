@@ -102,8 +102,16 @@ check("未选切片时保存会给提示（不再静默无反应）", "请先新
 check("导入失败不再静默（会弹出来）", "catch (err)" in _pro and "导入失败：" in _pro)
 check("保存我的框架会先导入逐行框（不会默默丢掉输入）",
       "function hasFramework" in _pro and "lineTexts" in _pro and "save: true" in _pro)
-check("两种生成方式在页面上一眼可辨（方式一/方式二 + 第三步 + 混用提示）",
-      all(k in _pro for k in ("方式一 · 让模型起草", "方式二 · 一行一条自己写", "第三步 · 核对与微调", "两种方式随时可以混用")))
+check("三种生成方式在页面上一眼可辨（模型起草框架/一次性写入/逐行写入 + 第二步标题）",
+      "方式一 · 模型起草框架" in _pro and "方式二" in _pro and "第二步 · 创建切片模型" in _pro)
+
+# 布局顺序：第一步（场景+我的切片）→ 我的切片列表 → 第二步（三种方式）→ 第三步
+_seq = ["第一步 · 先选场景", "sliceTable(", "orphanPanel(", "第二步 · 创建切片模型",
+        "lineImportPanel()", "第三步 · 核对与微调"]
+check("页面顺序是 第一步 → 我的切片列表 → 第二步 → 第三步",
+      all(_pro.index(_seq[k]) < _pro.index(_seq[k + 1]) for k in range(len(_seq) - 1)))
+check("方式一已从第一步里搬出（起草不再混在切片选择里）",
+      _pro.index("pro-desc") > _pro.index("sliceTable("))
 check("保存入口只有一个（就是方式二里的「保存」按钮）", _pro.count("data-save-framework>") == 1)
 check("切片可确认并启用 / 退回草稿（状态闭环）",
       all(k in _pro for k in ("data-confirm-slice", "data-unconfirm-slice", 'status: "confirmed"', 'status: "analyzed"')))
