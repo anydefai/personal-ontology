@@ -1014,12 +1014,32 @@ async def revoke_scenario_policy(scenario_id: str, rule_id: str) -> Any:
     rule = store.get("authorizations", rule_id)
     if not rule or str(rule.get("source") or "") != f"scenario-slice:{scenario_id}":
         raise HTTPException(status_code=404, detail=messages.detail("scene_missing"))
-    updated = dict(rule)
-    updated["revoked"] = True
-    updated["policy_status"] = "suspended"
-    updated["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    store.put("authorizations", rule_id, updated)
-    return {"revoked": rule_id, "policy_status": "suspended"}
+    # 先暂停（确保立刻失去访问权），再删除。store 支持真删除就真删，否则退化为软删除。
+    paused = dict(rule)
+    paused["policy_status"] = "suspended"
+    paused["revoked"] = True
+    paused["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    store.put("authorizations", rule_id, paused)
+    deleter = getattr(store, "delete", None)
+    hard = False
+    if callable(deleter):
+        try:
+            deleter("authorizations", rule_id)
+            hard = True
+        except Exception:                      # noqa: BLE001 - 删不掉就保留软删除状态
+            hard = False
+    scene = store.get("scenario-slices", scenario_id)
+    if scene:
+        analysis = scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
+        generated = analysis.get("generated") if isinstance(analysis.get("generated"), dict) else {}
+        ids = [str(x) for x in (generated.get("authorization_ids") or []) if str(x) != rule_id]
+        generated["authorization_ids"] = ids
+        analysis["generated"] = generated
+        scene["analysis"] = analysis
+        scene["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        store.put("scenario-slices", scenario_id,
+                  {k: v for k, v in scene.items() if k not in {"id", "scenario_id"}})
+    return {"deleted": rule_id, "hard_deleted": hard, "policy_status": "suspended"}
 
 
 
