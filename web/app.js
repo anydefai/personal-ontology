@@ -512,14 +512,26 @@ $$('[data-edit-rule]',view).forEach(b=>b.onclick=async()=>{
   if(!r){toast("找不到这条规则，请刷新后重试",true);return}
   const cs=(r.conditions||[]).slice();
   if(!cs.length){toast("这条规则没有条件（无条件放行），无法用本功能改。请先暂停它，必要时删除后重建。",true);return}
-  const c=cs[0], v=(c.value&&typeof c.value==="object")?c.value:{key:"",value:c.value};
-  const op=c.type==="numeric_lte"?"≤":c.type==="numeric_gte"?"≥":"=";
-  const nv=prompt("当前条件："+(v.key||"字段")+" "+op+" "+v.value+"\n请输入新的数值（只改这一个值，其它不动）：",String(v.value));
+  const show=c=>{const v=(c.value&&typeof c.value==="object")?c.value:{key:"",value:c.value};
+    const op=c.type==="numeric_lte"?"≤":c.type==="numeric_gte"?"≥":"=";
+    return (v.key||"字段")+" "+op+" "+v.value};
+  let idx=0;
+  if(cs.length===1){idx=0;}
+  else{
+    const list=cs.map((c,k)=>(k+1)+") "+show(c)).join("\n");
+    const pick=prompt("这条规则有 "+cs.length+" 个条件：\n"+list+"\n\n请输入要修改的编号（1-"+cs.length+"）：","1");
+    if(pick===null)return;
+    idx=Number(String(pick).trim())-1;
+    if(!(idx>=0&&idx<cs.length)){toast("编号不对，请输入 1 到 "+cs.length+" 之间的数字",true);return}
+  }
+  const c=cs[idx], v=(c.value&&typeof c.value==="object")?c.value:{key:"",value:c.value};
+  const cur=String(v.value);
+  const nv=prompt("正在修改第 "+(idx+1)+" 个条件："+show(c)+"\n请输入新的数值：",cur);
   if(nv===null)return;
-  const nv2=String(nv).trim(); if(nv2==="" || nv2===String(v.value)){toast("没有改动");return}
+  const nv2=String(nv).trim(); if(nv2==="" || nv2===cur){toast("没有改动");return}
   const isNum=!isNaN(Number(nv2));
   const ncond=Object.assign({},c,{value:Object.assign({},v,{value:isNum?Number(nv2):nv2})});
-  const conds=cs.map((x,k)=>k===0?ncond:x);
+  const conds=cs.map((x,k)=>k===idx?ncond:x);
   try{await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies/${encodeURIComponent(rid)}`,{method:"PATCH",
     body:JSON.stringify({conditions:conds})});
     delete cache.authorizations;delete cache["scenario-slices"];toast("已更新，规则回到草稿，请重新启用");render();
