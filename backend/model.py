@@ -49,7 +49,7 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
     "notifications": {"channel_id": ("channelId", "lit"), "created_at": ("createdAt", "lit")},
     "evidence": {"evidence_type": ("evidenceType", "lit"), "created_at": ("createdAt", "lit"), "digest": ("digest", "lit")},
     # 个人资料：字段不写死，全部内容放在一个 JSON 字段里，用户可随时增删改。
-    "profiles": {"principal_id": ("profileOf", "principals"),
+    "profiles": {"principal_id": ("profileOf", "lit"),
                  "display_name_zh": ("displayNameZh", "lit"),
                  "display_name_en": ("displayNameEn", "lit"),
                  "items": ("profileItems", "json"),
