@@ -527,6 +527,7 @@ function bindRequiredSources(view){
   });
 }
 const addRequired=()=>{$("#instance-required").insertAdjacentHTML("beforeend",`<div class="form-grid instance-required-row" style="grid-template-columns:150px 1fr 1fr 110px auto"><select class="select" data-required-tier style="font-size:11px;padding:2px 4px;width:auto;max-width:150px"><option value="required" selected>每次必填</option><option value="preference" >长期偏好</option><option value="both" >两者兼有</option></select><input class="input" data-required-name placeholder="字段名，例如 check_in_date" required><input class="input" data-required-label placeholder="用户看到的名称，例如 入住日期" required><select class="select" data-required-type><option value="string">文本</option><option value="number">数字</option><option value="bool">是/否</option><option value="date">日期</option></select><select class="select" data-required-source style="font-size:11px;padding:2px 4px;width:auto"><option value="caller">调用方提交</option><option value="profile">我的资料</option></select><button type="button" class="button danger" data-remove-row>移除</button></div>`)};
+    bindRequiredSources(view);
  $("#back-instances").onclick=()=>{activeInstanceId=null;render()};$("#cancel-instance").onclick=()=>{activeInstanceId=null;render()};$("#add-required").onclick=addRequired;$$('[data-remove-row]',view).forEach(b=>b.onclick=()=>b.parentElement.remove());bindSegmentationEditor("instance",a);
  bindRequiredSources(view);
 $$('[data-activate-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"active",[b.dataset.activatePolicy]));
@@ -602,7 +603,7 @@ $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
  };
  $("#instance-form").onsubmit=async e=>{e.preventDefault();const error=$("#instance-error");error.textContent="";const segmentation=readScenarioSegmentation("instance",a.segmentation||{});if(!segmentation)return;const nextRequired=$$(".instance-required-row",view).map(row=>({name:$('[data-required-name]',row).value.trim(),label:$('[data-required-label]',row).value.trim(),type:$('[data-required-type]',row).value,required:true}));
  // 改档：偏好行上选了「每次必填」或「两者兼有」的字段，并入必填清单（不覆盖已存在的同名项）。
- for(const row of $$(".seg-pref-row",view)){const tier=$("[data-seg-tier]",row)?.value||"";if(tier!=="required"&&tier!=="both")continue;const name=String(row.dataset.segField||"").trim();if(!name||nextRequired.some(x=>x.name===name))continue;nextRequired.push({name,label:String(row.dataset.segLabel||name).trim(),type:String(row.dataset.segType||"string"),profile_keys:(src==="profile"?pkeys:[]),required:true, source: src });}
+ for(const row of $$(".seg-pref-row",view)){const tier=$("[data-seg-tier]",row)?.value||"";if(tier!=="required"&&tier!=="both")continue;const name=String(row.dataset.segField||"").trim();if(!name||nextRequired.some(x=>x.name===name))continue;nextRequired.push({profile_keys:(src==="profile"?pkeys:[]),name,label:String(row.dataset.segLabel||name).trim(),type:String(row.dataset.segType||"string"),required:true, source: src });}
  // 反向改档：必填行选了「长期偏好」的，从必填清单移除并转成偏好（值留空，待你到偏好区填写）。
  for(const row of $$(".instance-required-row",view)){const tier=$("[data-required-tier]",row)?.value||"required";if(tier!=="preference")continue;
   const name=String($("[data-required-name]",row)?.value||"").trim();if(!name)continue;
