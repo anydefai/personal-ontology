@@ -1062,18 +1062,70 @@ document.addEventListener("click", event => {
 });
 
 
-// ===== 个人资料：字段不写死，用户可随时增删改；默认只显示掩码 =====
+// ===== 个人资料：页面内直接输入（不用弹窗），字段可增删改；列表默认掩码 =====
 function maskValue(v){
   const t=String(v==null?"":v);
   if(t.length<=4) return t.replace(/./g,"*");
   return t.slice(0,2)+"*".repeat(Math.max(4,t.length-4))+t.slice(-2);
 }
+let profileEdit=null;   // null=不在编辑；{id?,name,items:[{key,label,value,kind}]}=正在编辑
+function profileFormHtml(){
+  const e=profileEdit;
+  const rows=e.items.map((it,i)=>`
+    <div class="form-grid" style="grid-template-columns:1.1fr 1.6fr .9fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <label class="field"><span class="field-label">字段名</span>
+        <input class="input" data-pf-label="${i}" value="${esc(it.label||it.key||"")}" placeholder="例如 身份证号"></label>
+      <label class="field"><span class="field-label">值</span>
+        <input class="input" data-pf-value="${i}" value="${esc(it.value||"")}" placeholder="填写内容"></label>
+      <label class="field"><span class="field-label">类型</span>
+        <select class="select" data-pf-kind="${i}">
+          ${["text","phone","id","date","bool"].map(k=>`<option value="${k}" ${((it.kind||"text")===k)?"selected":""}>${({text:"文本",phone:"电话",id:"证件号",date:"日期",bool:"是/否"})[k]}</option>`).join("")}
+        </select></label>
+      <button type="button" class="button danger" data-pf-del="${i}">删除</button>
+    </div>`).join("");
+  return `<section class="panel" style="padding:18px;margin-bottom:14px;border:1px solid #cfe3da;background:#fbfdfc">
+    <div class="panel-title">${e.id?"编辑资料":"新建资料"}</div>
+    <label class="field" style="max-width:420px;margin-top:10px"><span class="field-label">资料名称</span>
+      <input class="input" id="pf-name" value="${esc(e.name||"")}" placeholder="例如 我的实名信息"></label>
+    <div style="margin-top:14px"><div class="field-label">字段（想加什么就加什么）</div>${rows||'<div class="panel-caption">还没有字段，点下面添加。</div>'}</div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="button" id="pf-add-row">＋ 添加字段</button>
+      <button type="button" class="button primary" id="pf-save">保存</button>
+      <button type="button" class="button" id="pf-cancel">取消</button>
+    </div></section>`;
+}
+function bindProfileForm(view){
+  const refresh=()=>{ render() };
+  $$('[data-pf-del]',view).forEach(b=>b.onclick=()=>{ profileEdit.items.splice(Number(b.dataset.pfDel),1); render() });
+  $("#pf-add-row").onclick=()=>{ profileEdit.items.push({key:"",label:"",value:"",kind:"text"}); render() };
+  $("#pf-cancel").onclick=()=>{ profileEdit=null; render() };
+  $("#pf-save").onclick=async()=>{
+    const name=String($("#pf-name")?.value||"").trim();
+    const items=[];
+    $$('[data-pf-label]',view).forEach(inp=>{
+      const k=inp.dataset.pfLabel;
+      const label=String(inp.value||"").trim();
+      const value=String(($(`[data-pf-value="${k}"]`)||{}).value||"");
+      const kind=String(($(`[data-pf-kind="${k}"]`)||{}).value||"text");
+      if(label||value) items.push({key:label||value,label,value,kind,verified:false});
+    });
+    if(!name){toast("请填资料名称",true);return}
+    if(!items.length){toast("至少添加一个字段",true);return}
+    try{
+      if(profileEdit.id){ await api(`/v1/profiles/${encodeURIComponent(profileEdit.id)}`,{method:"PATCH",body:JSON.stringify({display_name_zh:name,display_name_en:name,items})}); toast("已保存") }
+      else { await api("/v1/profiles",{method:"POST",body:JSON.stringify({display_name_zh:name,display_name_en:name,items})}); toast("已新建") }
+      profileEdit=null; render();
+    }catch(e){toast(e.message,true)}
+  };
+}
 async function renderProfiles(view){
   let rows=[]; try{ rows=((await api("/v1/profiles"))||{}).items||[] }catch(e){ rows=[] }
-  view.innerHTML=`${proModeButtons()}${titleBlock("PERSONAL PROFILE","个人资料","实名、证件、联系方式等敏感信息放在这里，场景只引用不复制。字段可随时增删改；界面默认显示掩码。")}
+  const editing=(profileEdit!==null);
+  view.innerHTML=`${proModeButtons()}${titleBlock("PERSONAL PROFILE","个人资料","实名、证件、联系方式等敏感信息放在这里，场景只引用不复制。字段可随时增删改；列表默认显示掩码。")}
+   ${editing?profileFormHtml():""}
    <section class="panel" style="padding:18px;margin-bottom:14px">
      <div class="panel-title">资料 ${rows.length?`· ${rows.length} 份`:""}</div>
-     <p class="panel-caption">这里只是安全存放，尚未接入任何场景。接入请在场景里声明"该字段来自本机资料"（后续版本）。</p>
+     <p class="panel-caption">这里只是安全存放，尚未接入任何场景。</p>
      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
        <button class="button primary" id="profile-add">＋ 新建一份资料</button>
        <button class="button" id="profile-refresh">↻ 刷新</button>
@@ -1089,53 +1141,19 @@ async function renderProfiles(view){
                <button class="button danger" data-del-profile="${esc(p.id)}">删除</button>
              </span>
            </div>
-           <div class="panel-caption">${(p.items||[]).map(it=>esc(it.label||it.key)+"："+esc(it.reveal?it.value:maskValue(it.value))).join(" ｜ ")||"（还没有字段）"}</div>
+           <div class="panel-caption">${(p.items||[]).map(it=>esc(it.label||it.key)+"："+esc(maskValue(it.value))).join(" ｜ ")||"（还没有字段）"}</div>
          </div>`).join(""):`<div class="empty-state">还没有资料。点上面的「新建一份资料」开始。</div>`}
      </div></section>`;
   $("#profile-refresh").onclick=()=>render();
-  $("#profile-add").onclick=()=>openProfileEditor(null);
-  $$('[data-edit-profile]',view).forEach(b=>b.onclick=()=>openProfileEditor(b.dataset.editProfile));
+  $("#profile-add").onclick=()=>{ profileEdit={name:"",items:[{key:"",label:"",value:"",kind:"text"}]}; render() };
+  $$('[data-edit-profile]',view).forEach(b=>b.onclick=()=>{
+    const rec=rows.filter(x=>String(x.id)===String(b.dataset.editProfile))[0]||{};
+    profileEdit={id:rec.id,name:rec.display_name_zh||"",items:(rec.items||[]).map(x=>Object.assign({},x))};
+    render();
+  });
   $$('[data-del-profile]',view).forEach(b=>b.onclick=async()=>{
     if(!confirm("删除这份资料？删除后不可恢复。"))return;
     try{await api(`/v1/profiles/${encodeURIComponent(b.dataset.delProfile)}`,{method:"DELETE"});toast("已删除");render()}catch(e){toast(e.message,true)}
   });
-}
-async function openProfileEditor(id){
-  let rec=null;
-  if(id){ try{ rec=(((await api("/v1/profiles"))||{}).items||[]).find(x=>x.id===id)||null }catch(e){} }
-  const items=(rec&&rec.items)?JSON.parse(JSON.stringify(rec.items)):[];
-  const name=prompt("这份资料叫什么？（例如：我的实名信息）",rec?rec.display_name_zh:"我的实名信息");
-  if(name===null)return;
-  for(;;){
-    const menu=items.map((it,i)=>`${i+1}) ${it.label||it.key} = ${it.reveal?it.value:maskValue(it.value)}`).join("\n");
-    const act=prompt((menu?menu+"\n\n":"")+"输入：\n  数字 = 修改该项的值\n  a = 新增一个字段\n  d数字 = 删除该项（例如 d2）\n  空 = 保存并退出", "");
-    if(act===null)break;
-    const t=String(act).trim();
-    if(t===""){break}
-    if(t==="a"){
-      const label=prompt("字段名（例如 身份证号 / 手机号 / 护照号）","");
-      if(label===null)continue;
-      const value=prompt("该字段的值","");
-      if(value===null)continue;
-      const kind=prompt("类型（text / phone / id / date / bool，可留空）","");
-      items.push({key:String(label).trim(),label:String(label).trim(),value:String(value),kind:String(kind||"text").trim()||"text",verified:false});
-      continue;
-    }
-    if(/^d\s*\d+$/i.test(t)){
-      const i=Number(t.replace(/\D/g,""))-1;
-      if(items[i]&&confirm("删除字段「"+(items[i].label||items[i].key)+"」？")){items.splice(i,1)}
-      continue;
-    }
-    const i=Number(t)-1;
-    if(items[i]){
-      const nv=prompt("「"+(items[i].label||items[i].key)+"」的新值：",String(items[i].value));
-      if(nv!==null)items[i].value=String(nv);
-    } else { alert("没有这个编号"); }
-  }
-  const body={display_name_zh:String(name).trim()||"我的资料",items};
-  try{
-    if(id){ await api(`/v1/profiles/${encodeURIComponent(id)}`,{method:"PATCH",body:JSON.stringify(body)}); toast("已保存") }
-    else { await api("/v1/profiles",{method:"POST",body:JSON.stringify(body)}); toast("已新建") }
-    render();
-  }catch(e){toast(e.message,true)}
+  if(editing) bindProfileForm(view);
 }
