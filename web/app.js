@@ -514,9 +514,9 @@ $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
     return}
   try{
     await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies`,{method:"POST",
-      body:JSON.stringify({grantor_id:grantor,grantee_id:grantee,effect:"allow",conditions:[]})});
+      body:JSON.stringify({grantor_id:grantor,grantee_id:grantee,effect:"ask",conditions:[]})});
     delete cache.authorizations;delete cache["scenario-slices"];
-    toast("已新增一条草稿规则（沿用既有主体），请在上方启用");render();
+    toast("已新增一条草稿规则（默认：暂停并询问，最保守）。编辑功能还没做，启用前请谨慎；高风险动作不要直接启用无条件允许。");render();
   }catch(err){if(!(err instanceof AuthRequired))toast(err.message,true)}
 });
  const compileButton=$("#compile-rules");
