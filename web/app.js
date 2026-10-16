@@ -1137,11 +1137,16 @@ async function renderProfiles(view){
    ${editing?profileFormHtml():""}
    <section class="panel" style="padding:18px;margin-bottom:14px">
      <div class="panel-title">资料 ${rows.length?`· ${rows.length} 份`:""}</div>
-     <p class="panel-caption">这里只是安全存放，尚未接入任何场景。</p>
+     <div class="panel-caption" style="margin:6px 0 10px;padding:10px 12px;background:#fff6f6;border:1px solid #f0c9c9;border-radius:8px">
+       <strong style="color:#b91c1c">⚠️ 这些资料一旦交给执行操作的智能体，就无法回收</strong><br>
+       交给智能体意味着它可能进入该智能体所连模型的上下文、被写进记忆或日志。<br>
+       所以：只给本次要用的字段、只在本次使用、用完即失效；每提供一次都会在这里留痕。
+     </div>
      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
        <button class="button primary" id="profile-add">＋ 新建一份资料</button>
        <button class="button" id="profile-refresh">↻ 刷新</button>
      </div>
+     <div id="profile-usage" style="margin-top:16px"></div>
      <div id="profile-list" style="margin-top:14px;display:grid;gap:10px">
        ${rows.length?rows.map(p=>`
          <div class="decision-detail" style="margin:0">
@@ -1167,5 +1172,20 @@ async function renderProfiles(view){
     if(!confirm("删除这份资料？删除后不可恢复。"))return;
     try{await api(`/v1/profiles/${encodeURIComponent(b.dataset.delProfile)}`,{method:"DELETE"});toast("已删除");render()}catch(e){toast(e.message,true)}
   });
+  // 反查：我的资料被谁用过
+  try{
+    const u=await api("/v1/profiles/usage");
+    const box=$("#profile-usage");
+    if(box){
+      const items=(u&&u.items)||[];
+      box.innerHTML=`<div class="panel-title">本机资料的使用记录 · ${items.length}</div>`+
+        (items.length?`<div style="display:grid;gap:8px;margin-top:8px">${items.map(x=>`
+          <div class="decision-detail" style="margin:0">
+            <div class="panel-caption">${esc(x.at||"")} · 切片 ${esc(x.slice_id||"")} · 调用方 ${esc(x.caller||"")}</div>
+            <div class="panel-caption">提供字段：${esc((x.fields||[]).join("、"))}${(x.missing||[]).length?`（本机缺：${esc((x.missing||[]).join("、"))}）`:""}</div>
+          </div>`).join("")}</div>`
+        :`<div class="panel-caption" style="margin-top:6px">还没有被使用过。</div>`);
+    }
+  }catch(e){ }
   if(editing) bindProfileForm(view);
 }

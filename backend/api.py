@@ -1456,6 +1456,23 @@ async def list_profiles() -> Any:
     return {"items": store.list("profiles")}
 
 
+@app.get("/v1/profiles/usage", dependencies=[Depends(require_session)])
+async def profile_usage() -> Any:
+    """反查：本机资料被哪些切片、在什么时候用过（含被拒绝的调用不在此列，只在真的补齐后记录）。"""
+    out: list[dict[str, Any]] = []
+    for rec in store.list("decisions"):
+        params = rec.get("reason_params") if isinstance(rec.get("reason_params"), dict) else {}
+        fields = params.get("local_profile_fields") or []
+        if not fields:
+            continue
+        out.append({"decision_id": rec.get("decision_id") or rec.get("id"),
+                    "at": rec.get("timestamp"), "slice_id": params.get("slice_id"),
+                    "caller": params.get("caller"), "fields": fields,
+                    "missing": params.get("local_profile_missing") or []})
+    out.sort(key=lambda x: str(x.get("at") or ""), reverse=True)
+    return {"count": len(out), "items": out[:200]}
+
+
 @app.post("/v1/profiles", status_code=201, dependencies=[Depends(require_session)])
 async def create_profile(body: dict[str, Any]) -> Any:
     """新建一份个人资料。items 是任意字段列表：[{"key","label","value","kind","verified"}]"""
