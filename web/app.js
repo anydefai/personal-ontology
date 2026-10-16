@@ -9,6 +9,7 @@ const labels = {
   "knowledge-entries": {title:"判断条目",singular:"判断条目",subtitle:"专业判断的条目：前提、结论、例外、依据",id:"entry_id",readonly:false,cols:[["conclusion","结论"],["basis","依据"],["review_state","状态"]]},
   "scenario-definitions": {title:"场景定义",singular:"场景定义",subtitle:"可复用的专业任务骨架",id:"scenario_definition_id",readonly:false,cols:[["display_name_zh","名称"],["version","版本"]]},
   "domain-packs": {title:"领域包",singular:"领域包",subtitle:"行业词表与追问模板",id:"pack_id",readonly:false,cols:[["display_name_zh","名称"],["version","版本"]]},
+  "profiles": {title:"个人资料", subtitle:"实名、证件、联系方式等敏感信息的存放处。字段随时可增删改，界面默认只显示掩码。"},
   "scenario-instances": {title:"场景实例",subtitle:"统一维护由场景切片确认写入本体的可复用实例。"},
   "account-security": {title:"登录与安全",subtitle:"管理登录密码、锁定状态与加密容器。"},
   "display-settings": {title:"显示与语言",subtitle:"选择界面与模型产出使用的语言。"},
@@ -100,7 +101,7 @@ async function reloadAll(){cache={};await refreshService();if(!sessionStorage.ge
 function titleBlock(kicker,title,subtitle,action=""){return `<div class="title-row"><div><div class="eyebrow">${kicker}</div><h1 class="page-title">${title}</h1><p class="page-subtitle">${subtitle}</p></div>${action}</div>`}
 function badge(value){const v=String(value??"").toLowerCase();const kind=["allow","deny","ask"].includes(v)?v:["true","active","person"].includes(v)?"active":["revoked","false"].includes(v)?"revoked":["high","critical"].includes(v)?"ask":"neutral";const text={allow:"允许",deny:"拒绝",ask:"需确认",true:"启用",false:"停用",person:"个人",low:"低",medium:"中",high:"高",critical:"严重"}[v]||value||"—";return `<span class="badge ${kind}">${esc(text)}</span>`}
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
- try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
+ try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
   else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="decisions")await renderDecisions(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
  if(["scenario-slices","scenario-instances","scenario-preview","delivery","decisions"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
 async function renderAgentIntegration(view){
@@ -1059,3 +1060,82 @@ document.addEventListener("click", event => {
     .then(() => { cache["scenario-slices"] = null; render(); })
     .catch(err => alert("退回草稿失败：" + (err && err.message ? err.message : err)));
 });
+
+
+// ===== 个人资料：字段不写死，用户可随时增删改；默认只显示掩码 =====
+function maskValue(v){
+  const t=String(v==null?"":v);
+  if(t.length<=4) return t.replace(/./g,"*");
+  return t.slice(0,2)+"*".repeat(Math.max(4,t.length-4))+t.slice(-2);
+}
+async function renderProfiles(view){
+  let rows=[]; try{ rows=((await api("/v1/profiles"))||{}).items||[] }catch(e){ rows=[] }
+  view.innerHTML=`${proModeButtons()}${titleBlock("PERSONAL PROFILE","个人资料","实名、证件、联系方式等敏感信息放在这里，场景只引用不复制。字段可随时增删改；界面默认显示掩码。")}
+   <section class="panel" style="padding:18px;margin-bottom:14px">
+     <div class="panel-title">资料 ${rows.length?`· ${rows.length} 份`:""}</div>
+     <p class="panel-caption">这里只是安全存放，尚未接入任何场景。接入请在场景里声明"该字段来自本机资料"（后续版本）。</p>
+     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+       <button class="button primary" id="profile-add">＋ 新建一份资料</button>
+       <button class="button" id="profile-refresh">↻ 刷新</button>
+     </div>
+     <div id="profile-list" style="margin-top:14px;display:grid;gap:10px">
+       ${rows.length?rows.map(p=>`
+         <div class="decision-detail" style="margin:0">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <strong>${esc(p.display_name_zh||p.id)}</strong>
+             <span class="badge neutral">${(p.items||[]).length} 个字段</span>
+             <span style="margin-left:auto;display:flex;gap:6px">
+               <button class="button" data-edit-profile="${esc(p.id)}">编辑</button>
+               <button class="button danger" data-del-profile="${esc(p.id)}">删除</button>
+             </span>
+           </div>
+           <div class="panel-caption">${(p.items||[]).map(it=>esc(it.label||it.key)+"："+esc(it.reveal?it.value:maskValue(it.value))).join(" ｜ ")||"（还没有字段）"}</div>
+         </div>`).join(""):`<div class="empty-state">还没有资料。点上面的「新建一份资料」开始。</div>`}
+     </div></section>`;
+  $("#profile-refresh").onclick=()=>render();
+  $("#profile-add").onclick=()=>openProfileEditor(null);
+  $$('[data-edit-profile]',view).forEach(b=>b.onclick=()=>openProfileEditor(b.dataset.editProfile));
+  $$('[data-del-profile]',view).forEach(b=>b.onclick=async()=>{
+    if(!confirm("删除这份资料？删除后不可恢复。"))return;
+    try{await api(`/v1/profiles/${encodeURIComponent(b.dataset.delProfile)}`,{method:"DELETE"});toast("已删除");render()}catch(e){toast(e.message,true)}
+  });
+}
+async function openProfileEditor(id){
+  let rec=null;
+  if(id){ try{ rec=(((await api("/v1/profiles"))||{}).items||[]).find(x=>x.id===id)||null }catch(e){} }
+  const items=(rec&&rec.items)?JSON.parse(JSON.stringify(rec.items)):[];
+  const name=prompt("这份资料叫什么？（例如：我的实名信息）",rec?rec.display_name_zh:"我的实名信息");
+  if(name===null)return;
+  for(;;){
+    const menu=items.map((it,i)=>`${i+1}) ${it.label||it.key} = ${it.reveal?it.value:maskValue(it.value)}`).join("\n");
+    const act=prompt((menu?menu+"\n\n":"")+"输入：\n  数字 = 修改该项的值\n  a = 新增一个字段\n  d数字 = 删除该项（例如 d2）\n  空 = 保存并退出", "");
+    if(act===null)break;
+    const t=String(act).trim();
+    if(t===""){break}
+    if(t==="a"){
+      const label=prompt("字段名（例如 身份证号 / 手机号 / 护照号）","");
+      if(label===null)continue;
+      const value=prompt("该字段的值","");
+      if(value===null)continue;
+      const kind=prompt("类型（text / phone / id / date / bool，可留空）","");
+      items.push({key:String(label).trim(),label:String(label).trim(),value:String(value),kind:String(kind||"text").trim()||"text",verified:false});
+      continue;
+    }
+    if(/^d\s*\d+$/i.test(t)){
+      const i=Number(t.replace(/\D/g,""))-1;
+      if(items[i]&&confirm("删除字段「"+(items[i].label||items[i].key)+"」？")){items.splice(i,1)}
+      continue;
+    }
+    const i=Number(t)-1;
+    if(items[i]){
+      const nv=prompt("「"+(items[i].label||items[i].key)+"」的新值：",String(items[i].value));
+      if(nv!==null)items[i].value=String(nv);
+    } else { alert("没有这个编号"); }
+  }
+  const body={display_name_zh:String(name).trim()||"我的资料",items};
+  try{
+    if(id){ await api(`/v1/profiles/${encodeURIComponent(id)}`,{method:"PATCH",body:JSON.stringify(body)}); toast("已保存") }
+    else { await api("/v1/profiles",{method:"POST",body:JSON.stringify(body)}); toast("已新建") }
+    render();
+  }catch(e){toast(e.message,true)}
+}
