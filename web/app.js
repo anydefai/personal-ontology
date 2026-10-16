@@ -500,16 +500,25 @@ async function renderScenarioInstances(view){
  $("#back-instances").onclick=()=>{activeInstanceId=null;render()};$("#cancel-instance").onclick=()=>{activeInstanceId=null;render()};$("#add-required").onclick=addRequired;$$('[data-remove-row]',view).forEach(b=>b.onclick=()=>b.parentElement.remove());bindSegmentationEditor("instance",a);
  $$('[data-activate-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"active",[b.dataset.activatePolicy]));
  $$('[data-suspend-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"suspended",[b.dataset.suspendPolicy]));
- $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
-   const grantee=$("#compile-grantee")?.value;
-   const _sel=$("#compile-grantee");if(!grantee){toast(_sel&&_sel.options&&_sel.options.length?"请先选择被授权主体：就在「生成授权规则」按钮旁边的下拉框里":"还没有主体可选。请先到左侧【主体】菜单新建一个「本人」（类型选 person），再回到本页",true);return}
-   try{
-     const r=await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies`,{method:"POST",
-       body:JSON.stringify({grantor_id:grantee,grantee_id:grantee,effect:"allow",conditions:[]})});
-     delete cache.authorizations;delete cache["scenario-slices"];
-     toast("已新增一条草稿规则，请在上方启用");render();
-   }catch(err){if(!(err instanceof AuthRequired))toast(err.message,true)}
- });
+$$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
+  // 沿用已存在规则的主体（用户不必再选一次）；没有既有规则时才回落到下拉框。
+  const _rules=(policies&&policies.rules)||[];
+  const _base=_rules[0]||null;
+  const grantor=_base?( _base.grantor_id||_base.grantee_id ):( $("#compile-grantee")?.value||"" );
+  const grantee=_base?( _base.grantee_id||_base.grantor_id ):( $("#compile-grantee")?.value||"" );
+  if(!grantor||!grantee){
+    const _sel=$("#compile-grantee");
+    toast(_sel&&_sel.options&&_sel.options.length
+      ?"请先选择被授权主体：就在「生成授权规则」按钮旁边的下拉框里"
+      :"还没有主体可选。请先到左侧【主体】菜单新建一个「本人」（类型选 person），再回到本页",true);
+    return}
+  try{
+    await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies`,{method:"POST",
+      body:JSON.stringify({grantor_id:grantor,grantee_id:grantee,effect:"allow",conditions:[]})});
+    delete cache.authorizations;delete cache["scenario-slices"];
+    toast("已新增一条草稿规则（沿用既有主体），请在上方启用");render();
+  }catch(err){if(!(err instanceof AuthRequired))toast(err.message,true)}
+});
  const compileButton=$("#compile-rules");
  if(compileButton)compileButton.onclick=async()=>{
    const error=$("#compile-error");error.textContent="";
