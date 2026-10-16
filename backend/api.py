@@ -1156,6 +1156,19 @@ async def update_scenario_instance(scenario_id: str, body: dict[str, Any]):
     analysis["segmentation"] = segmentation
     analysis["scope"] = {"mode":"global"} if segmentation["mode"] == "global" else {"mode":"segmented"}
     analysis["required_inputs"] = required_inputs
+    prefills = body.get("prefills", analysis.get("prefills", []))
+    if not isinstance(prefills, list) or len(prefills) > 40:
+        raise HTTPException(status_code=422, detail=messages.detail("required_defs_invalid"))
+    clean_prefills = []
+    for item in prefills:
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=422, detail=messages.detail("required_item_invalid"))
+        fname = str(item.get("field") or "").strip()
+        items = [str(x) for x in (item.get("items") or []) if str(x).strip()]
+        if not fname or not items:
+            raise HTTPException(status_code=422, detail=messages.detail("required_item_invalid"))
+        clean_prefills.append({"field": fname, "label": str(item.get("label") or fname)[:80], "items": items})
+    analysis["prefills"] = clean_prefills
     if "segmentation" in body:
         normalized_preferences = segmentation["global_preferences"] if segmentation["mode"] == "global" else []
     else:
@@ -1736,13 +1749,23 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
         if any(isinstance(v, str) and len(v) > 2000 for v in source.values()):
             raise HTTPException(status_code=422, detail=messages.detail("preview_item_too_long"))
 
-    # 本机资料补齐：场景实例必填项里标了 source=profile 的，由本机从个人资料库取值并注入本次请求；
-    # 调用方无需提交、也拿不到值（返回里只给计数与字段名）。必须在 missing 计算之前完成。
-    _filled_local: list[str] = []
-    _missing_local: list[str] = []
-    _defs = analysis.get("required_inputs") if isinstance(analysis.get("required_inputs"), list) else []
-    _want_defs = [x for x in _defs if isinstance(x, dict) and str(x.get("source") or "") == "profile"]
-    if _want_defs:
+    # 每次预填：值由本体（个人资料）提供，但必须经用户确认后才交给智能体。
+    _prefill_values: dict[str, Any] = {}
+    _prefill_pending: list[dict[str, Any]] = []
+    _prefill_missing: list[str] = []
+    _pre_defs = list(analysis.get("prefills") or []) if isinstance(analysis.get("prefills"), list) else []
+    for _x in (analysis.get("required_inputs") or []):        # 兼容早期写法：必填行标了 source=profile
+        if isinstance(_x, dict) and str(_x.get("source") or "") == "profile":
+            _pre_defs.append({"field": _x.get("name"), "label": _x.get("label") or _x.get("name"),
+                              "items": _x.get("profile_keys") or []})
+    _pre_fields = {str(d.get("field")) for d in _pre_defs if isinstance(d, dict) and d.get("field")}
+    _confirmed = body.get("confirmed_prefills")
+    _ok_names: set[str] = set()
+    if isinstance(_confirmed, list):
+        _ok_names = {str(x) for x in _confirmed}
+    elif _confirmed is True:
+        _ok_names = {"*"}
+    if _pre_defs:
         _bag: dict[str, Any] = {}
         try:
             for _prof in store.list("profiles"):
@@ -1753,25 +1776,30 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
                         _k = str(_key or "").strip()
                         if _k and _k not in _bag:
                             _bag[_k] = _it.get("value")
-        except Exception:                                  # noqa: BLE001 - 读不到资料不阻断预演
+        except Exception:                                     # noqa: BLE001 - 读不到资料不阻断预演
             pass
-        for _d in _want_defs:
-            _keys = [str(k) for k in (_d.get("profile_keys") or []) if str(k).strip()]
-            if not _keys and _d.get("name"):
-                _keys = [str(_d.get("name"))]
-            _got = [(k, _bag[k]) for k in _keys if k in _bag]
-            if _got:
-                for _k, _v in _got:
-                    request_inputs.setdefault(_k, _v)
-                    if _d.get("name"):
-                        request_inputs.setdefault(str(_d.get("name")), _v)
-                    _filled_local.append(_k)
+        for _d in _pre_defs:
+            if not isinstance(_d, dict):
+                continue
+            _field = str(_d.get("field") or "")
+            _keys = [str(k) for k in (_d.get("items") or []) if str(k).strip()] or ([_field] if _field else [])
+            _got = {k: _bag[k] for k in _keys if k in _bag}
+            if not _got:
+                _prefill_missing.extend(_keys)
+                continue
+            if "*" in _ok_names or _field in _ok_names or str(_d.get("label") or "") in _ok_names:
+                request_inputs.setdefault(_field, list(_got.values())[0] if len(_got) == 1 else dict(_got))
+                _prefill_values[_field] = list(_got.values())[0] if len(_got) == 1 else dict(_got)
             else:
-                _missing_local.extend(_keys)
+                _prefill_pending.append({"field": _field, "label": str(_d.get("label") or _field),
+                                         "items": sorted(_got.keys()),
+                                         "preview": {k: _mask_value(_got[k]) for k in sorted(_got)}})
 
     required_inputs = analysis.get("required_inputs", [])
     if not isinstance(required_inputs, list): required_inputs = []
     missing = [{"name":str(item.get("name", "")), "label":str(item.get("label") or item.get("name") or "必填信息")} for item in required_inputs if isinstance(item, dict) and item.get("required", False) and (request_inputs.get(str(item.get("name", ""))) is None or request_inputs.get(str(item.get("name", ""))) == "")]
+    if _pre_fields:
+        missing = [m for m in missing if str(m.get("name")) not in _pre_fields]
     scope = analysis.get("scope") if isinstance(analysis.get("scope"), dict) else {"mode":"global"}
     segmentation = analysis.get("segmentation") if isinstance(analysis.get("segmentation"), dict) else {"mode":"global","dimensions":[],"global_preferences":[],"variants":[]}
     scope_result = {"mode":scope.get("mode", "global"), "dimension":scope.get("dimension"), "expected":scope.get("value"), "actual":None, "status":"match"}
@@ -1846,10 +1874,12 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
     else:
         overall = "pass"
     return {"scenario_id":scenario_id, "scenario_title":analysis.get("title", "场景实例"), "preview":True,
-            "local_profile_provided": ({"count": len(_filled_local), "fields": _filled_local,
-                "note": "这些字段由本机资料提供，值不对外发送；仅限本次使用"}
-                if _filled_local else None),
-            "local_profile_missing": (_missing_local or None), "side_effects":False, "status":overall, "missing_required":missing, "scope":scope_result, "selected_variant":selected_variant, "checks":checks, "summary":{"pass":sum(x["status"] == "pass" for x in checks),"fail":sum(x["status"] in {"fail", "invalid"} for x in checks),"missing":sum(x["status"] == "missing" for x in checks)}, "message":{"incomplete":"还有必填信息没有填写。","not_applicable":"找不到与当前维度组合匹配的场景分组，需询问用户或建立新分组。","fail":"模拟对象未满足一个或多个必须条件。","needs_data":"部分条件还没有足够信息进行检查。","pass":"模拟输入满足当前场景实例的必需条件。"}[overall]}
+            "prefill_values": (_prefill_values or None),
+            "prefill_pending": (_prefill_pending or None),
+            "prefill_missing": (_prefill_missing or None),
+            "prefill_note": ("这些值由本体从你的个人资料提供，已经过你确认" if _prefill_values else
+                             ("以下字段可由本体提供，但需要你先确认：" + "、".join(x["label"] for x in _prefill_pending) if _prefill_pending else None)),
+"side_effects":False, "status":overall, "missing_required":missing, "scope":scope_result, "selected_variant":selected_variant, "checks":checks, "summary":{"pass":sum(x["status"] == "pass" for x in checks),"fail":sum(x["status"] in {"fail", "invalid"} for x in checks),"missing":sum(x["status"] == "missing" for x in checks)}, "message":{"incomplete":"还有必填信息没有填写。","not_applicable":"找不到与当前维度组合匹配的场景分组，需询问用户或建立新分组。","fail":"模拟对象未满足一个或多个必须条件。","needs_data":"部分条件还没有足够信息进行检查。","pass":"模拟输入满足当前场景实例的必需条件。"}[overall]}
 
 def _scopes_for(language: str) -> dict[str, str]:
     """范围标签是数据：按显示语言返回（英文界面下不显示中文范围名）。"""
@@ -2448,6 +2478,18 @@ _SLICE_READY_ITEMS = {
     "bands": "分档一条都没有（公式结果落不到结论上）",
     "weights": "没有填「不同行业的侧重」（权重）—— 这样打分永远是 0",
 }
+
+
+def _mask_value(value: Any) -> str:
+    """掩码：短值留首字，长值留首尾，空值为空。"""
+    t = "" if value is None else str(value)
+    if not t:
+        return ""
+    if len(t) <= 2:
+        return t[:1] + "*"
+    if len(t) <= 4:
+        return t[:1] + "*" * (len(t) - 1)
+    return t[:2] + "*" * max(4, len(t) - 4) + t[-2:]
 
 
 def _fill_from_profiles(item: dict[str, Any], data: dict[str, Any]) -> tuple[list[str], list[str]]:
