@@ -880,10 +880,13 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
           if (imp && imp.framework) {
             importedFw = ensureShape(imp.framework);
               state = importedFw; state.__slice = sliceId;
-            var bad = [];
+            var bad = []; var summary = [];
             Object.keys(imp.report || {}).forEach(function (kk) {
               (imp.report[kk].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
+              summary.push(kk + "：" + ((imp.report[kk]||{}).imported||0) + " 条");
             });
+            var _rep = view.querySelector("#doc-report");
+            if (_rep) _rep.textContent = summary.length ? ("已解析 → " + summary.join(" ｜ ")) : "";
             if (bad.length) alert("有几行没看懂，已跳过：\n" + bad.join("\n"));
           }
         }
@@ -1008,14 +1011,15 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
       h = view.querySelector("#line-report");
       if (out && out.framework) {
         state = ensureShape(out.framework); state.__slice = sliceId;
-        var bad = [];
+        var bad = []; var summary = [];
         Object.keys(out.report || {}).forEach(function (k) {
           (out.report[k].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
+          summary.push(k + "：" + ((out.report[k]||{}).imported||0) + " 条");
         });
         if (save) { cache["scenario-slices"] = null; render(); if (bad.length) alert("已保存，但有几行没看懂：\n" + bad.join("\n")); return; }
         render();
         var h2 = view.querySelector("#line-report");
-        if (h2) h2.textContent = bad.length ? ("已导入，但有 " + bad.length + " 行没看懂：" + bad.join("；")) : "已导入，下面面板里可以看到";
+        if (h2) h2.textContent = bad.length ? ("已导入，但有 " + bad.length + " 行没看懂：" + bad.join("；")) : ("已导入 → " + summary.join(" ｜ "));
       } else if (h) { h.textContent = "导入失败：" + ((out && (out.detail || out.error)) || "请检查内容"); }
     };
 
@@ -1467,6 +1471,9 @@ window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
 function lineImportPanel() {
     var parts = [
       ["inputs", "我要知道的信息", "名称 ｜ 数字 / 文字 / 选项 ｜ 甲、乙 / 是-否 / 多项 ｜ 甲、乙", "市盈率 ｜ 数字\n现金流状况 ｜ 选项 ｜ 健康、紧张、危机"],
+      ["profile_inputs", "本场景会用到的本机资料",
+       "字段名 ｜ 用途（本机从个人资料库取，调用方不必提交、也看不到）",
+       "预定人姓名 ｜ 用于实名登记\n预定人证件号 ｜ 用于实名登记\n"],
       ["thresholds", "判断的基准线", "基准 1.3　以及　条件=值 → 调整量", "基准 1.3\n监管环境=收紧 → -0.10"],
       ["signals", "我观察什么", "信号名 = 字段 大于/小于/等于/属于/包含 值（可写「字段 × 基准线」）", "团队流失高 = 核心团队流失风险 等于 高"],
       ["rules", "几个观察点一起出现时", "信号 且 信号 → 结论（严重度）", "团队流失高 且 现金流危机 → 估值偏高（高）"],
@@ -1476,7 +1483,7 @@ function lineImportPanel() {
       ["score", "打分线（分数怎么变成结论）", "打分 X 以上 → 结论（严重度）／打分 X 以下 → …／其余 → …", "打分 0.5 以上 → 估值偏高（高）\n打分 0.3 以下 → 估值合理（低）\n其余 → 估值中性（中）"]
     ];
     return '<section class="panel" id="pro-lines" style="padding:16px;margin-bottom:12px">' +
-      '<div class="panel-title"><span>方式三 · 逐行写入（8 个框，一行一条）</span></div>' +
+      '<div class="panel-title"><span>方式三 · 逐行写入（9 个框，一行一条）</span></div>' +
       '<div class="panel-caption" style="margin:6px 0 10px">每个框里一行写一条，中文短语即可，不用写 JSON。写错的行只会单独报出来，不影响其它行<br><strong>两种方式随时可以混用</strong>：先让模型起草再用这里逐条改，或只写几条、剩下的让模型补</div>' +
       parts.map(function (p, i) {
         return '<div style="margin-top:10px">' +
