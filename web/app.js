@@ -449,7 +449,7 @@ function scenarioPolicyBlock(scenarioId,analysis,policies){
    </div>
    <div id="compile-error" class="form-error"></div></section>`;
 }
-function scenarioPolicySectionHtml(policies){const rules=(policies&&policies.rules)||[];const active=rules.filter(r=>r.policy_status==="active").length;const segmented=policies?.segmentation_mode==="segmented";return `<section class="panel" style="padding:18px;margin-bottom:14px"><div class="panel-title">授权规则 · ${rules.length}${rules.length?`（${active} 条生效中）`:""}</div><p class="panel-caption">场景生成的规则默认是草稿，不参与判定。启用只让判定引擎读取它，不会执行任何操作；改动上方的偏好或必填信息后，生效中的规则会自动回到草稿。${segmented?" 分组场景的规则暂不支持启用。":""}</p><div style="display:grid;gap:10px;margin-top:12px">${scenarioPolicyListHtml(policies)}</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="button" data-add-policy>＋ 新增一条规则</button><span class="panel-caption" style="margin:0">用上面选定的被授权主体，为该场景的动作新增一条【无条件允许】的草稿规则；建好后可在上方启用，或按需要再改。</span></div></section>`}
+function scenarioPolicySectionHtml(policies){const rules=(policies&&policies.rules)||[];const active=rules.filter(r=>r.policy_status==="active").length;const segmented=policies?.segmentation_mode==="segmented";return `<section class="panel" style="padding:18px;margin-bottom:14px"><div class="panel-title">授权规则 · ${rules.length}${rules.length?`（${active} 条生效中）`:""}</div><p class="panel-caption">场景生成的规则默认是草稿，不参与判定。启用只让判定引擎读取它，不会执行任何操作；改动上方的偏好或必填信息后，生效中的规则会自动回到草稿。${segmented?" 分组场景的规则暂不支持启用。":""}</p><div style="display:grid;gap:10px;margin-top:12px">${scenarioPolicyListHtml(policies)}</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="button" data-edit-policy>编辑规则</button><button type="button" class="button danger" data-revoke-policy>撤回规则</button><button type="button" class="button" data-add-policy>＋ 新增一条规则</button><span class="panel-caption" style="margin:0">用上面选定的被授权主体，为该场景的动作新增一条【无条件允许】的草稿规则；建好后可在上方启用，或按需要再改。</span></div></section>`}
 async function loadScenarioPolicies(scenarioId){return api(`/v1/scenario-slices/${encodeURIComponent(scenarioId)}/policies`)}
 async function setScenarioPolicyStatus(scenarioId,status,ids=null){const action=status==="active"?"activate":"suspend";const body={};if(Array.isArray(ids)&&ids.length)body.authorization_ids=ids;try{const res=await api(`/v1/scenario-slices/${encodeURIComponent(scenarioId)}/${action}`,{method:"POST",body:JSON.stringify(body)});delete cache.authorizations;delete cache["scenario-slices"];const changed=(res.changed||[]).length;const blocked=(res.blocked||[]).length;toast(`${status==="active"?"已启用":"已暂停"} ${changed} 条规则${blocked?`；${blocked} 条因条件不可执行未启用`:""}`);render()}catch(error){toast(error.message,true)}}
 async function openPolicyReview(scenarioId){const dialog=$("#record-dialog"),content=$("#dialog-content");content.innerHTML=`<div class="modal-kicker">POLICY REVIEW</div><h2>审核并启用授权规则</h2><p class="modal-intro">正在读取规则…</p>`;dialog.showModal();const dismiss=()=>dialog.close();try{const results=await Promise.all([loadScenarioPolicies(scenarioId),load("scenario-slices"),load("principals"),load("resource-types"),load("actions")]);const policies=results[0],scene=(results[1]||[]).find(x=>x.id===scenarioId)||{};const pending=((policies.rules)||[]).filter(r=>r.policy_status!=="active"&&!((r.problems)||[]).length).length;content.innerHTML=`<div class="modal-kicker">POLICY REVIEW</div><h2>审核并启用授权规则</h2><p class="modal-intro">${esc(scene.analysis?.title||scenarioId)} · 启用只让判定引擎读取这些规则，不会执行任何操作。${policies.segmentation_mode==="segmented"?" 分组场景的规则暂不支持启用。":""}</p><div style="display:grid;gap:10px">${scenarioPolicyListHtml(policies)}</div><div class="modal-actions"><button type="button" class="button" id="close-review">关闭</button>${pending?`<button type="button" class="button primary" id="activate-review">启用全部可执行规则（${pending}）</button>`:""}</div>`;$("#close-review").onclick=dismiss;const all=$("#activate-review");if(all)all.onclick=async()=>{dismiss();await setScenarioPolicyStatus(scenarioId,"active")};content.querySelectorAll("[data-activate-policy]").forEach(b=>b.onclick=async()=>{dismiss();await setScenarioPolicyStatus(scenarioId,"active",[b.dataset.activatePolicy])});content.querySelectorAll("[data-suspend-policy]").forEach(b=>b.onclick=async()=>{dismiss();await setScenarioPolicyStatus(scenarioId,"suspended",[b.dataset.suspendPolicy])})}catch(error){content.innerHTML=`<div class="modal-kicker">POLICY REVIEW</div><h2>审核并启用授权规则</h2><div class="form-error">${esc(error.message)}</div><div class="modal-actions"><button type="button" class="button" id="close-review">关闭</button></div>`;$("#close-review").onclick=dismiss}}
@@ -500,6 +500,28 @@ async function renderScenarioInstances(view){
  $("#back-instances").onclick=()=>{activeInstanceId=null;render()};$("#cancel-instance").onclick=()=>{activeInstanceId=null;render()};$("#add-required").onclick=addRequired;$$('[data-remove-row]',view).forEach(b=>b.onclick=()=>b.parentElement.remove());bindSegmentationEditor("instance",a);
  $$('[data-activate-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"active",[b.dataset.activatePolicy]));
  $$('[data-suspend-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"suspended",[b.dataset.suspendPolicy]));
+$$('[data-edit-policy]',view).forEach(b=>b.onclick=async()=>{
+  const r=((policies&&policies.rules)||[])[0];
+  if(!r){toast("这个场景还没有规则可编辑",true);return}
+  const cur=((r.conditions||[]).map(c=>{const v=c.value||{};return (v.key||"")+"="+(v.value!==undefined?v.value:"")}).filter(Boolean).join("\n"));
+  const txt=prompt("条件：每行写一条 字段=值（留空表示无条件）。例如\nprice_per_night=300\nnon_smoking_room=true",cur);
+  if(txt===null)return;
+  const conds=txt.split("\n").map(x=>x.trim()).filter(Boolean).map(line=>{const i=line.indexOf("=");return i<0?null:{type:"context_equals",value:{key:line.slice(0,i).trim(),value:line.slice(i+1).trim()}}}).filter(Boolean);
+  const eff=prompt("效果：allow（允许）/ deny（拒绝）/ ask（暂停并询问）",r.effect||"ask");
+  if(eff===null)return;
+  try{await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies/${encodeURIComponent(r.authorization_id)}`,{method:"PATCH",
+    body:JSON.stringify({conditions:conds,effect:String(eff).trim()})});
+    delete cache.authorizations;delete cache["scenario-slices"];toast("规则已更新，并回到草稿，请重新启用");render();
+  }catch(err){if(!(err instanceof AuthRequired))toast(err.message,true)}
+});
+$$('[data-revoke-policy]',view).forEach(b=>b.onclick=async()=>{
+  const r=((policies&&policies.rules)||[])[0];
+  if(!r){toast("这个场景还没有规则",true);return}
+  if(!confirm("撤回这条规则？撤回后立即失去访问权，规则会保留留痕（可在审计里看到）。"))return;
+  try{await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies/${encodeURIComponent(r.authorization_id)}`,{method:"DELETE"});
+    delete cache.authorizations;delete cache["scenario-slices"];toast("规则已撤回");render();
+  }catch(err){if(!(err instanceof AuthRequired))toast(err.message,true)}
+});
 $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
   // 沿用已存在规则的主体（用户不必再选一次）；没有既有规则时才回落到下拉框。
   const _rules=(policies&&policies.rules)||[];

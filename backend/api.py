@@ -1007,6 +1007,22 @@ async def add_scenario_policy(scenario_id: str, body: dict[str, Any]) -> Any:
     return {"created": rule_id, "authorization_ids": ids, "policy_status": "draft"}
 
 
+@app.delete("/v1/scenario-slices/{scenario_id}/policies/{rule_id}",
+            dependencies=[Depends(require_session)])
+async def revoke_scenario_policy(scenario_id: str, rule_id: str) -> Any:
+    """撤回一条属于本场景的授权规则（软删除：置 revoked 并暂停，保留留痕，便于审计）。"""
+    rule = store.get("authorizations", rule_id)
+    if not rule or str(rule.get("source") or "") != f"scenario-slice:{scenario_id}":
+        raise HTTPException(status_code=404, detail=messages.detail("scene_missing"))
+    updated = dict(rule)
+    updated["revoked"] = True
+    updated["policy_status"] = "suspended"
+    updated["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    store.put("authorizations", rule_id, updated)
+    return {"revoked": rule_id, "policy_status": "suspended"}
+
+
+
 @app.patch("/v1/scenario-slices/{scenario_id}/policies/{rule_id}",
            dependencies=[Depends(require_session)])
 async def update_scenario_policy(scenario_id: str, rule_id: str, body: dict[str, Any]) -> Any:
