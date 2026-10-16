@@ -957,6 +957,72 @@ async def compile_scenario_rules(scenario_id: str, body: dict[str, Any]):
     return {"scenario": stored, "created": created, "authorization_ids": merged, "compile_report": compile_notes}
 
 
+@app.post("/v1/scenario-slices/{scenario_id}/policies", status_code=201,
+          dependencies=[Depends(require_session)])
+async def add_scenario_policy(scenario_id: str, body: dict[str, Any]) -> Any:
+    """手工新增一条授权规则（草稿）。用于模型没有产出规则、或作者想自己写一条的场合。
+
+    新建的规则一律是草稿，不参与判定，需要在控制台显式启用。
+    """
+    scene = store.get("scenario-slices", scenario_id)
+    if not scene:
+        raise HTTPException(status_code=404, detail=messages.detail("scene_missing"))
+    if scene.get("status") != "confirmed":
+        raise HTTPException(status_code=422, detail=messages.detail("confirm_before_compile"))
+    grantor_id = str(body.get("grantor_id") or "")
+    grantee_id = str(body.get("grantee_id") or grantor_id)
+    if not grantor_id or not store.get("principals", grantor_id):
+        raise HTTPException(status_code=422, detail=messages.detail("rule_grantee_required"))
+    if not grantee_id or not store.get("principals", grantee_id):
+        raise HTTPException(status_code=422, detail=messages.detail("rule_grantee_required"))
+    analysis = scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
+    generated = analysis.get("generated") if isinstance(analysis.get("generated"), dict) else {}
+    resource_type_id = str(body.get("resource_type_id") or generated.get("resource_type_id") or "")
+    actions = [str(x) for x in (body.get("actions") or generated.get("action_ids") or []) if str(x)]
+    if not resource_type_id or not actions:
+        raise HTTPException(status_code=422, detail=messages.detail("scene_no_resources_actions"))
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    rule_id = "policy_manual_" + uuid4().hex[:12]
+    record = {
+        "source": f"scenario-slice:{scenario_id}",
+        "grantor_id": grantor_id, "grantee_id": grantee_id,
+        "resource_type_id": resource_type_id,
+        "resource_pattern": str(body.get("resource_pattern") or "*"),
+        "actions": actions, "effect": str(body.get("effect") or "allow"),
+        "conditions": body.get("conditions") or [],
+        "policy_status": "draft", "revoked": False, "manual": True,
+        "created_at": stamp, "updated_at": stamp,
+    }
+    store.put("authorizations", rule_id, record, create_only=True)
+    ids = sorted({str(x) for x in (generated.get("authorization_ids") or []) if str(x)} | {rule_id})
+    generated["authorization_ids"] = ids
+    analysis["generated"] = generated
+    scene["analysis"] = analysis
+    scene["updated_at"] = stamp
+    store.put("scenario-slices", scenario_id,
+              {k: v for k, v in scene.items() if k not in {"id", "scenario_id"}})
+    return {"created": rule_id, "authorization_ids": ids, "policy_status": "draft"}
+
+
+@app.patch("/v1/scenario-slices/{scenario_id}/policies/{rule_id}",
+           dependencies=[Depends(require_session)])
+async def update_scenario_policy(scenario_id: str, rule_id: str, body: dict[str, Any]) -> Any:
+    """修改一条属于本场景的授权规则。改动后规则一律回到草稿，避免生效中被静默改写。"""
+    rule = store.get("authorizations", rule_id)
+    if not rule or str(rule.get("source") or "") != f"scenario-slice:{scenario_id}":
+        raise HTTPException(status_code=404, detail=messages.detail("scene_missing"))
+    updated = dict(rule)
+    for key in ("effect", "conditions", "actions", "resource_pattern"):
+        if key in body:
+            updated[key] = body[key]
+    updated["policy_status"] = "draft"          # 改过就必须重新启用
+    updated["manual"] = True
+    updated["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    store.put("authorizations", rule_id, updated)
+    return {"updated": rule_id, "policy_status": "draft", "effect": updated.get("effect")}
+
+
+
 @app.post("/v1/scenario-slices/{scenario_id}/duplicate", status_code=201,
           dependencies=[Depends(require_session)])
 async def duplicate_scenario_slice(scenario_id: str) -> Any:
