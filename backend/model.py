@@ -54,7 +54,7 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                  "display_name_en": ("displayNameEn", "lit"),
                  "items": ("profileItems", "json"),
                  "note": ("profileNote", "lit"),
-                 "updated_at": ("updatedAt", "lit")},
+                 "updated_at": ("profileUpdatedAt", "lit")},
     "scenario-slices": {"original_text": ("originalText", "lit"), "status": ("scenarioStatus", "lit"), "analysis": ("analysis", "json"), "updated_at": ("updatedAt", "lit"),
                         # 专业判断侧新增（生活侧留空即保持原状，存量数据零迁移）
                         "scenario_definition_id": ("usesScenarioDefinition", "scenario-definitions"),
