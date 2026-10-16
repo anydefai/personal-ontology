@@ -1818,7 +1818,15 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
     _missing_local: list[str] = []
     try:
         _ri = analysis.get("required_inputs") if isinstance(analysis.get("required_inputs"), list) else []
-        _want = [str(x.get("name")) for x in _ri if isinstance(x, dict) and str(x.get("source") or "") == "profile" and x.get("name")]
+        _want = []
+        for _x in _ri:
+            if not isinstance(_x, dict) or str(_x.get("source") or "") != "profile":
+                continue
+            _keys = [str(k) for k in (_x.get("profile_keys") or []) if str(k).strip()]
+            if _keys:
+                _want.extend(_keys)            # 界面勾选的具体资料项（优先）
+            elif _x.get("name"):
+                _want.append(str(_x.get("name")))   # 兼容旧数据：按字段名同名额匹配
         if _want:
             _bag: dict[str, Any] = {}
             for _prof in store.list("profiles"):

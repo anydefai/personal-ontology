@@ -883,7 +883,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
             var bad = []; var summary = [];
             Object.keys(imp.report || {}).forEach(function (kk) {
               (imp.report[kk].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
-              summary.push(kk + "：" + ((imp.report[kk]||{}).imported||0) + " 条");
+              summary.push(zhSection(kk) + "：" + ((imp.report[kk]||{}).imported||0) + " 条");
             });
             var _rep = view.querySelector("#doc-report");
             if (_rep) _rep.textContent = summary.length ? ("已解析 → " + summary.join(" ｜ ")) : "";
@@ -1014,7 +1014,7 @@ var opts = (models && models.length ? models : [m]).map(function (x) {
         var bad = []; var summary = [];
         Object.keys(out.report || {}).forEach(function (k) {
           (out.report[k].errors || []).forEach(function (e) { bad.push("第 " + e.line + " 行：" + e.reason); });
-          summary.push(k + "：" + ((out.report[k]||{}).imported||0) + " 条");
+          summary.push(zhSection(k) + "：" + ((out.report[k]||{}).imported||0) + " 条");
         });
         if (save) { cache["scenario-slices"] = null; render(); if (bad.length) alert("已保存，但有几行没看懂：\n" + bad.join("\n")); return; }
         render();
@@ -1467,6 +1467,12 @@ window.POPro = { renderSlices: renderSlices, polishPanels: polishPanels };
       '<span class="panel-caption" id="doc-report"></span>' +
     "</div></section>";
 }
+
+var SECTION_ZH = {inputs:"我要知道的信息", profile_inputs:"本机资料", thresholds:"判断的基准线",
+  signals:"我观察什么", rules:"组合判断", exceptions:"例外情况", priority:"优先级",
+  citations:"我的依据", score:"打分线", fallback:"兜底", weights:"行业侧重",
+  boundaries:"对外调用的边界", delivery:"交付说明", billing:"计费"};
+function zhSection(k){ return SECTION_ZH[k] || k; }
 
 function lineImportPanel() {
     var parts = [

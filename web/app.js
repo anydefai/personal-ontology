@@ -497,9 +497,39 @@ async function renderScenarioInstances(view){
      '② 若编译出 0 条，说明场景描述里没有可执行的动作或必填信息，请回到场景描述补充后再分析一次' +
      '（例如：预订机票时先问清出发城市、到达城市、出发日期、人数，价格不超过 3000 元）。</p></section>');
  }
- const addRequired=()=>{$("#instance-required").insertAdjacentHTML("beforeend",`<div class="form-grid instance-required-row" style="grid-template-columns:150px 1fr 1fr 110px auto"><select class="select" data-required-tier style="font-size:11px;padding:2px 4px;width:auto;max-width:150px"><option value="required" selected>每次必填</option><option value="preference" >长期偏好</option><option value="both" >两者兼有</option></select><input class="input" data-required-name placeholder="字段名，例如 check_in_date" required><input class="input" data-required-label placeholder="用户看到的名称，例如 入住日期" required><select class="select" data-required-type><option value="string">文本</option><option value="number">数字</option><option value="bool">是/否</option><option value="date">日期</option></select><select class="select" data-required-source style="font-size:11px;padding:2px 4px;width:auto"><option value="caller">调用方提交</option><option value="profile">我的资料</option></select><button type="button" class="button danger" data-remove-row>移除</button></div>`)};
+ // 来源选「我的资料」时，行内展开一个多选框，列出资料库里现有的项，勾哪几项就用哪几项。
+let _profileCache=null;
+async function renderPkeyPicker(row){
+  const sel=row.querySelector("[data-required-source]");
+  if(!sel||sel.value!=="profile"){ const old=row.querySelector("[data-pkey-wrap]"); if(old)old.remove(); return }
+  if(row.querySelector("[data-pkey-wrap]")) return;
+  if(!_profileCache){ try{ _profileCache=(await api("/v1/profiles"))||{} }catch(e){ _profileCache={} } }
+  const items=[];
+  ((_profileCache.items)||[]).forEach(pf=>(pf.items||[]).forEach(it=>{
+    const k=String(it.label||it.key||"").trim(); if(k) items.push({k, p:pf.display_name_zh||"资料", v:it.value});
+  }));
+  const wrap=document.createElement("div");
+  wrap.setAttribute("data-pkey-wrap","1");
+  wrap.className="panel-caption";
+  wrap.style.gridColumn="1/-1";
+  wrap.innerHTML= items.length
+    ? `<div style="margin-top:4px">勾选要由本机提供的资料项（可多选）：
+         <select class="select" data-required-pkeys multiple size="${Math.min(4,items.length)}" style="min-width:260px;margin-left:6px">
+           ${items.map(x=>`<option value="${esc(x.k)}">${esc(x.p)} → ${esc(x.k)}（${esc(maskValue(x.v))}）</option>`).join("")}
+         </select></div>`
+    : `<div style="margin-top:4px">资料库里还没有内容，请先到【个人资料】页添加。</div>`;
+  row.appendChild(wrap);
+}
+function bindRequiredSources(view){
+  view.querySelectorAll("[data-required-source]").forEach(sel=>{
+    sel.onchange=()=>renderPkeyPicker(sel.closest(".instance-required-row")||sel.parentElement);
+    if(sel.value==="profile") renderPkeyPicker(sel.closest(".instance-required-row")||sel.parentElement);
+  });
+}
+const addRequired=()=>{$("#instance-required").insertAdjacentHTML("beforeend",`<div class="form-grid instance-required-row" style="grid-template-columns:150px 1fr 1fr 110px auto"><select class="select" data-required-tier style="font-size:11px;padding:2px 4px;width:auto;max-width:150px"><option value="required" selected>每次必填</option><option value="preference" >长期偏好</option><option value="both" >两者兼有</option></select><input class="input" data-required-name placeholder="字段名，例如 check_in_date" required><input class="input" data-required-label placeholder="用户看到的名称，例如 入住日期" required><select class="select" data-required-type><option value="string">文本</option><option value="number">数字</option><option value="bool">是/否</option><option value="date">日期</option></select><select class="select" data-required-source style="font-size:11px;padding:2px 4px;width:auto"><option value="caller">调用方提交</option><option value="profile">我的资料</option></select><button type="button" class="button danger" data-remove-row>移除</button></div>`)};
  $("#back-instances").onclick=()=>{activeInstanceId=null;render()};$("#cancel-instance").onclick=()=>{activeInstanceId=null;render()};$("#add-required").onclick=addRequired;$$('[data-remove-row]',view).forEach(b=>b.onclick=()=>b.parentElement.remove());bindSegmentationEditor("instance",a);
- $$('[data-activate-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"active",[b.dataset.activatePolicy]));
+ bindRequiredSources(view);
+$$('[data-activate-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"active",[b.dataset.activatePolicy]));
  $$('[data-suspend-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"suspended",[b.dataset.suspendPolicy]));
 $$('[data-delete-policy]',view).forEach(b=>b.onclick=async()=>{
   if(!confirm("删除这条规则？会先暂停再删除，删除后不可恢复（留痕仍在审计记录里）。"))return;
@@ -572,13 +602,14 @@ $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
  };
  $("#instance-form").onsubmit=async e=>{e.preventDefault();const error=$("#instance-error");error.textContent="";const segmentation=readScenarioSegmentation("instance",a.segmentation||{});if(!segmentation)return;const nextRequired=$$(".instance-required-row",view).map(row=>({name:$('[data-required-name]',row).value.trim(),label:$('[data-required-label]',row).value.trim(),type:$('[data-required-type]',row).value,required:true}));
  // 改档：偏好行上选了「每次必填」或「两者兼有」的字段，并入必填清单（不覆盖已存在的同名项）。
- for(const row of $$(".seg-pref-row",view)){const tier=$("[data-seg-tier]",row)?.value||"";if(tier!=="required"&&tier!=="both")continue;const name=String(row.dataset.segField||"").trim();if(!name||nextRequired.some(x=>x.name===name))continue;nextRequired.push({name,label:String(row.dataset.segLabel||name).trim(),type:String(row.dataset.segType||"string"),required:true, source: src });}
+ for(const row of $$(".seg-pref-row",view)){const tier=$("[data-seg-tier]",row)?.value||"";if(tier!=="required"&&tier!=="both")continue;const name=String(row.dataset.segField||"").trim();if(!name||nextRequired.some(x=>x.name===name))continue;nextRequired.push({name,label:String(row.dataset.segLabel||name).trim(),type:String(row.dataset.segType||"string"),profile_keys:(src==="profile"?pkeys:[]),required:true, source: src });}
  // 反向改档：必填行选了「长期偏好」的，从必填清单移除并转成偏好（值留空，待你到偏好区填写）。
  for(const row of $$(".instance-required-row",view)){const tier=$("[data-required-tier]",row)?.value||"required";if(tier!=="preference")continue;
   const name=String($("[data-required-name]",row)?.value||"").trim();if(!name)continue;
   const label=String($("[data-required-label]",row)?.value||name).trim();
   const type=String($("[data-required-type]",row)?.value||"string");
  const src=String($("[data-required-source]",row)?.value||"caller");
+ const pkeys=Array.from(row.querySelectorAll("[data-required-pkeys] option:checked")).map(o=>o.value);
   for(let i=nextRequired.length-1;i>=0;i--)if(nextRequired[i].name===name)nextRequired.splice(i,1);
   if(!Array.isArray(segmentation.global_preferences))segmentation.global_preferences=[];
   if(!segmentation.global_preferences.some(p=>p.field===name))
