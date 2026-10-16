@@ -1094,10 +1094,22 @@ function profileFormHtml(){
       <button type="button" class="button" id="pf-cancel">取消</button>
     </div></section>`;
 }
+function syncProfileForm(view){
+  // 重画之前必须先把页面上已输入的内容收进状态，否则点击"添加字段/删除"会丢掉刚填的值。
+  const name=$("#pf-name"); if(name) profileEdit.name=String(name.value||"");
+  $$('[data-pf-label]',view).forEach(inp=>{
+    const i=Number(inp.dataset.pfLabel);
+    if(!profileEdit.items[i]) return;
+    profileEdit.items[i].label=String(inp.value||"");
+    const v=$(`[data-pf-value="${i}"]`); if(v) profileEdit.items[i].value=String(v.value||"");
+    const k=$(`[data-pf-kind="${i}"]`); if(k) profileEdit.items[i].kind=String(k.value||"text");
+  });
+  profileEdit.items.forEach(it=>{ if(!it.key) it.key=it.label||"" });
+}
 function bindProfileForm(view){
   const refresh=()=>{ render() };
-  $$('[data-pf-del]',view).forEach(b=>b.onclick=()=>{ profileEdit.items.splice(Number(b.dataset.pfDel),1); render() });
-  $("#pf-add-row").onclick=()=>{ profileEdit.items.push({key:"",label:"",value:"",kind:"text"}); render() };
+  $$('[data-pf-del]',view).forEach(b=>b.onclick=()=>{ syncProfileForm(view); profileEdit.items.splice(Number(b.dataset.pfDel),1); render() });
+  $("#pf-add-row").onclick=()=>{ syncProfileForm(view); profileEdit.items.push({key:"",label:"",value:"",kind:"text"}); render() };
   $("#pf-cancel").onclick=()=>{ profileEdit=null; render() };
   $("#pf-save").onclick=async()=>{
     const name=String($("#pf-name")?.value||"").trim();
