@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 时代的"专家"，有两种</title>
+<style>
+  body{font:16px/1.85 -apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;color:#222;
+       max-width:680px;margin:0 auto;padding:22px 18px 60px;word-break:break-word}
+  h1{font-size:22px;line-height:1.5;margin:6px 0 10px}
+  h2{font-size:17px;margin:30px 0 10px;padding-left:10px;border-left:4px solid #2f7d5f}
+  h3{font-size:15.5px;margin:20px 0 6px;color:#111}
+  p{margin:12px 0}
+  blockquote{margin:14px 0;padding:10px 14px;background:#f6faf8;border-left:3px solid #cfe3da;
+             border-radius:0 8px 8px 0;color:#333;font-size:15.5px}
+  ul,ol{margin:10px 0 10px 22px;padding:0}
+  li{margin:6px 0}
+  .tag{display:inline-block;font-size:13px;color:#2f7d5f;background:#eef6f2;border-radius:20px;padding:2px 10px;margin:0 6px 6px 0}
+  .box{border:1px solid #e6ebe8;border-radius:10px;padding:12px 14px;margin:14px 0}
+  .box b{display:block;margin-bottom:4px}
+  .them{border-left:3px solid #c9c9c9;padding-left:10px;margin:10px 0;color:#444}
+  .us{border-left:3px solid #2f7d5f;padding-left:10px;margin:10px 0;color:#111}
+  .muted{color:#6b7280;font-size:13.5px}
+  hr{border:0;border-top:1px solid #ececec;margin:26px 0}
+  .quote{font-size:17px;font-weight:600;color:#123;margin:18px 0;line-height:1.7}
+</style>
+
+<h1>AI 时代的"专家"，有两种</h1>
+<p class="muted">一种让 AI 扮演专家，一种让专家的方法被调用。差别不在聪明程度，而在"出了事谁负责"。</p>
+
+<hr>
+
+<p>先讲一个我们最近反复踩到的场景。</p>
+
+<p>你让一个 AI 助手做并购估值。它会给你一份结构完整、措辞专业的报告：市盈率、行业均值、法律风险、合规提示，条条在理。</p>
+
+<p>但如果你追问一句：<b>"这个结论是依据哪条规则推出来的？"</b></p>
+
+<p>它可能答不上来。因为它不是在执行一套方法，它是在<b>扮演一个会做估值的人</b>。</p>
+
+<h2>一、行业正在换轨</h2>
+
+<p>过去两年，智能体在手机和电脑上"操作软件"的主流方式是<b>模拟点击</b>——找到按钮、点下去。这条路能跑通，但很脆：界面一改就断，而且应用方根本不知道谁在动它的东西。</p>
+
+<p>今年出现了另一种思路：<b>声明式</b>。应用提前公开声明"我允许哪些操作、禁止哪些操作"，智能体照着声明来。</p>
+
+<p>把这件事讲得最清楚的一个类比来自中国科学院软件研究所的邰阳：这类协议可以理解成<b>"AI 时代的 robots 协议"</b>——过去网站靠 robots.txt 告诉搜索引擎哪些能抓、哪些不能抓；今天应用也需要一套公开、明确、可执行的规则，把原本模糊的边界讲清楚。（参见<a href="https://finance.sina.cn/2026-09-23/detail-inisuxhf5316913.d.html?vt=4">经济参考报报道</a>、<a href="http://m2.people.cn/news/default.html?s=MV8xXzQwODExNDUxXzQ0Nzk4MV8xNzkxNTI4MDgx&from=sohu">以 SAEP 构建 AI 时代 Robots 规则</a>）</p>
+
+<blockquote>方向很清楚：从"模拟点击"走向"声明式调用"。但"声明"只是第一步——声明之后，谁来给结论、谁来担责任？</blockquote>
+
+<h2>二、两种"专家"，不是一回事</h2>
+
+<p>打开 WorkBuddy 的专家中心，你会看到按行业分类的专家卡片，一键就能召唤。按官方文档，专家是一种<b>"角色切换"机制</b>：以"人设 + 方法论 + 工具链"让 AI 用特定领域专家的身份执行任务；还有"专家团"，多位专家并行协作完成任务。（见<a href="https://www.workbuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Expert-Center">WorkBuddy 官方文档</a>）</p>
+
+<p>这类产品做得很好，解决的是"我手头这活儿没人干"的问题。但它和另一种东西，是两件事：</p>
+
+<div class="box">
+  <b>WorkBuddy 的专家：让 AI 扮演专家</b>
+  <span class="muted">权威来自提示词与平台。官方文档写得很直白："生成内容仅供参考，不构成专业意见；涉及医疗、法律、投资、合规等重大决策建议咨询专业人士。"</span>
+</div>
+
+<div class="box">
+  <b>另一种做法：让专家的方法被调用</b>
+  <span class="muted">一位有署名的律师把自己的判断方法（看哪些信号、什么组合触发什么结论、例外怎么处理、依据哪条法条）写成一套可执行的规则。系统按规则算出结论，并把"这次结论是怎么来的"一并写进报告。</span>
+</div>
+
+<p>差别可以浓缩成一句话：</p>
+
+<p class="quote">前者是"AI 像一个专家"；后者是"专家本人的方法，可以被安全调用，并且留痕"。</p>
+
+<h2>三、手机上看这张对比</h2>
+
+<p>挑四个最要紧的维度，用"它 / 我们"两行对照着看。</p>
+
+<h3>1. 结论是怎么来的</h3>
+<p class="them"><b>它：</b>由模型生成，同一问题问两次，措辞和结论都可能有出入。</p>
+<p class="us"><b>我们：</b>由规则引擎算出，同一组输入必得同一结论；报告里会写明这次结论来自"打分线""组合规则"还是"例外"。</p>
+
+<h3>2. 出事之后能不能查</h3>
+<p class="them"><b>它：</b>留下的是会话记录。</p>
+<p class="us"><b>我们：</b>每一次对外调用都留档——<b>包括被拒绝的调用</b>。报告带编号，可以凭编号向方法所有者复核。</p>
+
+<h3>3. 谁在调用，能干什么</h3>
+<p class="them"><b>它：</b>专家本身不主动获取系统权限，配备 Skill / MCP 后在用户授权下间接访问。</p>
+<p class="us"><b>我们：</b>按"哪个程序"逐条授权；用途必须在白名单里，金额有上限，可以要求不得转售。<b>没声明的，一律拒绝。</b></p>
+
+<h3>4. 数据在哪</h3>
+<p class="them"><b>它：</b>对话内容与上传文件由平台收集处理。</p>
+<p class="us"><b>我们：</b>数据留在本机加密容器里，判定在本地完成，对外只交换"声明、请求、结论"。</p>
+
+<p class="muted">顺带一个我们自己的短板，也要讲清楚：易用性上我们明显落后。它一键召唤；我们要先建切片、填字段、配边界、批准程序，一路都可能卡住。这是我们要补的功课，不是可以用话术绕过去的。</p>
+
+<h2>四、商业模式上，两家在卖不同的东西</h2>
+
+<ul>
+  <li><b>它在卖"额度"</b>：订阅加积分，专家是留住用户的功能，专家本人不参与分成。</li>
+  <li><b>我们在试"按次"</b>：方法里自带调用单价，方法所有者可以直接定价、被计费。</li>
+</ul>
+
+<p>听起来后者更性感，但要诚实：<b>按次计费的前提是有人找得到你、信得过你</b>。分发和信用，恰恰是我们现在最缺的两样。</p>
+
+<h2>五、受众也不一样</h2>
+
+<p class="them"><b>普通知识工作者要的是：</b>马上有个人把活干了。至于结论谁背书，不太在意。</p>
+<p class="us"><b>另一类人要的是：</b>这个结论要能签名、能复核、能担责。律师意见、评估报告、尽调结论、合规审查——这些场合，"仅供参考"四个字是不能接受的。</p>
+
+<p>前者面广、客单低；后者面窄、客单高，而且对责任的敏感度极高。</p>
+
+<h2>六、结论：不是替代，是两层</h2>
+
+<ol>
+  <li><b>它们不冲突。</b>一个管"应用允不允许被操作"，一个管"这个人允不允许某个程序读他的数据、并按他的方法给判断"。不同层，可以叠加。</li>
+  <li><b>各自的命门。</b>它的命门是权威性——它自己都声明不构成专业意见；我们的命门是分发与易用——没有渠道，也没有"一键"。</li>
+  <li><b>最好的组合是：它当入口，我们当被调用的服务提供方。</b>它已经支持 MCP 和连接器；我们已经有服务目录、调用契约、分级披露和留痕。技术上只差一次对接。</li>
+</ol>
+
+<p class="quote">它规模化"像专家"；我们保证"是专家的方法，而且调用可追责"。两件事合起来，才是完整的图景。</p>
+
+<hr>
+
+<p class="muted">我们正在做的东西叫"个人可信数据空间"：把一位专家写在纸上的判断方法，变成一台本机上可以被安全调用、并且每次调用都留痕的服务。已经跑通的包括：服务目录与调用契约、四档分级披露、用途与金额限制、拒绝也留痕、以及一份能说清"结论怎么来的"的判定报告。还差的分发与易用，我们正在补。</p>
+
+<p class="muted">本文所述 WorkBuddy 相关能力均引自其官方文档；上述引用的报道与观点来自公开媒体。文中对比仅代表我们的理解，欢迎指正。</p>

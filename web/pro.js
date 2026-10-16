@@ -636,13 +636,12 @@ function poHasFramework(fw) {
     var def = defs.filter(function (d) { return d.id === defId; })[0] || null;
     var allSlices = await load("scenario-slices");
     var mine = allSlices.filter(function (x) {
-      return (x.scenario_profile || {}).kind === "professional" && x.scenario_definition_id === defId;
+      return (x.scenario_profile || {}).kind === "professional" && (defId === "all" || x.scenario_definition_id === defId);
     });
     var principals = [];
     try { principals = (await api("/v1/principals")) || []; } catch (e) { principals = []; }
     if (!Array.isArray(principals)) principals = principals.items || [];
     var approvedAgents = [];
-    var approvedAgents = [], agentsErr = "";
     try { approvedAgents = ((await api("/v1/agents")) || {}).approved || []; }
     catch (e) { approvedAgents = []; agentsErr = (e && (e.message || (e.detail && e.detail.message))) || "读取失败"; }
     window.poAgentsError = agentsErr;   // 读失败别伪装成"没有程序"
@@ -672,7 +671,16 @@ function poHasFramework(fw) {
       }
       state.__slice = sliceId;
     }
-    var opts = defs.map(function (d) {
+    var _others = 0;
+    for (var _i = 0; _i < allSlices.length; _i++) {
+      var _sc = allSlices[_i];
+      if ((_sc.scenario_profile || {}).kind === "professional" && _sc.scenario_definition_id && _sc.scenario_definition_id !== defId) _others++;
+    }
+    var _scope = (defId === "all") ? "全部场景" : ((def && fieldLabel(def, "display_name_zh", "display_name_en")) || "当前场景");
+    var _note = "当前范围：" + _scope + " · 本范围 " + mine.length + " 条切片";
+    if (mine.length === 0 && _others > 0) { _note += "。本范围下没有切片，另有 " + _others + " 条在别的场景下；可在下面的场景下拉里切回，或选「全部场景」。"; }
+    else if (_others > 0) { _note += "; 另有 " + _others + " 条在别的场景下。"; }
+    var opts = '<option value="all"' + (defId === "all" ? " selected" : "") + ">全部场景</option>" + defs.map(function (d) {
       return '<option value="' + esc(d.id) + '"' + (d.id === defId ? " selected" : "") + ">" +
         esc(fieldLabel(d, "display_name_zh", "display_name_en")) + "</option>";
     }).join("");
@@ -686,6 +694,7 @@ function poHasFramework(fw) {
     }).join("");
     view.innerHTML = proModeButtons() +
       titleBlock("SKILL FRAMEWORK", "技能框架", "先用一段话讲清你的判断方式，让模型起草；再逐条改成你自己的说法。改的过程就是这套框架的价值所在。") +
+      '<div class="panel-caption" style="margin:6px 0 0">' + esc(_note) + "</div>" +
       '<section class="panel" style="padding:16px;margin-bottom:12px">' +
         '<div class="panel-title"><span>第一步 · 先选场景，再选我的切片</span></div>' +
         '<div class="panel-caption" style="margin:6px 0 10px">场景是<strong>可共享的模板</strong>，不含你的判断；切片是<strong>你的个人判断资产</strong>，同一个场景可以建多条（例如互联网版、制造业版）</div>' +
