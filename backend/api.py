@@ -2396,6 +2396,45 @@ _SLICE_READY_ITEMS = {
 }
 
 
+def _fill_from_profiles(item: dict[str, Any], data: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """把切片声明的本机资料字段补进 data。
+
+    只取 framework.profile_inputs 里列出的字段（逐字段，不给整份资料）；
+    调用方已经给了的字段不覆盖。返回 (补了哪些, 本机缺哪些)。
+    """
+    fw = item.get("framework") or {}
+    want = [x for x in (fw.get("profile_inputs") or []) if isinstance(x, dict) and x.get("name")]
+    if not want:
+        return [], []
+    bag: dict[str, Any] = {}
+    try:
+        profiles = store.list("profiles")
+    except Exception:                                     # noqa: BLE001 - 读不到资料不应阻断判定
+        profiles = []
+    for prof in profiles:
+        for it in (prof.get("items") or []):
+            if not isinstance(it, dict):
+                continue
+            for key in (it.get("label"), it.get("key")):
+                k = str(key or "").strip()
+                if k and k not in bag:
+                    bag[k] = it.get("value")
+    filled: list[str] = []
+    missing: list[str] = []
+    for w in want:
+        name = str(w.get("name")).strip()
+        if not name:
+            continue
+        if data.get(name) not in (None, ""):
+            continue
+        if name in bag:
+            data[name] = bag[name]
+            filled.append(name)
+        else:
+            missing.append(name)
+    return filled, missing
+
+
 def _caller_tier(item: dict[str, Any], body: Any = None) -> str:
     """调用方拿到哪一层：切片自己的档位是上限，规范里可以请求【更低】的一层（便于测试）。"""
     ceiling = _slice_tier(item)
@@ -2652,7 +2691,9 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
         return {"slice_id": slice_id, "caller": who, "authorize": authz, "judgment": None,
                 "refused": "boundaries"}
 
-    pkg = skill_framework.judge(item.get("framework") or {}, (body or {}).get("data") or {},
+    _data = dict((body or {}).get("data") or {})
+    _filled, _missing_local = _fill_from_profiles(item, _data)
+    pkg = skill_framework.judge(item.get("framework") or {}, _data,
                                 confidence=item.get("confidence"),
                                 confidence_status=str(item.get("confidence_status") or "unverified"),
                                 confidence_basis=str(item.get("confidence_basis") or ""))
@@ -2668,7 +2709,9 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
         "reason_key": "skill." + str(pkg.get("decision") or "no_conclusion"),
         "reason_params": {"slice_id": slice_id, "caller": who, "severity": pkg.get("severity"),
                           "model": pkg.get("model"), "model_version": pkg.get("model_version"),
-                          "score": pkg.get("score"), "missing_inputs": pkg.get("missing_inputs") or []},
+                          "score": pkg.get("score"), "missing_inputs": pkg.get("missing_inputs") or [],
+                          "local_profile_fields": _filled,
+                          "local_profile_missing": _missing_local},
         "reason_display": {"zh": str(pkg.get("decision") or ""), "en": str(pkg.get("decision") or "")},
         "input_params": (body or {}).get("request") or {},
         "cited_assertions": [str(x) for x in (pkg.get("basis") or [])],
@@ -2682,4 +2725,9 @@ async def judge_slice(slice_id: str, body: dict[str, Any], who: str = Depends(re
                                                      "detail": str(exc)}) from exc
     # 递给调用方的是"可以给"的版本：结论与说明齐全，作者的权重与阈值不在其中。
     return {"slice_id": slice_id, "caller": who, "authorize": authz,
-            "judgment": skill_framework.for_caller(pkg, _caller_tier(item, body)), "decision_id": decision_id}
+            "judgment": skill_framework.for_caller(pkg, _caller_tier(item, body)),
+            "local_profile_provided": ({"count": len(_filled), "fields": _filled,
+                "note": "这些字段由本机资料提供，值不对外发送；仅限本次使用，不得写入记忆、文件或用于其它调用"}
+                if _filled else None),
+            "local_profile_missing": (_missing_local or None),
+            "decision_id": decision_id}
