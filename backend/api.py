@@ -1736,6 +1736,39 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
         if any(isinstance(v, str) and len(v) > 2000 for v in source.values()):
             raise HTTPException(status_code=422, detail=messages.detail("preview_item_too_long"))
 
+    # 本机资料补齐：场景实例必填项里标了 source=profile 的，由本机从个人资料库取值并注入本次请求；
+    # 调用方无需提交、也拿不到值（返回里只给计数与字段名）。必须在 missing 计算之前完成。
+    _filled_local: list[str] = []
+    _missing_local: list[str] = []
+    _defs = analysis.get("required_inputs") if isinstance(analysis.get("required_inputs"), list) else []
+    _want_defs = [x for x in _defs if isinstance(x, dict) and str(x.get("source") or "") == "profile"]
+    if _want_defs:
+        _bag: dict[str, Any] = {}
+        try:
+            for _prof in store.list("profiles"):
+                for _it in (_prof.get("items") or []):
+                    if not isinstance(_it, dict):
+                        continue
+                    for _key in (_it.get("label"), _it.get("key")):
+                        _k = str(_key or "").strip()
+                        if _k and _k not in _bag:
+                            _bag[_k] = _it.get("value")
+        except Exception:                                  # noqa: BLE001 - 读不到资料不阻断预演
+            pass
+        for _d in _want_defs:
+            _keys = [str(k) for k in (_d.get("profile_keys") or []) if str(k).strip()]
+            if not _keys and _d.get("name"):
+                _keys = [str(_d.get("name"))]
+            _got = [(k, _bag[k]) for k in _keys if k in _bag]
+            if _got:
+                for _k, _v in _got:
+                    request_inputs.setdefault(_k, _v)
+                    if _d.get("name"):
+                        request_inputs.setdefault(str(_d.get("name")), _v)
+                    _filled_local.append(_k)
+            else:
+                _missing_local.extend(_keys)
+
     required_inputs = analysis.get("required_inputs", [])
     if not isinstance(required_inputs, list): required_inputs = []
     missing = [{"name":str(item.get("name", "")), "label":str(item.get("label") or item.get("name") or "必填信息")} for item in required_inputs if isinstance(item, dict) and item.get("required", False) and (request_inputs.get(str(item.get("name", ""))) is None or request_inputs.get(str(item.get("name", ""))) == "")]
@@ -1812,40 +1845,6 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
         overall = "needs_data"
     else:
         overall = "pass"
-    # 生活场景的本机资料补齐：场景实例的必填项里标了 source=profile 的，
-    # 由本机从 profiles 取（值不回显给调用方），并从"缺少的必填项"里移除。
-    _filled_local: list[str] = []
-    _missing_local: list[str] = []
-    try:
-        _ri = analysis.get("required_inputs") if isinstance(analysis.get("required_inputs"), list) else []
-        _want = []
-        for _x in _ri:
-            if not isinstance(_x, dict) or str(_x.get("source") or "") != "profile":
-                continue
-            _keys = [str(k) for k in (_x.get("profile_keys") or []) if str(k).strip()]
-            if _keys:
-                _want.extend(_keys)            # 界面勾选的具体资料项（优先）
-            elif _x.get("name"):
-                _want.append(str(_x.get("name")))   # 兼容旧数据：按字段名同名额匹配
-        if _want:
-            _bag: dict[str, Any] = {}
-            for _prof in store.list("profiles"):
-                for _it in (_prof.get("items") or []):
-                    if not isinstance(_it, dict):
-                        continue
-                    for _key in (_it.get("label"), _it.get("key")):
-                        _k = str(_key or "").strip()
-                        if _k and _k not in _bag:
-                            _bag[_k] = _it.get("value")
-            for _name in _want:
-                if _name in _bag:
-                    _filled_local.append(_name)
-                    if _name in missing:
-                        missing = [x for x in missing if x != _name]
-                else:
-                    _missing_local.append(_name)
-    except Exception:                                     # noqa: BLE001 - 补齐失败不阻断预演
-        pass
     return {"scenario_id":scenario_id, "scenario_title":analysis.get("title", "场景实例"), "preview":True,
             "local_profile_provided": ({"count": len(_filled_local), "fields": _filled_local,
                 "note": "这些字段由本机资料提供，值不对外发送；仅限本次使用"}
