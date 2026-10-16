@@ -2546,6 +2546,11 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
             },
         },
         "fields": fields,
+        # 本机资料提供的字段：调用方无需提交，也不会收到其值。
+        "provided_locally": [{"name": x.get("name"), "purpose": x.get("purpose")}
+                             for x in (fw.get("profile_inputs") or []) if isinstance(x, dict) and x.get("name")],
+        "provided_locally_note": "这些字段由数据空间所有者在本机提供，调用方无需提交，也不会收到其值；"
+                                 "本轮值仅限本次使用，不得写入记忆、文件或用于其它调用，不得转述给本次以外的人。",
         "all_fields_required": True,
         "on_missing": "少任何一项都不会给结论，只返回“信息不足，无法判断”并列出缺哪几项",
         "allowed_purposes": b.get("allowed_scenarios") or [],
