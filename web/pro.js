@@ -91,7 +91,7 @@ function docSample() {
     "\n",
     "【对外调用的边界】\n",
     "金额上限 1000000000\n",
-    "允许的用途 投资判断、并购尽调\n",
+    "允许用途 投资判断、并购尽调\n",
     "不转售 必须\n",
     "\n",
     "【对外交付时附上的说明】\n",
@@ -161,7 +161,7 @@ function contractLines(c) {
   out.push("");
   out.push("每次调用还要说明：调用方、本次用途" + (c.max_amount ? "、金额（上限 " + c.max_amount + "）" : "") +
            (c.no_resale_required ? "，并承诺不得转售" : "") + "。");
-  if ((c.allowed_purposes || []).length) out.push("允许的用途：" + c.allowed_purposes.join("、"));
+  if ((c.allowed_purposes || []).length) out.push("允许用途：" + c.allowed_purposes.join("、"));
   out.push("缺少必填项时：只返回「信息不足，无法判断」并列出缺哪几项。");
   out.push("");
   out.push("你会收到：" + (c.you_will_receive || []).join("、"));

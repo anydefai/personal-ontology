@@ -133,7 +133,7 @@ check("权重表的列名来自信号维度（表为空时也不例外，否则�
       "sg.dimension" in SRC and SRC.index("sg.dimension") > SRC.index("function weightsPanel"))
 
 check("权重表在为空时也有一行可填（不依赖\u201c加一个行业\u201d按钮）",
-      "cats = [\"新行业1\"]" in SRC)
+      "cats = [\"新类别1\"]" in SRC)
 
 check("面板不再折叠（用户要求去掉收起/展开，全部一直显示）",
       'createElement("details")' not in SRC and "g.host.appendChild(sec);" in SRC)
