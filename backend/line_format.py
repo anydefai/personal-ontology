@@ -52,22 +52,6 @@ def parse_inputs(lines: list[str]) -> tuple[list[dict], list[dict]]:
         if not s or s.startswith("#"):
             continue
         parts = [p.strip() for p in s.split("|")]
-        # 可选的来源与敏感标记：任意一段写「来源：我的资料 / 本机」或「敏感」即可，
-        # 它们会被摘出来，不参与类型与选项的解析（旧写法完全不受影响）。
-        src_mark, sensitive = None, False
-        _rest = []
-        for _seg in parts:
-            _t = _seg.strip()
-            _m = re.match(r"^来源\s*[:：]\s*(.+)$", _t)
-            if _m:
-                _v = _m.group(1).strip()
-                src_mark = "profile" if _v in ("我的资料", "本机", "profile", "资料库") else "caller"
-                continue
-            if _t in ("敏感", "敏感信息", "sensitive"):
-                sensitive = True
-                continue
-            _rest.append(_t)
-        parts = _rest
         if len(parts) < 2 or not parts[0]:
             bad.append(_err(n, raw, "格式：名称 ｜ 类型（｜ 可选项）")); continue
         name, tname = parts[0], parts[1]
@@ -75,10 +59,6 @@ def parse_inputs(lines: list[str]) -> tuple[list[dict], list[dict]]:
         if not t:
             bad.append(_err(n, raw, f"类型「{tname}」不认识（可用：文字/数字/选项/是-否/多项）")); continue
         item: dict[str, Any] = {"name": name, "type": t}
-        if src_mark:
-            item["source"] = src_mark
-        if sensitive:
-            item["category"] = "sensitive"
         if len(parts) >= 3 and parts[2]:
             vals = [v.strip() for v in re.split(r"[、,]", parts[2]) if v.strip()]
             if vals:
@@ -343,6 +323,33 @@ def parse_priority(lines: list[str]) -> tuple[list[dict], list[dict]]:
     return [{"signal": s, "priority": i + 1} for i, s in enumerate(ordered)], bad
 
 
+def parse_profile_inputs(lines: list[str]) -> tuple[list[dict], list[dict]]:
+    """本场景会用到的本机资料：一行一项。
+
+        姓名 ｜ 用于实名登记
+        身份证号 ｜ 用于实名登记
+
+    与「我要知道的信息」的区别：这里的字段【不进对外契约】，调用方不必提交、
+    也不会看到；执行到需要它的那一步时，由本机从个人资料库取出并留痕。
+    """
+    ok: list[dict] = []
+    bad: list[dict] = []
+    for n, raw in enumerate(lines, 1):
+        t = _clean(raw)
+        if not t or t.startswith("#"):
+            continue
+        parts = [x.strip() for x in t.split("|")]
+        if not parts[0]:
+            bad.append(_err(n, raw, "格式：字段名 ｜ 用途（用途可省略）"))
+            continue
+        item: dict = {"name": parts[0]}
+        if len(parts) >= 2 and parts[1]:
+            item["purpose"] = parts[1]
+        ok.append(item)
+    return ok, bad
+
+
+
 def apply_lines(framework: dict[str, Any], texts: dict[str, str]) -> dict[str, Any]:
     """把六个框里的文本并入框架。返回 {framework, report}。
 
@@ -358,6 +365,10 @@ def apply_lines(framework: dict[str, Any], texts: dict[str, str]) -> dict[str, A
         ok, bad = parse_inputs(lines_of("inputs"))
         fw["inputs"] = ok
         report["inputs"] = {"imported": len(ok), "errors": bad}
+    if texts.get("profile_inputs"):
+        ok, bad = parse_profile_inputs(lines_of("profile_inputs"))
+        fw["profile_inputs"] = ok
+        report["profile_inputs"] = {"imported": len(ok), "errors": bad}
     if texts.get("weights"):
         imap, iw, bad = parse_weights(lines_of("weights"))
         if imap:
@@ -592,6 +603,8 @@ def parse_billing(lines: list[str]) -> tuple[dict, list[dict]]:
 
 SECTION_KEYWORDS: list[tuple[str, str]] = [
     # 顺序即优先级：更具体的写在前面，否则「几个观察点一起出现时」会被「观察点」抢先认成 signals。
+    ("本场景会用到的本机资料", "profile_inputs"), ("本机资料", "profile_inputs"),
+    ("我的资料", "profile_inputs"), ("实名资料", "profile_inputs"),
     ("需要调用方提交", "inputs"), ("提交的信息", "inputs"), ("我要知道的信息", "inputs"),
     ("一起出现", "rules"), ("组合", "rules"),
     ("对外调用的边界", "boundaries"), ("边界", "boundaries"),
@@ -609,7 +622,7 @@ SECTION_KEYWORDS: list[tuple[str, str]] = [
 SECTION_TITLES = {"inputs": "需要调用方提交的信息", "thresholds": "判断的基准线", "signals": "我观察什么",
                   "rules": "几个观察点一起出现时", "exceptions": "例外情况", "priority": "哪个更重要",
                   "citations": "我的依据", "score": "打分线", "fallback": "兜底结论",
-                  "boundaries": "对外调用的边界", "delivery": "对外交付时附上的说明", "billing": "计费（演示）"}
+                  "profile_inputs": "本场景会用到的本机资料", "boundaries": "对外调用的边界", "delivery": "对外交付时附上的说明", "billing": "计费（演示）"}
 
 
 def section_of(title: str) -> str | None:
