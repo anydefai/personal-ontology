@@ -502,7 +502,7 @@ async function renderScenarioInstances(view){
  $$('[data-suspend-policy]',view).forEach(b=>b.onclick=()=>setScenarioPolicyStatus(selected.id,"suspended",[b.dataset.suspendPolicy]));
  $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
    const grantee=$("#compile-grantee")?.value;
-   if(!grantee){toast("请先在上方选择一个被授权主体",true);return}
+   const _sel=$("#compile-grantee");if(!grantee){toast(_sel&&_sel.options&&_sel.options.length?"请先选择被授权主体：就在「生成授权规则」按钮旁边的下拉框里":"还没有主体可选。请先到左侧【主体】菜单新建一个「本人」（类型选 person），再回到本页",true);return}
    try{
      const r=await api(`/v1/scenario-slices/${encodeURIComponent(selected.id)}/policies`,{method:"POST",
        body:JSON.stringify({grantor_id:grantee,grantee_id:grantee,effect:"allow",conditions:[]})});
