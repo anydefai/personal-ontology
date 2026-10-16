@@ -520,9 +520,16 @@ async function renderPkeyPicker(row){
     : `<div style="margin-top:4px">资料库里还没有内容，请先到【个人资料】页添加。</div>`;
   row.appendChild(wrap);
 }
+function applyProfileRowMode(row){
+  if(!row) return;
+  const sel=row.querySelector("[data-required-source]");
+  const byProfile = !!(sel && sel.value==="profile");
+  row.querySelectorAll("[data-required-name],[data-required-label]").forEach(inp=>{ inp.required = !byProfile; });
+}
 function bindRequiredSources(view){
   view.querySelectorAll("[data-required-source]").forEach(sel=>{
-    sel.onchange=()=>renderPkeyPicker(sel.closest(".instance-required-row")||sel.parentElement);
+    sel.onchange=()=>{const _r=sel.closest(".instance-required-row")||sel.parentElement;applyProfileRowMode(_r);renderPkeyPicker(_r)};
+    applyProfileRowMode(sel.closest(".instance-required-row")||sel.parentElement);
     if(sel.value==="profile") renderPkeyPicker(sel.closest(".instance-required-row")||sel.parentElement);
   });
 }
@@ -602,6 +609,7 @@ $$('[data-add-policy]',view).forEach(b=>b.onclick=async()=>{
    }catch(err){if(!(err instanceof AuthRequired))error.textContent=err.message;compileButton.disabled=false}
  };
  $("#instance-form").onsubmit=async e=>{e.preventDefault();const error=$("#instance-error");error.textContent="";const segmentation=readScenarioSegmentation("instance",a.segmentation||{});if(!segmentation)return;const nextRequired=$$(".instance-required-row",view).map(row=>({name:$('[data-required-name]',row).value.trim(),label:$('[data-required-label]',row).value.trim(),type:$('[data-required-type]',row).value,source:($('[data-required-source]',row)?.value||"caller"),profile_keys:Array.from(row.querySelectorAll('[data-required-pkeys] option:checked')).map(o=>o.value),required:true}));
+nextRequired.forEach((it,i)=>{if(it.source==="profile"){if(!it.name)it.name="profile_field_"+(i+1);if(!it.label)it.label=(it.profile_keys&&it.profile_keys[0])||it.name;}});
  // 改档：偏好行上选了「每次必填」或「两者兼有」的字段，并入必填清单（不覆盖已存在的同名项）。
  for(const row of $$(".seg-pref-row",view)){const tier=$("[data-seg-tier]",row)?.value||"";if(tier!=="required"&&tier!=="both")continue;const name=String(row.dataset.segField||"").trim();if(!name||nextRequired.some(x=>x.name===name))continue;nextRequired.push({profile_keys:(src==="profile"?pkeys:[]),name,label:String(row.dataset.segLabel||name).trim(),type:String(row.dataset.segType||"string"),required:true, source: src });}
  // 反向改档：必填行选了「长期偏好」的，从必填清单移除并转成偏好（值留空，待你到偏好区填写）。
