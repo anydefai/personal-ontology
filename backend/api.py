@@ -1812,7 +1812,37 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
         overall = "needs_data"
     else:
         overall = "pass"
-    return {"scenario_id":scenario_id, "scenario_title":analysis.get("title", "场景实例"), "preview":True, "side_effects":False, "status":overall, "missing_required":missing, "scope":scope_result, "selected_variant":selected_variant, "checks":checks, "summary":{"pass":sum(x["status"] == "pass" for x in checks),"fail":sum(x["status"] in {"fail", "invalid"} for x in checks),"missing":sum(x["status"] == "missing" for x in checks)}, "message":{"incomplete":"还有必填信息没有填写。","not_applicable":"找不到与当前维度组合匹配的场景分组，需询问用户或建立新分组。","fail":"模拟对象未满足一个或多个必须条件。","needs_data":"部分条件还没有足够信息进行检查。","pass":"模拟输入满足当前场景实例的必需条件。"}[overall]}
+    # 生活场景的本机资料补齐：场景实例的必填项里标了 source=profile 的，
+    # 由本机从 profiles 取（值不回显给调用方），并从"缺少的必填项"里移除。
+    _filled_local: list[str] = []
+    _missing_local: list[str] = []
+    try:
+        _ri = analysis.get("required_inputs") if isinstance(analysis.get("required_inputs"), list) else []
+        _want = [str(x.get("name")) for x in _ri if isinstance(x, dict) and str(x.get("source") or "") == "profile" and x.get("name")]
+        if _want:
+            _bag: dict[str, Any] = {}
+            for _prof in store.list("profiles"):
+                for _it in (_prof.get("items") or []):
+                    if not isinstance(_it, dict):
+                        continue
+                    for _key in (_it.get("label"), _it.get("key")):
+                        _k = str(_key or "").strip()
+                        if _k and _k not in _bag:
+                            _bag[_k] = _it.get("value")
+            for _name in _want:
+                if _name in _bag:
+                    _filled_local.append(_name)
+                    if _name in missing:
+                        missing = [x for x in missing if x != _name]
+                else:
+                    _missing_local.append(_name)
+    except Exception:                                     # noqa: BLE001 - 补齐失败不阻断预演
+        pass
+    return {"scenario_id":scenario_id, "scenario_title":analysis.get("title", "场景实例"), "preview":True,
+            "local_profile_provided": ({"count": len(_filled_local), "fields": _filled_local,
+                "note": "这些字段由本机资料提供，值不对外发送；仅限本次使用"}
+                if _filled_local else None),
+            "local_profile_missing": (_missing_local or None), "side_effects":False, "status":overall, "missing_required":missing, "scope":scope_result, "selected_variant":selected_variant, "checks":checks, "summary":{"pass":sum(x["status"] == "pass" for x in checks),"fail":sum(x["status"] in {"fail", "invalid"} for x in checks),"missing":sum(x["status"] == "missing" for x in checks)}, "message":{"incomplete":"还有必填信息没有填写。","not_applicable":"找不到与当前维度组合匹配的场景分组，需询问用户或建立新分组。","fail":"模拟对象未满足一个或多个必须条件。","needs_data":"部分条件还没有足够信息进行检查。","pass":"模拟输入满足当前场景实例的必需条件。"}[overall]}
 
 def _scopes_for(language: str) -> dict[str, str]:
     """范围标签是数据：按显示语言返回（英文界面下不显示中文范围名）。"""
