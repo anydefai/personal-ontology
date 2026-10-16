@@ -52,6 +52,22 @@ def parse_inputs(lines: list[str]) -> tuple[list[dict], list[dict]]:
         if not s or s.startswith("#"):
             continue
         parts = [p.strip() for p in s.split("|")]
+        # 可选的来源与敏感标记：任意一段写「来源：我的资料 / 本机」或「敏感」即可，
+        # 它们会被摘出来，不参与类型与选项的解析（旧写法完全不受影响）。
+        src_mark, sensitive = None, False
+        _rest = []
+        for _seg in parts:
+            _t = _seg.strip()
+            _m = re.match(r"^来源\s*[:：]\s*(.+)$", _t)
+            if _m:
+                _v = _m.group(1).strip()
+                src_mark = "profile" if _v in ("我的资料", "本机", "profile", "资料库") else "caller"
+                continue
+            if _t in ("敏感", "敏感信息", "sensitive"):
+                sensitive = True
+                continue
+            _rest.append(_t)
+        parts = _rest
         if len(parts) < 2 or not parts[0]:
             bad.append(_err(n, raw, "格式：名称 ｜ 类型（｜ 可选项）")); continue
         name, tname = parts[0], parts[1]
@@ -59,6 +75,10 @@ def parse_inputs(lines: list[str]) -> tuple[list[dict], list[dict]]:
         if not t:
             bad.append(_err(n, raw, f"类型「{tname}」不认识（可用：文字/数字/选项/是-否/多项）")); continue
         item: dict[str, Any] = {"name": name, "type": t}
+        if src_mark:
+            item["source"] = src_mark
+        if sensitive:
+            item["category"] = "sensitive"
         if len(parts) >= 3 and parts[2]:
             vals = [v.strip() for v in re.split(r"[、,]", parts[2]) if v.strip()]
             if vals:

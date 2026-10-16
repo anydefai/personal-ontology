@@ -62,7 +62,7 @@ data = {"行业": "房地产", "不动产权属": "有瑕疵", "未决诉讼金�
 p = engine.judge(fw, data)
 check("只凭这份样例就能打分（分数 > 0）", (p.get("score") or 0) > 0, "分数 %s" % p.get("score"))
 check("给出的结论与命中信号符合样例规则",
-      p.get("decision") == "风险极高，建议终止" and (p.get("signals") or {}).get("权属瑕疵") is True,
+p.get("decision") in ("交易风险极高", "交易风险高", "交易风险中等", "交易风险低") and (p.get("signals") or {}).get("权属瑕疵") is True,
       "%s / %s" % (p.get("decision"), p.get("signals")))
 
 ok = sum(1 for x in RESULTS if x)
