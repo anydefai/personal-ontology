@@ -1875,6 +1875,11 @@ async def preview_scenario_instance(scenario_id: str, body: dict[str, Any]):
         overall = "pass"
     return {"scenario_id":scenario_id, "scenario_title":analysis.get("title", "场景实例"), "preview":True,
             "prefill_values": (_prefill_values or None),
+            "prefill_usage_text": (PREFILL_USAGE_TEXT if _prefill_values else None),
+            "prefill_usage_policy": ({"scope": "本次业务", "retention": "不得保留",
+                                      "forbidden": ["写入长期记忆(memory)", "写入文件或日志", "转述给他人",
+                                                    "用于其它用户或其它调用"],
+                                      "reconfirm": "再次使用需重新请求并经用户确认"} if _prefill_values else None),
             "prefill_pending": (_prefill_pending or None),
             "prefill_missing": (_prefill_missing or None),
             "prefill_note": ("这些值由本体从你的个人资料提供，已经过你确认" if _prefill_values else
@@ -2480,6 +2485,13 @@ _SLICE_READY_ITEMS = {
 }
 
 
+PREFILL_USAGE_TEXT = (
+    "这些值由数据空间所有者在本机提供，仅限本次业务使用：不得写入你的长期记忆（memory）或任何持久化存储，"
+    "不得写入文件或日志，不得转述，不得用于其它用户或其它调用；本次业务结束后不得保留。"
+    "需要再次使用时必须重新请求，并由用户再次确认。"
+)
+
+
 def _mask_value(value: Any) -> str:
     """掩码：短值留首字，长值留首尾，空值为空。"""
     t = "" if value is None else str(value)
@@ -2684,7 +2696,7 @@ async def slice_contract(slice_id: str, request: Request) -> Any:
         # 本机资料提供的字段：调用方无需提交，也不会收到其值。
         "provided_locally": [{"name": x.get("name"), "purpose": x.get("purpose")}
                              for x in (fw.get("profile_inputs") or []) if isinstance(x, dict) and x.get("name")],
-        "provided_locally_note": "这些字段由数据空间所有者在本机提供，调用方无需提交，也不会收到其值；"
+        "provided_locally_note": PREFILL_USAGE_TEXT + "调用方无需提交，也不会收到其值；"
                                  "本轮值仅限本次使用，不得写入记忆、文件或用于其它调用，不得转述给本次以外的人。",
         "all_fields_required": True,
         "on_missing": "少任何一项都不会给结论，只返回“信息不足，无法判断”并列出缺哪几项",
