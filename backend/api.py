@@ -445,6 +445,13 @@ async def no_cache_and_local_origin(request: Request, call_next):
 
 @app.exception_handler(ValidationError)
 async def validation_error_handler(_: Request, exc: ValidationError):
+    # 落一份到日志：用户不必复制报错，排查时直接看 data/shacl-errors.log
+    try:
+        _log = DATA_DIR / "shacl-errors.log"
+        with _log.open("a", encoding="utf-8") as _fh:
+            _fh.write(f"{datetime.now(timezone.utc).isoformat()}\t{str(exc.report)[:1500]}\n")
+    except Exception:                                   # noqa: BLE001 - 记日志失败不能影响返回
+        pass
     return JSONResponse({"error":"shacl_validation_failed", "report":exc.report}, status_code=422)
 
 @app.exception_handler(StoreLocked)
