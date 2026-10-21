@@ -2,7 +2,7 @@ import ast
 import json
 import re
 import threading
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from typing import Any
 
 from rdflib import Graph, RDF, URIRef
@@ -261,6 +261,13 @@ class RDFStore:
         self._check_collection(collection)
         if not item_id or len(item_id) > 200:
             raise StoreError("id must be 1..200 characters")
+        # 服务端兜底：这两个字段由系统维护，缺了会触发 SHACL 必填校验（用户不该看到 500）。
+        if collection == "scenario-slices":
+            record = dict(record)
+            if not str(record.get("updated_at") or "").strip():
+                record["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            if str(record.get("status") or "").strip() not in {"draft", "analyzed", "confirmed"}:
+                record["status"] = "draft"
         with self._mutex:
             current = self._require_unlocked()
             candidate = Graph()

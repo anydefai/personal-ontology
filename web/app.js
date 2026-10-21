@@ -39,7 +39,17 @@ function api(path, options={}){
         throw new AuthRequired(code);
       }
     }
-    if(!response.ok){throw new Error(apiDetail(payload,payload?.report||response.statusText))}
+    if(!response.ok){
+      const rep=payload?.report;
+      if(typeof rep==="string" && rep.trim()){
+        // 把 SHACL 报告翻成一句人话：优先取每条约束的 Message（含具体属性名）。
+        const msgs=(rep.match(/Message:[^\n]*/g)||[]).map(x=>x.replace("Message:","").trim()).slice(0,3);
+        const paths=(rep.match(/Result Path: [^ \n]+/g)||[]).map(x=>x.replace("Result Path:","").trim());
+        const brief=msgs.length?msgs.join("；"):(paths.join("、")||"原因未解析");
+        throw new Error("数据校验未通过：" + brief);
+      }
+      throw new Error(apiDetail(payload,response.statusText));
+    }
     return payload;
   });
 }
