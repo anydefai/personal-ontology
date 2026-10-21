@@ -97,7 +97,15 @@ INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id
 def node_uri(collection: str, item_id: str) -> URIRef:
     return URIRef(f"{BASE}{collection}:{item_id}")
 
-def datatype(value: Any) -> URIRef:
+# 只有这些字段才可能是时间：不能对所有字符串猜"含 T 且够长就是 dateTime"，
+# 否则像 "UNCSTD …" 这种正文会被误标成 xsd:dateTime，触发 SHACL 数据类型校验失败。
+DATETIME_FIELDS = frozenset({
+    "updated_at", "created_at", "timestamp", "evaluated_at", "decided_at",
+    "started_at", "finished_at", "expires_at", "valid_until", "last_seen_at",
+})
+
+
+def datatype(value: Any, field: str = "") -> URIRef:
     if isinstance(value, bool): return XSD.boolean
     if isinstance(value, int): return XSD.integer
     if isinstance(value, float): return XSD.decimal
@@ -107,7 +115,8 @@ def datatype(value: Any) -> URIRef:
     # the SHACL datatype constraint.
     if isinstance(value, datetime): return XSD.dateTime
     if isinstance(value, date): return XSD.date
-    if isinstance(value, str) and "T" in value and len(value) >= 19: return XSD.dateTime
+    if field in DATETIME_FIELDS and isinstance(value, str) and "T" in value and len(value) >= 19:
+        return XSD.dateTime
     return XSD.string
 
 def object_to_graph(graph: Graph, collection: str, item_id: str, record: dict[str, Any]) -> None:
@@ -137,7 +146,7 @@ def object_to_graph(graph: Graph, collection: str, item_id: str, record: dict[st
                 # cannot read back.
                 graph.add((subject, predicate, Literal(json.dumps(part, ensure_ascii=False), datatype=RDF.JSON, normalize=False)))
             else:
-                graph.add((subject, predicate, Literal(part, datatype=datatype(part))))
+                graph.add((subject, predicate, Literal(part, datatype=datatype(part, field))))
 
 # 这些字段在语义上就是多值的：即使图中只出现一次，也必须返回列表。
 # 否则单条规则会读出字符串，调用方按字符迭代（曾导致 1 个约束被当成 39 个）。
