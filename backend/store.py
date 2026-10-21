@@ -220,7 +220,7 @@ class RDFStore:
                     added = True
         return added
 
-    def _validate(self, candidate: Graph) -> None:
+    def _validate(self, candidate: Graph, collection: str = "", item_id: str = "") -> None:
         shapes = Graph().parse(SHAPES_FILE, format="turtle")
         ontology = Graph().parse(PROPERTIES_FILE, format="turtle")
         # Include the metamodel property declarations while keeping instance data separate.
@@ -230,7 +230,8 @@ class RDFStore:
             allow_infos=False, allow_warnings=False, meta_shacl=False,
         )
         if not conforms:
-            raise ValidationError(report_text or report_graph.serialize(format="turtle"))
+            where = f"（写入 {collection}/{item_id}）" if collection else ""
+            raise ValidationError(where + (report_text or report_graph.serialize(format="turtle")))
 
     def _persist(self) -> None:
         """把内存中的图加密写回容器（原子替换由 vault 负责）。"""
@@ -279,7 +280,7 @@ class RDFStore:
             for triple in list(candidate.triples((subject, None, None))): candidate.remove(triple)
             # 联系方式不再单独加密：容器已整体加密（docs/05 §7.1）。
             object_to_graph(candidate, collection, item_id, dict(record))
-            self._validate(candidate)
+            self._validate(candidate, collection, item_id)
             old = self.graph
             self.graph = candidate
             try: self._persist()
@@ -300,7 +301,7 @@ class RDFStore:
             # Protect referential integrity. Do not leave dangling subject references.
             inbound = list(candidate.triples((None, None, subject)))
             if inbound: raise StoreError(f"cannot delete; referenced by {len(inbound)} record(s)")
-            self._validate(candidate)
+            self._validate(candidate, collection, item_id)
             old = self.graph
             self.graph = candidate
             try: self._persist()
@@ -335,7 +336,7 @@ class RDFStore:
                 candidate.remove(triple)
 
             object_to_graph(candidate, collection, new_id, dict(record))
-            self._validate(candidate)
+            self._validate(candidate, collection, new_id)
             old_graph = self.graph
             self.graph = candidate
             try:
