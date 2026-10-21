@@ -269,6 +269,30 @@ class RDFStore:
                 record["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             if str(record.get("status") or "").strip() not in {"draft", "analyzed", "confirmed"}:
                 record["status"] = "draft"
+        # 资源类型与动作：常见于"只给了中文名"的残缺数据，补齐形状要求的必填项，
+        # 避免用户看到 500（英文名缺失时回退中文名；风险等级默认 medium）。
+        if collection == "resource-types":
+            record = dict(record)
+            zh = str(record.get("display_name_zh") or record.get("type_name") or "").strip()
+            if not str(record.get("display_name_zh") or "").strip():
+                record["display_name_zh"] = zh
+            if not str(record.get("display_name_en") or "").strip():
+                record["display_name_en"] = zh
+            if record.get("default_priority") in (None, ""):
+                record["default_priority"] = 0
+            if record.get("is_builtin") in (None, ""):
+                record["is_builtin"] = False
+            if not str(record.get("matcher_id") or "").strip():
+                record["matcher_id"] = "glob"
+        if collection == "actions":
+            record = dict(record)
+            zh = str(record.get("display_name_zh") or record.get("action_id") or "").strip()
+            if not str(record.get("display_name_zh") or "").strip():
+                record["display_name_zh"] = zh
+            if not str(record.get("display_name_en") or "").strip():
+                record["display_name_en"] = zh
+            if str(record.get("risk_level") or "").strip() not in {"low", "medium", "high", "critical"}:
+                record["risk_level"] = "medium"
         with self._mutex:
             current = self._require_unlocked()
             candidate = Graph()
