@@ -19,6 +19,45 @@ This project contains a local FastAPI API, RDF/Turtle persistence, SHACL validat
 authorization decision engine and a native HTML/CSS/JavaScript console. The services listen on
 `127.0.0.1` only, and every `/v1` route requires a Bearer token.
 
+## Why this project exists
+
+> On 22 October 2026, Yicai reported that a New Mexico judge ordered Meta to pay a USD 25 billion penalty over **misleading statements** about user-data privacy and content moderation, rooted in the 2018 Cambridge Analytica incident (87 million users). What matters is not the amount but the type of allegation.
+
+### The burden of proof has moved
+
+Earlier data penalties mostly concerned **collecting data without consent**. That kind of problem can be fixed with process: add a consent dialog, lengthen the terms, make the checkbox prominent. The burden of proof stops at the click.
+
+This one concerns **what you said not matching what you did**. That cannot be fixed with process; it can only be answered with evidence: you said it was only used for A — how did B happen; you said users had a choice — where is the choice record; you said it would be deleted — what is the proof.
+
+Once "can you prove it" becomes the deciding question, something previously optional becomes necessary: a **verifiable record of use** — not a promise, but "when, which fields, given to whom, for what purpose, until when".
+
+### The current model gets amplified by agents
+
+The prevailing approach is prior declaration: a long agreement, an "I have read and agree" checkbox, and no service without it. Its substance is not accountability but **disclaimer** — risk is moved to the moment the user signs, while the user cannot really understand it, has no alternative, and afterwards cannot find out where that consent was used.
+
+Agents amplify this by an order of magnitude. Previously users clicked themselves and knew what they handed over; now an agent acts on their behalf — checking prices, comparing, filling forms, submitting — and what it fills in may include name, phone number, ID number. Where did those values come from, who received them, how many times, are they still in its memory, will it reuse them without asking? If these questions cannot be answered, "acting on your behalf" is dangerous. Yet most agents today work like this: hand me the data, I will remember it, and use it whenever needed.
+
+That is the same disease as blanket consent, in two stages: first the platform decides for the user, then the agent decides for the user. In both cases **the user is absent**.
+
+### Three design choices in this project
+
+- **Data stays with the owner**: the ontology lives in a local encrypted container; keys are derived from the passphrase; encryption is applied at the application layer. Anyone who wants to use it must come through the owner's side.
+- **Calls are declarative**: agents do not simulate clicks on a page; they request according to a declaration — what they want to do, which fields they need, who receives them. The request itself can be inspected.
+- **Authorization happens at runtime and leaves a record**: not one checkbox at sign-up, but a separate authorization each time it is actually used — only these fields, only this recipient, expiring in ten minutes. Every authorization and every use is recorded, and the owner can look up which of their fields were used, when, and by which scenario.
+
+In code these correspond to: authorization rules (`authorizations`, with status and refusal audit), per-request prefill (`prefills`, provided by the ontology but **requiring owner confirmation**; masked values only before confirmation), a usage lookup (`/v1/profiles/usage`), and decision audit (`decisions`).
+
+### What we do not claim
+
+- This will not change platform business models, nor replace law or regulation.
+- Local encryption reduces risk; it is not absolute security.
+- "Do not write to memory, do not relay" is stated in API responses and tool descriptions, but it remains a **convention**; it cannot technically stop a malicious implementation. Real enforcement requires a local executor that submits on the owner's behalf — that is future work.
+- Control over personal data will not return to individuals because of one ruling; it requires usable tools, and people willing to use them.
+
+### In one line
+
+The real significance of this ruling is not "privacy matters" (everyone knows that), but "**you must be able to prove that what you say matches what you do**". This project is designed around that provability: every authorization happens separately, so every one is recorded; and because the records are real, they can be produced when needed.
+
 ## One-command install
 
 On macOS, run this in the project directory:
