@@ -1470,6 +1470,68 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 事：约定、截止、合同、保修 ──
+COMMITMENT_KINDS = {"appointment", "deadline", "contract", "warranty", "renewal", "promise"}
+COMMITMENT_STATUS = {"pending", "done", "expired", "cancelled"}
+
+
+@app.get("/v1/commitments", dependencies=[Depends(require_session)])
+async def list_commitments() -> Any:
+    return {"items": store.list("commitments")}
+
+
+@app.post("/v1/commitments", status_code=201, dependencies=[Depends(require_session)])
+async def create_commitment(body: dict[str, Any]) -> Any:
+    title = str(body.get("display_name_zh") or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    kind = str(body.get("commitment_kind") or "appointment")
+    if kind not in COMMITMENT_KINDS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    status = str(body.get("commitment_status") or "pending")
+    if status not in COMMITMENT_STATUS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    cid = "commit_" + uuid4().hex[:12]
+    record = {"display_name_zh": title, "display_name_en": str(body.get("display_name_en") or title),
+              "commitment_kind": kind,
+              "counterparty_kind": str(body.get("counterparty_kind") or ""),
+              "counterparty_ref": str(body.get("counterparty_ref") or ""),
+              "start_at": str(body.get("start_at") or ""),
+              "due_at": str(body.get("due_at") or ""),
+              "commitment_status": status,
+              "remind_before_days": str(body.get("remind_before_days") or ""),
+              "commitment_note": str(body.get("note") or "")}
+    store.put("commitments", cid, record, create_only=True)
+    return {"id": cid, **record}
+
+
+@app.patch("/v1/commitments/{commitment_id}", dependencies=[Depends(require_session)])
+async def update_commitment(commitment_id: str, body: dict[str, Any]) -> Any:
+    cur = store.get("commitments", commitment_id)
+    if not cur:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    updated = dict(cur)
+    for key in ("display_name_zh", "display_name_en", "commitment_kind", "counterparty_kind",
+                "counterparty_ref", "start_at", "due_at", "commitment_status",
+                "remind_before_days", "commitment_note"):
+        if key in body:
+            updated[key] = str(body[key])
+    if str(updated.get("commitment_kind")) not in COMMITMENT_KINDS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    if str(updated.get("commitment_status")) not in COMMITMENT_STATUS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    store.put("commitments", commitment_id, {k: v for k, v in updated.items() if k not in {"id", "commitment_id"}})
+    return {"id": commitment_id, **{k: v for k, v in updated.items() if k not in {"id", "commitment_id"}}}
+
+
+@app.delete("/v1/commitments/{commitment_id}", dependencies=[Depends(require_session)])
+async def delete_commitment(commitment_id: str) -> Any:
+    if not store.get("commitments", commitment_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    store.delete("commitments", commitment_id)
+    return {"deleted": commitment_id}
+
+
 # ── 地：常住地、常用地址、行程 ──
 PLACE_KINDS = {"home", "work", "family", "frequent", "travel"}
 
