@@ -1251,6 +1251,29 @@ function bindProfileForm(view){
 }
 async function renderProfiles(view){
   let rows=[]; try{ rows=((await api("/v1/profiles"))||{}).items||[] }catch(e){ rows=[] }
+  // 资料项：从 profile-items 读（迁移后才有；没有就是空）
+  const itemMap={};
+  await Promise.all(rows.slice(0,10).map(async p=>{
+    try{ const r=await api(`/v1/profiles/${encodeURIComponent(p.id)}/items`); itemMap[p.id]=(r.items||[]) }
+    catch(e){ itemMap[p.id]=[] }
+  }));
+  const itemSection=(p)=>{
+    const its=itemMap[p.id]||[];
+    if(!its.length){
+      return `<div class="panel-caption" style="margin-top:10px">还没有逐项资料。点「拆分资料项」把上面的字段拆成可逐项授权的一项一项。</div>
+        <div style="margin-top:8px"><button class="button" data-split-items="1">拆分资料项</button></div>`;
+    }
+    return `<div class="panel-caption" style="margin-top:10px">资料项 · ${its.length}（逐项可授权、可留痕）</div>
+      <div style="display:grid;gap:6px;margin-top:8px">${its.map(it=>`
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="min-width:110px"><strong>${esc(it.label_zh||it.field_key)}</strong></span>
+          <span class="mono">${esc(maskValue(it.item_value))}</span>
+          <span class="badge ${it.item_sensitivity==="critical"?"deny":(it.item_sensitivity==="sensitive"?"pending":"neutral")}">${esc(it.item_sensitivity||"normal")}</span>
+          ${it.item_verified==="true"?'<span class="badge active">已验证</span>':""}
+          <span class="panel-caption" style="margin:0">${esc(it.field_key||"")}</span>
+          <span style="margin-left:auto"><button class="button" data-item-reveal="${esc(it.id)}">查看</button></span>
+        </div>`).join("")}</div>`;
+  };
   const editing=(profileEdit!==null);
   view.innerHTML=`${titleBlock("PERSONAL PROFILE","个人资料","实名、证件、联系方式等敏感信息放在这里，场景只引用不复制。字段可随时增删改；列表默认显示掩码。")}
    ${editing?profileFormHtml():""}
@@ -1278,6 +1301,7 @@ async function renderProfiles(view){
              </span>
            </div>
            <div class="panel-caption">${(p.items||[]).map(it=>esc(it.label||it.key)+"："+esc(maskValue(it.value))).join(" ｜ ")||"（还没有字段）"}</div>
+           ${itemSection(p)}
          </div>`).join(""):`<div class="empty-state">还没有资料。点上面的「新建一份资料」开始。</div>`}
      </div></section>`;
   $("#profile-refresh").onclick=()=>render();
@@ -1306,6 +1330,18 @@ async function renderProfiles(view){
         :`<div class="panel-caption" style="margin-top:6px">还没有被使用过。</div>`);
     }
   }catch(e){ }
+  $$('[data-split-items]',view).forEach(b=>b.onclick=async()=>{
+    const btn=b; btn.disabled=true; btn.textContent="正在拆分…";
+    try{ const r=await api("/v1/profiles/migrate-items",{method:"POST",body:JSON.stringify({})});
+      toast(`已拆分 ${r.created||0} 项${r.skipped?`，跳过 ${r.skipped} 项`:""}`); render(); }
+    catch(e){ btn.disabled=false; btn.textContent="拆分资料项"; if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  });
+  $$('[data-item-reveal]',view).forEach(b=>b.onclick=()=>{
+    const id=b.dataset.itemReveal;
+    for(const p of rows){ for(const it of (itemMap[p.id]||[])){ if(String(it.id)===String(id)){
+      if(confirm("查看这一项的明文？本次查看会写入记录。")){ alert(`${it.label_zh||it.field_key}：${it.item_value||"（空）"}`); }
+      return; } } }
+  });
   if(editing) bindProfileForm(view);
 }
 
