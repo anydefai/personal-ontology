@@ -1470,6 +1470,56 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 流水：放独立 ledger 段，不写主图 ──
+@app.get("/v1/asset-transactions", dependencies=[Depends(require_session)])
+async def list_asset_transactions() -> Any:
+    rows = store.list_ledger("asset-transactions")
+    rows.sort(key=lambda x: str(x.get("occurred_at") or ""), reverse=True)
+    return {"items": rows}
+
+
+@app.post("/v1/asset-transactions", status_code=201, dependencies=[Depends(require_session)])
+async def create_asset_transaction(body: dict[str, Any]) -> Any:
+    asset_id = str(body.get("asset_id") or "").strip()
+    if not asset_id or not store.get("assets", asset_id):
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    try:
+        amount = float(body.get("amount"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    occurred = str(body.get("occurred_at") or "").strip()
+    if not occurred:
+        occurred = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    tid = "tx_" + uuid4().hex[:12]
+    record = {"asset_id": asset_id, "occurred_at": occurred, "amount": amount,
+              "direction": str(body.get("direction") or ("in" if amount >= 0 else "out")),
+              "counterparty": str(body.get("counterparty") or "")[:80],
+              "category": str(body.get("category") or "")[:40],
+              "summary": str(body.get("summary") or "")[:120],
+              "balance_after": str(body.get("balance_after") or ""),
+              "sensitivity": str(body.get("sensitivity") or "restricted")}
+    store.put_ledger("asset-transactions", tid, record, create_only=True)
+    return {"id": tid, **record}
+
+
+@app.delete("/v1/asset-transactions/{transaction_id}", dependencies=[Depends(require_session)])
+async def delete_asset_transaction(transaction_id: str) -> Any:
+    if not store.get_ledger("asset-transactions", transaction_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    # 独立段的删除：直接重写 ledger 段（不触碰本体段）
+    with store._mutex:                                     # noqa: SLF001 - 与 store 内部保持一致
+        graph = store.ledger
+        if graph is None:
+            raise HTTPException(status_code=409, detail=messages.detail("invalid_input_data"))
+        subject = None
+        from backend.model import node_uri
+        subject = node_uri("asset-transactions", transaction_id)
+        for triple in list(graph.triples((subject, None, None))):
+            graph.remove(triple)
+        store._persist_ledger()                            # noqa: SLF001
+    return {"deleted": transaction_id}
+
+
 # ── 资料查看记录：每一次看明文都留一条 ──
 @app.post("/v1/profile-items/{item_id}/reveal", dependencies=[Depends(require_session)])
 async def record_profile_reveal(item_id: str, body: dict[str, Any]) -> Any:
