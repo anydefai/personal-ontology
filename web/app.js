@@ -125,7 +125,7 @@ function badge(value){const v=String(value??"").toLowerCase();const kind=["allow
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);
   else if(currentPage==="boundaries")renderComingSoon(view,"界","授权规则、每次预填、红线、偏好与禁区。","把授权对象扩成 个体 / 圈 / 一次性，并在此页统一管理");
-  else if(currentPage==="devices")renderComingSoon(view,"器","设备、智能体、服务账号与 MCP 接入。","把 agent-clients 从明文迁进本体（devices），再接此页");
+  else if(currentPage==="devices")await renderDevices(view);
   else if(currentPage==="circles")await renderCircles(view);
   else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
   else if(currentPage==="places")renderComingSoon(view,"地","常住地、常用地址与行程。","建 places 集合，先只做手动录入");
@@ -1460,4 +1460,46 @@ async function renderCircles(view){
   $("#circle-new").onclick=()=>{ circleForm={mode:"new"}; render(); };
   $$('[data-circle-open]',view).forEach(b=>b.onclick=()=>{ activeCircleId=b.dataset.circleOpen; render(); });
   if(circleForm) bindCircleForm(view);
+}
+
+// ===== 器：设备与智能体清单（来自本体；同步只搬元数据）=====
+const TRUST_TEXT = {trusted:"可信", limited:"受限", blocked:"已阻止"};
+const STATE_TEXT = {approved:"已批准", pending:"待批准", denied:"已拒绝"};
+
+async function renderDevices(view){
+  let rows=[];
+  try{ rows=((await api("/v1/devices"))||{}).items||[] }catch(e){ rows=[] }
+  const agents = rows.filter(x=>String(x.device_kind||"")==="agent");
+  const others = rows.filter(x=>String(x.device_kind||"")!=="agent");
+  const card = (d)=>`
+    <div class="decision-detail" style="margin:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <strong>${esc(d.display_name_zh||d.agent_client_id||d.id)}</strong>
+        <span class="badge neutral">${esc(d.device_kind==="agent"?"智能体":(d.device_kind||"设备"))}</span>
+        <span class="badge ${d.trust_level==="trusted"?"active":(d.trust_level==="blocked"?"deny":"pending")}">${esc(TRUST_TEXT[d.trust_level]||d.trust_level||"—")}</span>
+        ${d.device_state?`<span class="panel-caption" style="margin:0">${esc(STATE_TEXT[d.device_state]||d.device_state)}</span>`:""}
+        ${d.last_seen_at?`<span class="panel-caption" style="margin:0">最近活动 ${esc(String(d.last_seen_at).slice(0,10))}</span>`:""}
+      </div>
+      <div class="panel-caption">授权范围：${esc((d.device_scopes||[]).join("、")||"未授予任何范围")}</div>
+    </div>`;
+  view.innerHTML=`${titleBlock("DEVICES & AGENTS","器","设备、智能体与服务账号。清单已收进本体；同步只搬元数据，密钥仍只在原文件。")}
+   <section class="panel" style="padding:18px;margin-bottom:14px">
+     <div class="panel-title">智能体 · ${agents.length}${others.length?`　｜　设备 · ${others.length}`:""}</div>
+     <p class="panel-caption">这些条目来自加密容器内（devices）。认证仍走原来的接入清单，这一页是它的可读镜像。</p>
+     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+       <button class="button primary" id="devices-sync">↻ 从接入清单同步</button>
+       <button class="button" id="devices-refresh">刷新</button>
+     </div>
+     <div style="margin-top:14px;display:grid;gap:10px">
+       ${agents.length?agents.map(card).join(""):`<div class="empty-state">还没有智能体。点上面的「从接入清单同步」把已接入的智能体列进来。</div>`}
+       ${others.length?`<div class="panel-caption" style="margin-top:6px">其它设备</div>${others.map(card).join("")}`:""}
+     </div>
+   </section>`;
+  $("#devices-refresh").onclick=()=>render();
+  $("#devices-sync").onclick=async()=>{
+    const btn=$("#devices-sync"); btn.disabled=true; btn.textContent="正在同步…";
+    try{ const r=await api("/v1/devices/sync",{method:"POST",body:JSON.stringify({})});
+      toast(`已同步 ${r.synced||0} 条`); render(); }
+    catch(e){ btn.disabled=false; btn.textContent="↻ 从接入清单同步"; if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
 }
