@@ -121,7 +121,7 @@ async function render(){const view=$("#view");if(!sessionStorage.getItem(session
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);
   else if(currentPage==="boundaries")renderComingSoon(view,"界","授权规则、每次预填、红线、偏好与禁区。","把授权对象扩成 个体 / 圈 / 一次性，并在此页统一管理");
   else if(currentPage==="devices")renderComingSoon(view,"器","设备、智能体、服务账号与 MCP 接入。","把 agent-clients 从明文迁进本体（devices），再接此页");
-  else if(currentPage==="circles")renderComingSoon(view,"圈","谁能看到什么，按圈来。一圈人、一个默认边界。","建 circles / circle-members 两个集合，再做列表与成员管理");
+  else if(currentPage==="circles")await renderCircles(view);
   else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
   else if(currentPage==="places")renderComingSoon(view,"地","常住地、常用地址与行程。","建 places 集合，先只做手动录入");
   else if(currentPage==="assets")renderComingSoon(view,"财","账户、资产、保险与订阅；流水单独一页。","建 assets 与 asset-transactions（ledger 段已就绪）");
@@ -1302,4 +1302,157 @@ async function renderProfiles(view){
     }
   }catch(e){ }
   if(editing) bindProfileForm(view);
+}
+
+// ===== 圈：关系层的授权单位 =====
+const CIRCLE_TYPES = {family:"家人", friend:"朋友", work:"工作", class:"同学", service:"服务", org:"组织", other:"其他"};
+let activeCircleId = null;
+let circleForm = null;          // null | {mode:"new"}
+let circleMembers = [];
+
+function circleTypeText(t){ return CIRCLE_TYPES[t] || "其他"; }
+
+function circleFormHtml(){
+  return `<section class="panel" style="padding:18px;margin-bottom:14px;border:1px solid #cfe3da;background:#fbfdfc">
+    <div class="panel-title">新建圈</div>
+    <div class="form-grid" style="margin-top:10px">
+      <label class="field"><span class="field-label">名称</span><input class="input" id="circle-name" placeholder="例如 家人 / 工作 / 客户"></label>
+      <label class="field"><span class="field-label">类型</span>
+        <select class="select" id="circle-type">${Object.keys(CIRCLE_TYPES).map(k=>`<option value="${k}">${CIRCLE_TYPES[k]}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">我在这一圈里的身份</span><input class="input" id="circle-myrole" placeholder="例如 父亲 / 下属 / 甲方"></label>
+      <label class="field"><span class="field-label">默认边界（一句话）</span><input class="input" id="circle-note" placeholder="例如 可看行程空闲，不给具体内容"></label>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px"><button class="button primary" id="circle-save">保存</button><button class="button" id="circle-cancel">取消</button></div>
+  </section>`;
+}
+
+function bindCircleForm(view){
+  const name=$("#circle-name");
+  if(name) name.focus();
+  $("#circle-cancel").onclick=()=>{ circleForm=null; render(); };
+  $("#circle-save").onclick=async()=>{
+    const body={display_name_zh:String($("#circle-name").value||"").trim(),
+                circle_type:$("#circle-type").value,
+                my_role:String($("#circle-myrole").value||"").trim(),
+                default_grant_note:String($("#circle-note").value||"").trim()};
+    if(!body.display_name_zh){ toast("请填圈的名称",true); return; }
+    try{ await api("/v1/circles",{method:"POST",body:JSON.stringify(body)}); circleForm=null; toast("已新建圈"); render(); }
+    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+}
+
+function circleDetailHtml(c, memberCount){
+  return `${proModeButtons()}${titleBlock("CIRCLE","圈","一圈人、一个默认边界。移出成员会立即影响圈级授权。",'<button class="button" id="circle-back">← 返回列表</button>')}
+  <section class="panel" style="padding:18px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <strong style="font-size:17px">${esc(c.display_name_zh||c.id)}</strong>
+      <span class="badge neutral">${esc(circleTypeText(c.circle_type))}</span>
+      <span class="badge ${c.circle_sensitivity==="restricted"?"deny":"pending"}">${esc(c.circle_sensitivity||"sensitive")}</span>
+      ${c.my_role?`<span class="panel-caption" style="margin:0">我在圈里：${esc(c.my_role)}</span>`:""}
+      <span class="panel-caption" style="margin:0">${memberCount!=null?memberCount+" 人":"—"}</span>
+    </div>
+    <div class="form-grid" style="margin-top:14px">
+      <label class="field"><span class="field-label">默认边界（一句话）</span>
+        <input class="input" id="circle-edit-note" value="${esc(c.default_grant_note||"")}" placeholder="例如 可看行程空闲，不给具体内容"></label>
+      <div style="display:flex;align-items:flex-end"><button class="button" id="circle-note-save">保存边界</button></div>
+    </div>
+  </section>
+
+  <section class="panel" style="padding:18px;margin-bottom:14px">
+    <div class="panel-title">成员 · ${circleMembers.length}</div>
+    <p class="panel-caption">只存关系（身份、亲近程度、最后互动），不存对方的证件、住址与家庭。</p>
+    <div style="margin-top:12px;display:grid;gap:8px">
+      ${circleMembers.length ? circleMembers.map(m=>`
+        <div class="decision-detail" style="margin:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <strong>${esc(m.display_name_zh||m.id)}</strong>
+            ${m.member_role?`<span class="panel-caption" style="margin:0">${esc(m.member_role)}</span>`:""}
+            <span class="badge neutral">${esc({close:"亲近",normal:"一般",distant:"疏远"}[m.strength]||m.strength||"一般")}</span>
+            ${m.last_interaction_at?`<span class="panel-caption" style="margin:0">最近互动 ${esc(String(m.last_interaction_at).slice(0,10))}</span>`:""}
+            <span style="margin-left:auto"><button class="button danger" data-member-del="${esc(m.id)}">移出</button></span>
+          </div>
+        </div>`).join("") : `<div class="empty-state">这一圈还没有人。加第一个。</div>`}
+    </div>
+    <div class="form-grid" style="margin-top:14px">
+      <label class="field"><span class="field-label">姓名</span><input class="input" id="member-name" placeholder="例如 张三"></label>
+      <label class="field"><span class="field-label">他在这一圈的身份</span><input class="input" id="member-role" placeholder="例如 同事 / 客户 / 儿子"></label>
+      <label class="field"><span class="field-label">亲近程度</span>
+        <select class="select" id="member-strength"><option value="close">亲近</option><option value="normal" selected>一般</option><option value="distant">疏远</option></select></label>
+      <label class="field"><span class="field-label">最后互动（可选）</span><input class="input" id="member-last" placeholder="2026-10-01"></label>
+    </div>
+    <div style="margin-top:12px"><button class="button primary" id="member-add">＋ 加入这一圈</button></div>
+  </section>
+
+  <section class="panel" style="padding:18px">
+    <div class="panel-title">圈级授权</div>
+    <p class="panel-caption">这一圈默认能被授权做什么。按圈授权的判定能力还没接上（下一步做「界」时一起做）；现在先在这里写清边界，供人工核对。</p>
+    <div class="panel-caption" style="margin-top:8px">⚠ 移出成员会立即影响该圈的圈级授权，并写入变更记录。</div>
+  </section>`;
+}
+
+function bindCircleDetail(view, c){
+  $("#circle-back").onclick=()=>{ activeCircleId=null; render(); };
+  $("#circle-note-save").onclick=async()=>{
+    try{ await api(`/v1/circles/${encodeURIComponent(c.id)}`,{method:"PATCH",body:JSON.stringify({default_grant_note:String($("#circle-edit-note").value||"").trim()})});
+      toast("已保存默认边界"); render(); }
+    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+  $("#member-add").onclick=async()=>{
+    const body={display_name_zh:String($("#member-name").value||"").trim(),
+                member_role:String($("#member-role").value||"").trim(),
+                strength:$("#member-strength").value,
+                last_interaction_at:String($("#member-last").value||"").trim()};
+    if(!body.display_name_zh){ toast("请填姓名",true); return; }
+    try{ await api(`/v1/circles/${encodeURIComponent(c.id)}/members`,{method:"POST",body:JSON.stringify(body)});
+      toast("已加入"); render(); }
+    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+  $$('[data-member-del]',view).forEach(b=>b.onclick=async()=>{
+    if(!confirm("移出这一位？移出后他将立即失去本圈的圈级授权，并写入变更记录。")) return;
+    try{ await api(`/v1/circle-members/${encodeURIComponent(b.dataset.memberDel)}`,{method:"DELETE"}); toast("已移出"); render(); }
+    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  });
+}
+
+async function renderCircles(view){
+  let rows=[];
+  try{ rows=((await api("/v1/circles"))||{}).items||[] }catch(e){ rows=[] }
+  const counts={};
+  await Promise.all(rows.slice(0,20).map(async c=>{
+    try{ const r=await api(`/v1/circles/${encodeURIComponent(c.id)}/members`); counts[c.id]=(r.items||[]).length }
+    catch(e){ counts[c.id]=null }
+  }));
+  if(activeCircleId){
+    const cur=rows.find(x=>String(x.id)===String(activeCircleId));
+    if(cur){
+      try{ circleMembers=((await api(`/v1/circles/${encodeURIComponent(cur.id)}/members`))||{}).items||[] }catch(e){ circleMembers=[] }
+      view.innerHTML=circleDetailHtml(cur,counts[cur.id]);
+      bindCircleDetail(view,cur);
+      return;
+    }
+    activeCircleId=null;
+  }
+  view.innerHTML=`${proModeButtons()}${titleBlock("CIRCLES","圈","谁能看到什么，按圈来。一圈人、一个默认边界。")}
+   ${circleForm?circleFormHtml():""}
+   <section class="panel" style="padding:18px;margin-bottom:14px">
+     <div class="panel-title">圈 · ${rows.length}</div>
+     <p class="panel-caption">只描述关系：身份、亲近程度、多久没联系；不存对方的证件、住址与家庭。</p>
+     <div style="margin-top:12px"><button class="button primary" id="circle-new">＋ 新建圈</button></div>
+     <div style="margin-top:14px;display:grid;gap:10px">
+       ${rows.length?rows.map(c=>`
+         <div class="decision-detail" style="margin:0">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <strong>${esc(c.display_name_zh||c.id)}</strong>
+             <span class="badge neutral">${esc(circleTypeText(c.circle_type))}</span>
+             <span class="badge ${c.circle_sensitivity==="restricted"?"deny":"pending"}">${esc(c.circle_sensitivity||"sensitive")}</span>
+             ${counts[c.id]!=null?`<span class="panel-caption" style="margin:0">${counts[c.id]} 人</span>`:""}
+             ${c.my_role?`<span class="panel-caption" style="margin:0">我在圈里：${esc(c.my_role)}</span>`:""}
+             <span style="margin-left:auto"><button class="button" data-circle-open="${esc(c.id)}">管理 →</button></span>
+           </div>
+           <div class="panel-caption">${esc(c.default_grant_note||"还没有设定默认边界")}</div>
+         </div>`).join(""):`<div class="empty-state">还没有圈。先建一个"家人"，再往里加人。</div>`}
+     </div></section>`;
+  $("#circle-new").onclick=()=>{ circleForm={mode:"new"}; render(); };
+  $$('[data-circle-open]',view).forEach(b=>b.onclick=()=>{ activeCircleId=b.dataset.circleOpen; render(); });
+  if(circleForm) bindCircleForm(view);
 }
