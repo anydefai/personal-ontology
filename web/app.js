@@ -129,7 +129,7 @@ async function render(){const view=$("#view");if(!sessionStorage.getItem(session
   else if(currentPage==="circles")await renderCircles(view);
   else if(currentPage==="commitments")await renderCommitments(view);
   else if(currentPage==="places")await renderPlaces(view);
-  else if(currentPage==="assets")renderComingSoon(view,"财","账户、资产、保险与订阅；流水单独一页。","建 assets 与 asset-transactions（ledger 段已就绪）");
+  else if(currentPage==="assets")await renderAssets(view);
   else if(currentPage==="knowledge")renderComingSoon(view,"识","笔记、作品、照片、证据与知识卡。","把 knowledge-entries 扩成通用条目，再接文件索引");else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
   else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="decisions")await renderDecisions(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
  if(["scenario-slices","scenario-instances","scenario-preview","delivery","decisions"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
@@ -1815,6 +1815,99 @@ async function renderCommitments(view){
     const r=rows.find(x=>String(x.id)===String(b.dataset.cmDel))||{};
     confirmModal({title:`删除「${r.display_name_zh||"这条"}」？`, body:"删除后不可恢复；已完成的记录也会消失。", danger:true, okText:"删除", onOk: async ()=>{
       try{ await api(`/v1/commitments/${encodeURIComponent(r.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    }});
+  });
+}
+
+// ===== 财：账户、房产、车辆、保险、订阅、债务、税务 =====
+const ASSET_KINDS = {account:"账户", property:"房产", vehicle:"车辆", insurance:"保险", subscription:"订阅", debt:"债务", tax:"税务"};
+const assetKindText = (k)=> ASSET_KINDS[k] || "账户";
+function expiryBadge(at){
+  if(!at) return "";
+  const d = daysLeft(at);
+  if(d===null) return "";
+  if(d < 0) return `<span class="badge deny">已过期 ${Math.abs(d)} 天</span>`;
+  if(d <= 30) return `<span class="badge pending">${d} 天后到期</span>`;
+  return `<span class="badge neutral">${d} 天后到期</span>`;
+}
+
+function openAssetModal(row){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content) return;
+  const a = row || {};
+  content.innerHTML=`<div class="modal-kicker">ASSET</div>
+    <h2>${row?"编辑资产":"新建资产"}</h2>
+    <p class="modal-intro">只记"有这个东西"和"什么时候到期"：标识符只填掩码（例如 **** 1234），金额只填区间或摘要，不要填完整卡号与流水。</p>
+    <div class="modal-form">
+      <label class="field"><span class="field-label">名称</span><input class="input" id="as-name" value="${esc(a.display_name_zh||"")}" placeholder="例如 工资卡 / 车险 / 某会员"></label>
+      <label class="field"><span class="field-label">类型</span><select class="select" id="as-kind">${Object.keys(ASSET_KINDS).map(k=>`<option value="${k}" ${((a.asset_kind||"account")===k)?"selected":""}>${ASSET_KINDS[k]}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">标识（只填掩码）</span><input class="input" id="as-masked" value="${esc(a.identifier_masked||"")}" placeholder="例如 **** 1234"></label>
+      <label class="field"><span class="field-label">金额摘要</span><input class="input" id="as-value" value="${esc(a.value_summary||"")}" placeholder="例如 余额 5 万左右 / 保额 50 万"></label>
+      <label class="field"><span class="field-label">托管方</span><input class="input" id="as-custodian" value="${esc(a.custodian||"")}" placeholder="例如 某银行 / 某保险"></label>
+      <label class="field"><span class="field-label">到期日（可空）</span><input class="input" type="date" id="as-expires" value="${esc(String(a.expires_at||"").slice(0,10))}"></label>
+      <label class="field"><span class="field-label">备注</span><input class="input" id="as-note" value="${esc(a.asset_note||"")}" placeholder="可选"></label>
+    </div>
+    <div class="modal-actions"><button class="button" id="as-cancel">取消</button><button class="button primary" id="as-save">保存</button></div>`;
+  dialog.showModal();
+  $("#as-cancel").onclick=()=>dialog.close();
+  $("#as-save").onclick=async()=>{
+    const body={display_name_zh:String($("#as-name").value||"").trim(),
+                asset_kind:$("#as-kind").value,
+                identifier_masked:String($("#as-masked").value||"").trim(),
+                value_summary:String($("#as-value").value||"").trim(),
+                custodian:String($("#as-custodian").value||"").trim(),
+                expires_at:String($("#as-expires").value||"").trim(),
+                note:String($("#as-note").value||"").trim()};
+    if(!body.display_name_zh){ toast("请填名称",true); return; }
+    try{
+      if(row){ await api(`/v1/assets/${encodeURIComponent(row.id)}`,{method:"PATCH",body:JSON.stringify(body)}); toast("已保存"); }
+      else { await api("/v1/assets",{method:"POST",body:JSON.stringify(body)}); toast("已新建资产"); }
+      dialog.close(); render();
+    }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+}
+
+async function renderAssets(view){
+  let rows=[];
+  try{ rows=((await api("/v1/assets"))||{}).items||[] }catch(e){ rows=[] }
+  const dueSoon = rows.filter(a=>{const d=daysLeft(a.expires_at); return d!==null && d<=30;}).length;
+  const byKind = {};
+  rows.forEach(a=>{ const k=String(a.asset_kind||"account"); byKind[k]=(byKind[k]||0)+1; });
+  view.innerHTML=`${titleBlock("ASSETS","财","账户、房产、车辆、保险、订阅、债务、税务。只存掩码与摘要；流水单独一页，默认折叠。")}
+   <div class="stats-grid">
+     <div class="stat-card"><div class="stat-top"><span>资产条目</span><span class="stat-icon">◫</span></div><div class="stat-num">${rows.length}</div><div class="stat-foot">${Object.keys(byKind).map(k=>`${assetKindText(k)} ${byKind[k]}`).join(" · ")||"还没有"}</div></div>
+     <div class="stat-card"><div class="stat-top"><span>30 天内到期</span><span class="stat-icon">!</span></div><div class="stat-num">${dueSoon}</div><div class="stat-foot">保险与订阅</div></div>
+     <div class="stat-card"><div class="stat-top"><span>敏感级</span><span class="stat-icon">⚿</span></div><div class="stat-num">${rows.filter(a=>String(a.asset_sensitivity)==="restricted").length}</div><div class="stat-foot">restricted（默认）</div></div>
+     <div class="stat-card"><div class="stat-top"><span>流水</span><span class="stat-icon">≡</span></div><div class="stat-num">—</div><div class="stat-foot">下一步接入（ledger 段已就绪）</div></div>
+   </div>
+   <section class="panel" style="padding:18px">
+     <div class="panel-title">资产 · ${rows.length}</div>
+     <p class="panel-caption">这一页属于最敏感的数据：不参与任何对外授权，只在你的设备上可见。</p>
+     <div style="margin-top:12px"><button class="button primary" id="as-new">＋ 新建资产</button></div>
+     <div style="margin-top:14px;display:grid;gap:10px">
+       ${rows.length?rows.map(a=>`
+         <div class="decision-detail" style="margin:0">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <strong>${esc(a.display_name_zh||a.id)}</strong>
+             <span class="badge neutral">${esc(assetKindText(a.asset_kind))}</span>
+             ${expiryBadge(a.expires_at)}
+             ${a.identifier_masked?`<span class="mono">${esc(a.identifier_masked)}</span>`:""}
+             ${a.custodian?`<span class="panel-caption" style="margin:0">${esc(a.custodian)}</span>`:""}
+             <span style="margin-left:auto;display:flex;gap:6px">
+               <button class="button" data-as-edit="${esc(a.id)}">编辑</button>
+               <button class="button danger" data-as-del="${esc(a.id)}">删除</button>
+             </span>
+           </div>
+           <div class="panel-caption">${esc(a.value_summary||"（未填金额摘要）")}${a.asset_note?` · ${esc(a.asset_note)}`:""}</div>
+         </div>`).join(""):`<div class="empty-state">还没有资产。先加一个"工资卡"试试：标识填 **** 1234，金额填"余额 5 万左右"。</div>`}
+     </div></section>`;
+  $("#as-new").onclick=()=>openAssetModal(null);
+  $$('[data-as-edit]',view).forEach(b=>b.onclick=()=>{ const a=rows.find(x=>String(x.id)===String(b.dataset.asEdit)); if(a) openAssetModal(a); });
+  $$('[data-as-del]',view).forEach(b=>b.onclick=()=>{
+    const a=rows.find(x=>String(x.id)===String(b.dataset.asDel))||{};
+    confirmModal({title:`删除「${a.display_name_zh||"这个资产"}」？`, body:"删除后不可恢复。已存在的流水不会被删除（它们在独立的账本段里）。", danger:true, okText:"删除", onOk: async ()=>{
+      try{ await api(`/v1/assets/${encodeURIComponent(a.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
       catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
     }});
   });
