@@ -1814,6 +1814,29 @@ async def migrate_profile_items() -> Any:
             "note": "profiles.items 未改动，可随时回退（删除 profile-items 集合即可）"}
 
 
+def _log_circle_change(circle_id: str, kind: str, detail: str) -> None:
+    if not circle_id:
+        return
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    rid = "chg_" + uuid4().hex[:12]
+    try:
+        store.put("circle-changes", rid,
+                  {"display_name_zh": f"{kind}:{detail}"[:80], "display_name_en": f"{kind}:{detail}"[:80],
+                   "circle_id": circle_id, "change_kind": kind,
+                   "change_detail": detail[:120], "changed_at": stamp}, create_only=True)
+    except Exception:                                   # noqa: BLE001 - 记变更失败不应阻断主操作
+        pass
+
+
+@app.get("/v1/circles/{circle_id}/changes", dependencies=[Depends(require_session)])
+async def list_circle_changes(circle_id: str) -> Any:
+    if not store.get("circles", circle_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    rows = [x for x in store.list("circle-changes") if str(x.get("circle_id")) == circle_id]
+    rows.sort(key=lambda x: str(x.get("changed_at") or ""), reverse=True)
+    return {"items": rows}
+
+
 # ── 器：设备与智能体清单。同步只搬元数据（名称/状态/范围/时间），绝不复制客户端密钥。──
 APPROVED_TRUST = {"approved": "trusted", "pending": "limited", "denied": "blocked"}
 
@@ -1927,6 +1950,12 @@ async def delete_circle(circle_id: str) -> Any:
     if refs:
         raise HTTPException(status_code=409, detail={"error": "circle_in_use",
             "message": f"还有 {len(refs)} 条授权规则指向这个圈，请先在「界」里暂停或删除它们，再删圈。"})
+    # 先清变更记录：它们引用着这个圈，不清掉存储层会拒绝删圈。
+    changes_removed = 0
+    for chg in store.list("circle-changes"):
+        if str(chg.get("circle_id")) == circle_id:
+            if store.delete("circle-changes", str(chg.get("id"))):
+                changes_removed += 1
     removed = 0
     for member in store.list("circle-members"):
         if str(member.get("circle_id")) == circle_id:
@@ -1939,7 +1968,7 @@ async def delete_circle(circle_id: str) -> Any:
             store.delete("principals", circle_id)
     except Exception:                                   # noqa: BLE001
         pass
-    return {"deleted": circle_id, "members_removed": removed}
+    return {"deleted": circle_id, "members_removed": removed, "changes_removed": changes_removed}
 
 
 @app.get("/v1/circles/{circle_id}/members", dependencies=[Depends(require_session)])
@@ -1972,14 +2001,18 @@ async def create_circle_member(circle_id: str, body: dict[str, Any]) -> Any:
               "member_source": str(body.get("source") or "manual"),
               "member_added_at": stamp}
     store.put("circle-members", mid, record, create_only=True)
+    _log_circle_change(circle_id, "member_added", name)
     return {"id": mid, **record}
 
 
 @app.delete("/v1/circle-members/{member_id}", dependencies=[Depends(require_session)])
 async def delete_circle_member(member_id: str) -> Any:
-    if not store.get("circle-members", member_id):
+    member = store.get("circle-members", member_id)
+    if not member:
         raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
     store.delete("circle-members", member_id)
+    _log_circle_change(str(member.get("circle_id") or ""), "member_removed",
+                       str(member.get("display_name_zh") or member_id))
     return {"deleted": member_id}
 
 
