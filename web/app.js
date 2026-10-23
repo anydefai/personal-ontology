@@ -9,6 +9,11 @@ const labels = {
   "knowledge-entries": {title:"判断条目",singular:"判断条目",subtitle:"专业判断的条目：前提、结论、例外、依据",id:"entry_id",readonly:false,cols:[["conclusion","结论"],["basis","依据"],["review_state","状态"]]},
   "scenario-definitions": {title:"场景定义",singular:"场景定义",subtitle:"可复用的专业任务骨架",id:"scenario_definition_id",readonly:false,cols:[["display_name_zh","名称"],["version","版本"]]},
   "domain-packs": {title:"领域包",singular:"领域包",subtitle:"行业词表与追问模板",id:"pack_id",readonly:false,cols:[["display_name_zh","名称"],["version","版本"]]},
+  "circles": {title:"圈", subtitle:"谁能看到什么，按圈来。一圈人、一个默认边界。"},
+  "commitments": {title:"事", subtitle:"日程、约定、承诺、合同与保修，到期会提醒。"},
+  "places": {title:"地", subtitle:"常住地、常用地址与行程；哪些信息在哪个地点可用。"},
+  "assets": {title:"财", subtitle:"账户、资产、保险与订阅；流水单独一页，默认折叠。"},
+  "knowledge": {title:"识", subtitle:"笔记、作品、照片、证据与知识卡。"},
   "profiles": {title:"个人资料", subtitle:"实名、证件、联系方式等敏感信息的存放处。字段随时可增删改，界面默认只显示掩码。"},
   "scenario-instances": {title:"场景实例",subtitle:"统一维护由场景切片确认写入本体的可复用实例。"},
   "account-security": {title:"登录与安全",subtitle:"管理登录密码、锁定状态与加密容器。"},
@@ -111,7 +116,12 @@ async function reloadAll(){cache={};await refreshService();if(!sessionStorage.ge
 function titleBlock(kicker,title,subtitle,action=""){return `<div class="title-row"><div><div class="eyebrow">${kicker}</div><h1 class="page-title">${title}</h1><p class="page-subtitle">${subtitle}</p></div>${action}</div>`}
 function badge(value){const v=String(value??"").toLowerCase();const kind=["allow","deny","ask"].includes(v)?v:["true","active","person"].includes(v)?"active":["revoked","false"].includes(v)?"revoked":["high","critical"].includes(v)?"ask":"neutral";const text={allow:"允许",deny:"拒绝",ask:"需确认",true:"启用",false:"停用",person:"个人",low:"低",medium:"中",high:"高",critical:"严重"}[v]||value||"—";return `<span class="badge ${kind}">${esc(text)}</span>`}
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
- try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
+ try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);
+  else if(currentPage==="circles")renderComingSoon(view,"圈","谁能看到什么，按圈来。一圈人、一个默认边界。","建 circles / circle-members 两个集合，再做列表与成员管理");
+  else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
+  else if(currentPage==="places")renderComingSoon(view,"地","常住地、常用地址与行程。","建 places 集合，先只做手动录入");
+  else if(currentPage==="assets")renderComingSoon(view,"财","账户、资产、保险与订阅；流水单独一页。","建 assets 与 asset-transactions（ledger 段已就绪）");
+  else if(currentPage==="knowledge")renderComingSoon(view,"识","笔记、作品、照片、证据与知识卡。","把 knowledge-entries 扩成通用条目，再接文件索引");else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
   else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="decisions")await renderDecisions(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
  if(["scenario-slices","scenario-instances","scenario-preview","delivery","decisions"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
 async function renderAgentIntegration(view){
@@ -211,6 +221,12 @@ async function renderDisplaySettings(view){
      setDisplayLanguage(result.language);cache={};toast("语言已保存，正在刷新…");setTimeout(()=>location.reload(),350);
    }catch(error){if(!(error instanceof AuthRequired))toast(error.message,true)}
  };
+}
+function renderComingSoon(view,title,desc,next){
+  view.innerHTML=`${proModeButtons()}${titleBlock("COMING SOON",title,desc,"")}
+   <section class="panel" style="padding:24px"><div class="panel-title">这一块还没做</div>
+    <p class="panel-caption" style="margin-top:8px">模型已设计好（见 docs/07 与 docs/08），界面按第一期顺序推进。</p>
+    <p class="panel-caption" style="margin-top:6px">下一步：${esc(next)}</p></section>`;
 }
 async function renderFeedback(view){
  view.innerHTML=`${titleBlock("FEEDBACK","需求反馈","使用上的需求或 Bug 反馈")}
