@@ -1470,6 +1470,103 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 资料项：从 profiles.items 拆出来的逐项节点 ──
+def _slug_field(label: str, index: int) -> str:
+    for key, code in (("姓名","name"),("名字","name"),("证件","id_no"),("身份证","id_no"),
+                      ("护照","passport_no"),("手机","phone"),("电话","phone"),("邮箱","email"),
+                      ("地址","address"),("住址","address"),("生日","birthday"),("性别","gender")):
+        if key in label:
+            return code
+    return f"field_{index}"
+
+
+@app.get("/v1/profiles/{profile_id}/items", dependencies=[Depends(require_session)])
+async def list_profile_items(profile_id: str) -> Any:
+    if not store.get("profiles", profile_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    rows = [x for x in store.list("profile-items") if str(x.get("profile_id")) == profile_id]
+    return {"items": rows}
+
+
+@app.post("/v1/profiles/{profile_id}/items", status_code=201, dependencies=[Depends(require_session)])
+async def create_profile_item(profile_id: str, body: dict[str, Any]) -> Any:
+    if not store.get("profiles", profile_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    label = str(body.get("label_zh") or "").strip()
+    if not label:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    item_id = "pi_" + uuid4().hex[:12]
+    record = {"profile_id": profile_id,
+              "field_key": str(body.get("field_key") or _slug_field(label, len(store.list("profile-items")) + 1)),
+              "label_zh": label, "label_en": str(body.get("label_en") or label),
+              "item_value": str(body.get("value") or ""),
+              "item_kind": str(body.get("kind") or "text"),
+              "item_sensitivity": str(body.get("sensitivity") or "normal"),
+              "item_verified": "true" if body.get("verified") else "false",
+              "item_used_at": ""}
+    store.put("profile-items", item_id, record, create_only=True)
+    return {"id": item_id, **record}
+
+
+@app.patch("/v1/profile-items/{item_id}", dependencies=[Depends(require_session)])
+async def update_profile_item(item_id: str, body: dict[str, Any]) -> Any:
+    cur = store.get("profile-items", item_id)
+    if not cur:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    updated = dict(cur)
+    for key in ("field_key", "label_zh", "label_en", "item_value", "item_kind", "item_sensitivity"):
+        if key in body:
+            updated[key] = body[key]
+    if "value" in body:
+        updated["item_value"] = str(body["value"])
+    if "verified" in body:
+        updated["item_verified"] = "true" if body["verified"] else "false"
+    store.put("profile-items", item_id, {k: v for k, v in updated.items() if k not in {"id", "item_id"}})
+    return {"id": item_id, **{k: v for k, v in updated.items() if k not in {"id", "item_id"}}}
+
+
+@app.delete("/v1/profile-items/{item_id}", dependencies=[Depends(require_session)])
+async def delete_profile_item(item_id: str) -> Any:
+    if not store.get("profile-items", item_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    store.delete("profile-items", item_id)
+    return {"deleted": item_id}
+
+
+@app.post("/v1/profiles/migrate-items", dependencies=[Depends(require_session)])
+async def migrate_profile_items() -> Any:
+    """把已有 profiles.items 数组拆成 profile-items 节点。幂等：已拆过的不会重复。"""
+    created, skipped = 0, 0
+    existing = store.list("profile-items")
+    seen = {(str(x.get("profile_id")), str(x.get("label_zh"))) for x in existing}
+    for prof in store.list("profiles"):
+        pid = str(prof.get("id") or "")
+        items = prof.get("items") if isinstance(prof.get("items"), list) else []
+        for index, it in enumerate(items, 1):
+            if not isinstance(it, dict):
+                continue
+            label = str(it.get("label") or it.get("key") or "").strip()
+            if not label:
+                continue
+            if (pid, label) in seen:
+                skipped += 1
+                continue
+            item_id = "pi_" + uuid4().hex[:12]
+            record = {"profile_id": pid,
+                      "field_key": _slug_field(label, index),
+                      "label_zh": label, "label_en": label,
+                      "item_value": str(it.get("value") or ""),
+                      "item_kind": str(it.get("kind") or "text"),
+                      "item_sensitivity": "critical" if str(it.get("kind")) == "id" else "sensitive",
+                      "item_verified": "true" if it.get("verified") else "false",
+                      "item_used_at": ""}
+            store.put("profile-items", item_id, record, create_only=True)
+            seen.add((pid, label))
+            created += 1
+    return {"created": created, "skipped": skipped,
+            "note": "profiles.items 未改动，可随时回退（删除 profile-items 集合即可）"}
+
+
 # ── 器：设备与智能体清单。同步只搬元数据（名称/状态/范围/时间），绝不复制客户端密钥。──
 APPROVED_TRUST = {"approved": "trusted", "pending": "limited", "denied": "blocked"}
 
