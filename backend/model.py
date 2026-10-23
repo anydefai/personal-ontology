@@ -20,6 +20,7 @@ CLASSES = {
     "evidence": "Evidence",
     "scenario-slices": "ScenarioSlice",
     "profiles": "Profile",
+    "asset-transactions": "AssetTransaction",
     # 专业判断侧（日常生活侧不使用这三个集合，新增是纯增量）
     "domain-packs": "DomainPack",
     "scenario-definitions": "ScenarioDefinition",
@@ -55,6 +56,17 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                  "items": ("profileItems", "json"),
                  "note": ("profileNote", "lit"),
                  "updated_at": ("profileUpdatedAt", "lit")},
+    # 流水：放独立的 ledger 段（体积大、敏感），不进主图。
+    "asset-transactions": {"asset_id": ("transactionOf", "assets"),
+                           "occurred_at": ("occurredAt", "lit"),
+                           "amount": ("amount", "lit"),
+                           "direction": ("direction", "lit"),
+                           "counterparty": ("counterparty", "lit"),
+                           "category": ("category", "lit"),
+                           "summary": ("txSummary", "lit"),
+                           "balance_after": ("balanceAfter", "lit"),
+                           "sensitivity": ("sensitivity", "lit")},
+
     "scenario-slices": {"original_text": ("originalText", "lit"), "status": ("scenarioStatus", "lit"), "analysis": ("analysis", "json"), "updated_at": ("updatedAt", "lit"),
                         # 专业判断侧新增（生活侧留空即保持原状，存量数据零迁移）
                         "scenario_definition_id": ("usesScenarioDefinition", "scenario-definitions"),
@@ -91,7 +103,7 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                           "tags": ("entryTags", "json"), "updated_at": ("entryUpdatedAt", "lit")},
 }
 
-ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId", "domain-packs": "packId", "scenario-definitions": "scenarioDefinitionId", "knowledge-entries": "entryId", "profiles": "profileId"}
+ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId", "domain-packs": "packId", "scenario-definitions": "scenarioDefinitionId", "knowledge-entries": "entryId", "profiles": "profileId", "asset-transactions": "transactionId"}
 INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id", "executions":"execution_id", "contacts":"contact_id", "triggers":"trigger_id", "notifications":"notification_id", "evidence":"evidence_id", "taxonomies":"taxonomy_id", "taxonomy-items":"item_id", "resource-types":"type_name", "actions":"action_id", "matchers":"pattern_type", "notifiers":"channel_id", "crypto-providers":"name", "principals":"principal_id", "params":"param_id", "redlines":"redline_id", "decision-results":"result_id", "contexts":"context_id", "interactions":"interaction_id", "constraints":"constraint_id", "scenario-slices":"scenario_id", "domain-packs":"pack_id", "scenario-definitions":"scenario_definition_id", "knowledge-entries":"entry_id", "profiles":"profile_id"}
 
 def node_uri(collection: str, item_id: str) -> URIRef:

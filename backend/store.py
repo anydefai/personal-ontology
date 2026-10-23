@@ -38,6 +38,7 @@ class RDFStore:
         DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._mutex = threading.RLock()
         self.graph: Graph | None = None
+        self.ledger: Graph | None = None
         self.namespace_migration: dict[str, Any] | None = None
         self.vault = Container(CONTAINER_FILE)
         self.legacy_file = GRAPH_FILE
@@ -135,7 +136,7 @@ class RDFStore:
     def initialize(self, password: str, ontology: bytes, model_service: bytes) -> None:
         """首次创建容器（可携带待迁移的明文图），成功后处于解锁态。"""
         with self._mutex:
-            self.vault.create(password, {"ontology": ontology, "model_service": model_service})
+            self.vault.create(password, {"ontology": ontology, "model_service": model_service, "ledger": b""})
             ontology = self._migrate_namespace_if_needed(ontology)
             self.graph = self._build_graph(ontology)
             if self._ensure_builtins():
@@ -148,12 +149,20 @@ class RDFStore:
             payload = self._migrate_namespace_if_needed(self.vault.get_section("ontology"))
             graph = self._build_graph(payload)
             self.graph = graph
+            try:
+                self.vault.ensure_section("ledger", password)
+                raw = self.vault.get_section("ledger") or b""
+                self.ledger = self._build_graph(raw) if raw.strip() else Graph()
+                self._bind(self.ledger)
+            except Exception:                      # noqa: BLE001 - 缺段不能让整个空间登不进去
+                self.ledger = Graph()
             if self._ensure_builtins():
                 self._persist()
 
     def lock(self) -> None:
         with self._mutex:
             self.graph = None
+            self.ledger = None
             self.vault.lock()
 
     def change_password(self, current: str, new: str) -> None:
@@ -241,6 +250,59 @@ class RDFStore:
         except VaultError as exc:
             # 回滚由调用方负责（put/delete/rename 会恢复旧图）
             raise StoreError(f"容器写入失败：{exc}") from exc
+
+    # ---------- ledger 段（流水等大体积数据，独立持久化，不触碰 ontology 段） ----------
+    def _persist_ledger(self) -> None:
+        payload = (self.ledger or Graph()).serialize(format="turtle", encoding="utf-8")
+        try:
+            self.vault.put_section("ledger", payload)
+        except VaultError as exc:
+            raise StoreError(f"容器写入失败：{exc}") from exc
+
+    def ledger_status(self) -> dict[str, Any]:
+        return {"present": self.ledger is not None,
+                "count": len(set((self.ledger or Graph()).subjects(RDF.type, RDF.type)))}
+
+    def put_ledger(self, collection: str, item_id: str, record: dict[str, Any], *, create_only: bool = False) -> dict[str, Any]:
+        self._check_collection(collection)
+        with self._mutex:
+            self._require_unlocked()
+            if self.ledger is None:
+                self.ledger = Graph()
+            candidate = Graph()
+            for triple in self.ledger:
+                candidate.add(triple)
+            subject = node_uri(collection, item_id)
+            exists = (subject, RDF.type, PO[CLASSES[collection]]) in candidate
+            if create_only and exists:
+                raise FileExistsError(item_id)
+            for triple in list(candidate.triples((subject, None, None))):
+                candidate.remove(triple)
+            object_to_graph(candidate, collection, item_id, dict(record))
+            old = self.ledger
+            self.ledger = candidate
+            try:
+                self._persist_ledger()
+            except Exception:
+                self.ledger = old
+                raise
+            return graph_to_record(self.ledger, collection, item_id)
+
+    def list_ledger(self, collection: str) -> list[dict[str, Any]]:
+        self._check_collection(collection)
+        with self._mutex:
+            graph = self.ledger or Graph()
+            nodes = set(graph.subjects(RDF.type, PO[CLASSES[collection]]))
+            return [graph_to_record(graph, collection, self._id_from_uri(n)) for n in sorted(nodes, key=str)]
+
+    def get_ledger(self, collection: str, item_id: str) -> dict[str, Any] | None:
+        self._check_collection(collection)
+        with self._mutex:
+            graph = self.ledger or Graph()
+            subject = node_uri(collection, item_id)
+            if (subject, RDF.type, PO[CLASSES[collection]]) not in graph:
+                return None
+            return graph_to_record(graph, collection, item_id)
 
     def list(self, collection: str) -> list[dict[str, Any]]:
         self._check_collection(collection)

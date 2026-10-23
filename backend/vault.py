@@ -31,7 +31,7 @@ DEFAULT_ITERATIONS = 2_000_000
 SALT_BYTES = 16
 NONCE_BYTES = 12
 KEY_BYTES = 32
-SECTIONS = ("ontology", "model_service")
+SECTIONS = ("ontology", "model_service", "ledger")
 
 
 class VaultError(Exception):
@@ -269,6 +269,20 @@ class Container:
         plain = _open_with_key(name, blob, self._keys[name], FORMAT_VERSION)
         self._plain[name] = plain
         return plain
+
+    def ensure_section(self, name: str, password: str, plaintext: bytes = b"") -> bool:
+        """为已存在的容器补一个段（用于 ledger 之类后加的段）。已存在则返回 False。"""
+        self._require_unlocked()
+        if name in (self._doc.get("sections") or {}):
+            return False
+        salt = os.urandom(SALT_BYTES)
+        kdf = _kdf_meta(salt, self.iterations)
+        key = derive_key(password, salt, self.iterations)
+        self._doc["sections"][name] = _seal(name, plaintext, key, kdf, FORMAT_VERSION)
+        self._keys[name] = key
+        self._plain[name] = plaintext
+        self._commit()
+        return True
 
     def put_section(self, name: str, plaintext: bytes) -> None:
         """重新封装某一段并原子写回（段密钥不变，只换 nonce）。"""
