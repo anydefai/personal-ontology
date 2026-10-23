@@ -1470,6 +1470,31 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 资料查看记录：每一次看明文都留一条 ──
+@app.post("/v1/profile-items/{item_id}/reveal", dependencies=[Depends(require_session)])
+async def record_profile_reveal(item_id: str, body: dict[str, Any]) -> Any:
+    item = store.get("profile-items", item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    rid = "reveal_" + uuid4().hex[:12]
+    label = str(item.get("label_zh") or item.get("field_key") or "资料项")
+    record = {"display_name_zh": label, "display_name_en": label,
+              "item_id": item_id, "profile_id": str(item.get("profile_id") or ""),
+              "revealed_at": stamp,
+              "reveal_purpose": str(body.get("purpose") or "查看明文")}
+    store.put("profile-reveals", rid, record, create_only=True)
+    total = sum(1 for x in store.list("profile-reveals") if str(x.get("item_id")) == item_id)
+    return {"recorded": rid, "item_id": item_id, "revealed_at": stamp, "times_revealed": total}
+
+
+@app.get("/v1/profile-items/{item_id}/reveals", dependencies=[Depends(require_session)])
+async def list_profile_reveals(item_id: str) -> Any:
+    rows = [x for x in store.list("profile-reveals") if str(x.get("item_id")) == item_id]
+    rows.sort(key=lambda x: str(x.get("revealed_at") or ""), reverse=True)
+    return {"items": rows}
+
+
 # ── 财：资产（只存掩码与摘要） ──
 ASSET_KINDS = {"account", "property", "vehicle", "insurance", "subscription", "debt", "tax"}
 
