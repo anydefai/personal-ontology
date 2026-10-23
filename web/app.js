@@ -1311,7 +1311,7 @@ async function renderProfiles(view){
           <span class="badge ${it.item_sensitivity==="critical"?"deny":(it.item_sensitivity==="sensitive"?"pending":"neutral")}">${esc(it.item_sensitivity||"normal")}</span>
           ${it.item_verified==="true"?'<span class="badge active">已验证</span>':""}
           <span class="panel-caption" style="margin:0">${esc(it.field_key||"")}</span>
-          <span style="margin-left:auto"><button class="button" data-item-reveal="${esc(it.id)}">查看</button></span>
+          <span style="margin-left:auto;display:flex;gap:6px"><button class="button" data-item-reveal="${esc(it.id)}">查看</button><button class="button danger" data-item-del="${esc(it.id)}">删除</button></span>
         </div>`).join("")}</div>`;
   };
   const editing=(profileEdit!==null);
@@ -1376,6 +1376,15 @@ async function renderProfiles(view){
     try{ const r=await api("/v1/profiles/migrate-items",{method:"POST",body:JSON.stringify({})});
       toast(`已拆分 ${r.created||0} 项${r.skipped?`，跳过 ${r.skipped} 项`:""}`); render(); }
     catch(e){ btn.disabled=false; btn.textContent="拆分资料项"; if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  });
+  $$('[data-item-del]',view).forEach(b=>b.onclick=()=>{
+    const id=b.dataset.itemDel;
+    let label="这一项", value="";
+    for(const p of rows){ for(const it of (itemMap[p.id]||[])){ if(String(it.id)===String(id)){ label=it.label_zh||it.field_key||label; value=it.item_value||""; } } }
+    confirmModal({title:`删除「${label}」这一项？`, body:"只删这一条字段，资料本身与其它字段保留。删除后这个值就没了，不可恢复。", danger:true, okText:"删除这一项", onOk: async ()=>{
+      try{ await api(`/v1/profile-items/${encodeURIComponent(id)}`,{method:"DELETE"}); toast("已删除该字段"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    }});
   });
   $$('[data-item-reveal]',view).forEach(b=>b.onclick=()=>{
     const id=b.dataset.itemReveal;
