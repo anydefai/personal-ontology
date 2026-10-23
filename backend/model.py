@@ -26,6 +26,7 @@ CLASSES = {
     "profile-items": "ProfileItem",
     "places": "Place",
     "commitments": "Commitment",
+    "assets": "Asset",
     "circle-members": "CircleMember",
     # 专业判断侧（日常生活侧不使用这三个集合，新增是纯增量）
     "domain-packs": "DomainPack",
@@ -62,6 +63,16 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                  "items": ("profileItems", "json"),
                  "note": ("profileNote", "lit"),
                  "updated_at": ("profileUpdatedAt", "lit")},
+    # 财：账户、房产、车辆、保险、订阅、债务、税务。只存掩码与摘要。
+    "assets": {"display_name_zh": ("displayNameZh", "lit"),
+               "display_name_en": ("displayNameEn", "lit"),
+               "asset_kind": ("assetKind", "lit"),
+               "identifier_masked": ("assetMasked", "lit"),
+               "value_summary": ("assetValueSummary", "lit"),
+               "expires_at": ("assetExpiresAt", "lit"),
+               "custodian": ("assetCustodian", "lit"),
+               "asset_sensitivity": ("assetSensitivity", "lit"),
+               "asset_note": ("assetNote", "lit")},
     # 事：约定、截止、合同、保修、续费。谓词专属，避免 rdfs:domain 误定型。
     "commitments": {"display_name_zh": ("displayNameZh", "lit"),
                     "display_name_en": ("displayNameEn", "lit"),
@@ -168,7 +179,7 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
 
 ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId", "domain-packs": "packId", "scenario-definitions": "scenarioDefinitionId", "knowledge-entries": "entryId", "profiles": "profileId", "asset-transactions": "transactionId",
     "circles": "circleId", "circle-members": "memberId",
-    "devices": "deviceId", "profile-items": "itemId", "places": "placeId", "commitments": "commitmentId"}
+    "devices": "deviceId", "profile-items": "itemId", "places": "placeId", "commitments": "commitmentId", "assets": "assetId"}
 INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id", "executions":"execution_id", "contacts":"contact_id", "triggers":"trigger_id", "notifications":"notification_id", "evidence":"evidence_id", "taxonomies":"taxonomy_id", "taxonomy-items":"item_id", "resource-types":"type_name", "actions":"action_id", "matchers":"pattern_type", "notifiers":"channel_id", "crypto-providers":"name", "principals":"principal_id", "params":"param_id", "redlines":"redline_id", "decision-results":"result_id", "contexts":"context_id", "interactions":"interaction_id", "constraints":"constraint_id", "scenario-slices":"scenario_id", "domain-packs":"pack_id", "scenario-definitions":"scenario_definition_id", "knowledge-entries":"entry_id", "profiles":"profile_id"}
 
 def node_uri(collection: str, item_id: str) -> URIRef:

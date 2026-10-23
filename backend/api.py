@@ -1470,6 +1470,61 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 财：资产（只存掩码与摘要） ──
+ASSET_KINDS = {"account", "property", "vehicle", "insurance", "subscription", "debt", "tax"}
+
+
+@app.get("/v1/assets", dependencies=[Depends(require_session)])
+async def list_assets() -> Any:
+    return {"items": store.list("assets")}
+
+
+@app.post("/v1/assets", status_code=201, dependencies=[Depends(require_session)])
+async def create_asset(body: dict[str, Any]) -> Any:
+    name = str(body.get("display_name_zh") or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    kind = str(body.get("asset_kind") or "account")
+    if kind not in ASSET_KINDS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    aid = "asset_" + uuid4().hex[:12]
+    record = {"display_name_zh": name, "display_name_en": str(body.get("display_name_en") or name),
+              "asset_kind": kind,
+              "identifier_masked": str(body.get("identifier_masked") or "")[:32],
+              "value_summary": str(body.get("value_summary") or "")[:120],
+              "expires_at": str(body.get("expires_at") or ""),
+              "custodian": str(body.get("custodian") or "")[:80],
+              "asset_sensitivity": str(body.get("sensitivity") or "restricted"),
+              "asset_note": str(body.get("note") or "")}
+    store.put("assets", aid, record, create_only=True)
+    return {"id": aid, **record}
+
+
+@app.patch("/v1/assets/{asset_id}", dependencies=[Depends(require_session)])
+async def update_asset(asset_id: str, body: dict[str, Any]) -> Any:
+    cur = store.get("assets", asset_id)
+    if not cur:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    updated = dict(cur)
+    for key in ("display_name_zh", "display_name_en", "asset_kind", "identifier_masked",
+                "value_summary", "expires_at", "custodian", "asset_sensitivity", "asset_note"):
+        if key in body:
+            updated[key] = str(body[key])
+    if str(updated.get("asset_kind")) not in ASSET_KINDS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    store.put("assets", asset_id, {k: v for k, v in updated.items() if k not in {"id", "asset_id"}})
+    return {"id": asset_id, **{k: v for k, v in updated.items() if k not in {"id", "asset_id"}}}
+
+
+@app.delete("/v1/assets/{asset_id}", dependencies=[Depends(require_session)])
+async def delete_asset(asset_id: str) -> Any:
+    if not store.get("assets", asset_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    kept = sum(1 for tx in store.list_ledger("asset-transactions") if str(tx.get("asset_id")) == asset_id)
+    store.delete("assets", asset_id)
+    return {"deleted": asset_id, "transactions_kept": kept}
+
+
 # ── 事：约定、截止、合同、保修 ──
 COMMITMENT_KINDS = {"appointment", "deadline", "contract", "warranty", "renewal", "promise"}
 COMMITMENT_STATUS = {"pending", "done", "expired", "cancelled"}
