@@ -1470,6 +1470,61 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 地：常住地、常用地址、行程 ──
+PLACE_KINDS = {"home", "work", "family", "frequent", "travel"}
+
+
+@app.get("/v1/places", dependencies=[Depends(require_session)])
+async def list_places() -> Any:
+    return {"items": store.list("places")}
+
+
+@app.post("/v1/places", status_code=201, dependencies=[Depends(require_session)])
+async def create_place(body: dict[str, Any]) -> Any:
+    name = str(body.get("display_name_zh") or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    kind = str(body.get("place_kind") or "frequent")
+    if kind not in PLACE_KINDS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    pid = "place_" + uuid4().hex[:12]
+    record = {"display_name_zh": name, "display_name_en": str(body.get("display_name_en") or name),
+              "place_kind": kind,
+              "address_text": str(body.get("address_text") or ""),
+              "geo": body.get("geo") if isinstance(body.get("geo"), dict) else {},
+              "radius_m": str(body.get("radius_m") or ""),
+              "place_sensitivity": str(body.get("sensitivity") or "sensitive"),
+              "place_note": str(body.get("note") or "")}
+    store.put("places", pid, record, create_only=True)
+    return {"id": pid, **record}
+
+
+@app.patch("/v1/places/{place_id}", dependencies=[Depends(require_session)])
+async def update_place(place_id: str, body: dict[str, Any]) -> Any:
+    cur = store.get("places", place_id)
+    if not cur:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    updated = dict(cur)
+    for key in ("display_name_zh", "display_name_en", "place_kind", "address_text",
+                "radius_m", "place_sensitivity", "place_note"):
+        if key in body:
+            updated[key] = str(body[key])
+    if "geo" in body and isinstance(body["geo"], dict):
+        updated["geo"] = body["geo"]
+    if str(updated.get("place_kind")) not in PLACE_KINDS:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    store.put("places", place_id, {k: v for k, v in updated.items() if k not in {"id", "place_id"}})
+    return {"id": place_id, **{k: v for k, v in updated.items() if k not in {"id", "place_id"}}}
+
+
+@app.delete("/v1/places/{place_id}", dependencies=[Depends(require_session)])
+async def delete_place(place_id: str) -> Any:
+    if not store.get("places", place_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    store.delete("places", place_id)
+    return {"deleted": place_id}
+
+
 # ── 资料项：从 profiles.items 拆出来的逐项节点 ──
 def _slug_field(label: str, index: int) -> str:
     for key, code in (("姓名","name"),("名字","name"),("证件","id_no"),("身份证","id_no"),
