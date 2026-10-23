@@ -128,7 +128,7 @@ async function render(){const view=$("#view");if(!sessionStorage.getItem(session
   else if(currentPage==="devices")await renderDevices(view);
   else if(currentPage==="circles")await renderCircles(view);
   else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
-  else if(currentPage==="places")renderComingSoon(view,"地","常住地、常用地址与行程。","建 places 集合，先只做手动录入");
+  else if(currentPage==="places")await renderPlaces(view);
   else if(currentPage==="assets")renderComingSoon(view,"财","账户、资产、保险与订阅；流水单独一页。","建 assets 与 asset-transactions（ledger 段已就绪）");
   else if(currentPage==="knowledge")renderComingSoon(view,"识","笔记、作品、照片、证据与知识卡。","把 knowledge-entries 扩成通用条目，再接文件索引");else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
   else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="decisions")await renderDecisions(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
@@ -1636,4 +1636,76 @@ async function renderBoundaries(view){
    ${drafts.length?`<section class="panel" style="padding:18px;margin-bottom:14px"><div class="panel-title">草稿 · ${drafts.length}</div><p class="panel-caption">草稿不参与判定，需要在场景实例或规则页显式启用。</p><div style="display:grid;gap:10px;margin-top:12px">${drafts.map(card).join("")}</div></section>`:""}
    ${paused.length?`<section class="panel" style="padding:18px;margin-bottom:14px"><div class="panel-title">已暂停 · ${paused.length}</div><div style="display:grid;gap:10px;margin-top:12px">${paused.map(card).join("")}</div></section>`:""}
    ${revoked.length?`<section class="panel" style="padding:18px"><div class="panel-title">已撤回 · ${revoked.length}</div><p class="panel-caption">撤回后立即失去访问权；记录保留以便审计。</p><div style="display:grid;gap:10px;margin-top:12px">${revoked.map(card).join("")}</div></section>`:""}`;
+}
+
+// ===== 地：常住地、常用地址、行程 =====
+const PLACE_KINDS = {home:"家", work:"公司", family:"家人住处", frequent:"常去", travel:"行程"};
+const kindText = (k)=> PLACE_KINDS[k] || "常去";
+
+function openPlaceModal(place){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content) return;
+  const p = place || {};
+  content.innerHTML=`<div class="modal-kicker">PLACE</div>
+    <h2>${place?"编辑地点":"新建地点"}</h2>
+    <p class="modal-intro">地址只写到街道级就够用；要"到达提醒"才需要坐标与半径。</p>
+    <div class="modal-form">
+      <label class="field"><span class="field-label">名称</span><input class="input" id="pl-name" value="${esc(p.display_name_zh||"")}" placeholder="例如 家 / 公司 / 父母家"></label>
+      <label class="field"><span class="field-label">类型</span><select class="select" id="pl-kind">${Object.keys(PLACE_KINDS).map(k=>`<option value="${k}" ${((p.place_kind||"frequent")===k)?"selected":""}>${PLACE_KINDS[k]}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">地址（可只到街道）</span><input class="input" id="pl-addr" value="${esc(p.address_text||"")}" placeholder="例如 上海市浦东新区某路"></label>
+      <label class="field"><span class="field-label">到达半径（米，可空）</span><input class="input" id="pl-radius" value="${esc(p.radius_m||"")}" placeholder="例如 200"></label>
+      <label class="field"><span class="field-label">备注</span><input class="input" id="pl-note" value="${esc(p.place_note||"")}" placeholder="可选"></label>
+    </div>
+    <div class="modal-actions"><button class="button" id="pl-cancel">取消</button><button class="button primary" id="pl-save">保存</button></div>`;
+  dialog.showModal();
+  $("#pl-cancel").onclick=()=>dialog.close();
+  $("#pl-save").onclick=async()=>{
+    const body={display_name_zh:String($("#pl-name").value||"").trim(),
+                place_kind:$("#pl-kind").value,
+                address_text:String($("#pl-addr").value||"").trim(),
+                radius_m:String($("#pl-radius").value||"").trim(),
+                note:String($("#pl-note").value||"").trim()};
+    if(!body.display_name_zh){ toast("请填名称",true); return; }
+    try{
+      if(place){ await api(`/v1/places/${encodeURIComponent(place.id)}`,{method:"PATCH",body:JSON.stringify(body)}); toast("已保存"); }
+      else { await api("/v1/places",{method:"POST",body:JSON.stringify(body)}); toast("已新建地点"); }
+      dialog.close(); render();
+    }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+}
+
+async function renderPlaces(view){
+  let rows=[];
+  try{ rows=((await api("/v1/places"))||{}).items||[] }catch(e){ rows=[] }
+  view.innerHTML=`${titleBlock("PLACES","地","常住地、常用地址与行程。地址只到街道级；坐标默认不采，需要到达提醒时再填。")}
+   <section class="panel" style="padding:18px;margin-bottom:14px">
+     <div class="panel-title">地点 · ${rows.length}</div>
+     <p class="panel-caption">地点本身也是敏感信息（能推出你住哪、常去哪）。默认只在本机可见。</p>
+     <div style="margin-top:12px"><button class="button primary" id="place-new">＋ 新建地点</button></div>
+     <div style="margin-top:14px;display:grid;gap:10px">
+       ${rows.length?rows.map(p=>`
+         <div class="decision-detail" style="margin:0">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <strong>${esc(p.display_name_zh||p.id)}</strong>
+             <span class="badge neutral">${esc(kindText(p.place_kind))}</span>
+             ${p.radius_m?`<span class="panel-caption" style="margin:0">半径 ${esc(p.radius_m)} 米</span>`:""}
+             <span style="margin-left:auto;display:flex;gap:6px">
+               <button class="button" data-place-edit="${esc(p.id)}">编辑</button>
+               <button class="button danger" data-place-del="${esc(p.id)}">删除</button>
+             </span>
+           </div>
+           <div class="panel-caption">${esc(p.address_text||"（未填地址）")}${p.place_note?` · ${esc(p.place_note)}`:""}</div>
+         </div>`).join(""):`<div class="empty-state">还没有地点。先加一个"家"，再加一个"公司"。</div>`}
+     </div></section>`;
+  $("#place-new").onclick=()=>openPlaceModal(null);
+  $$('[data-place-edit]',view).forEach(b=>b.onclick=()=>{
+    const p=rows.find(x=>String(x.id)===String(b.dataset.placeEdit)); if(p) openPlaceModal(p);
+  });
+  $$('[data-place-del]',view).forEach(b=>b.onclick=()=>{
+    const p=rows.find(x=>String(x.id)===String(b.dataset.placeDel))||{};
+    confirmModal({title:`删除「${p.display_name_zh||"这个地点"}」？`, body:"删除后不可恢复；它不会被其它记录引用，删了不影响已有规则。", danger:true, okText:"删除", onOk: async ()=>{
+      try{ await api(`/v1/places/${encodeURIComponent(p.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    }});
+  });
 }
