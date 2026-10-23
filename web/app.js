@@ -1840,6 +1840,36 @@ function expiryBadge(at){
   return `<span class="badge neutral">${d} 天后到期</span>`;
 }
 
+function openTxModal(assets){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content) return;
+  if(!assets.length){ toast("先在「财」里建一个资产，再记账",true); return; }
+  content.innerHTML=`<div class="modal-kicker">LEDGER</div>
+    <h2>记一笔</h2>
+    <p class="modal-intro">流水存在独立的账本段里：不写主图、不参与任何对外授权。</p>
+    <div class="modal-form">
+      <label class="field"><span class="field-label">属于哪个资产</span><select class="select" id="tx-asset">${assets.map(x=>`<option value="${esc(x.id)}">${esc(x.display_name_zh||x.id)}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">金额（支出填负数）</span><input class="input" id="tx-amount" placeholder="例如 -38.5 或 12000"></label>
+      <label class="field"><span class="field-label">对方</span><input class="input" id="tx-party" placeholder="例如 某商户"></label>
+      <label class="field"><span class="field-label">分类</span><input class="input" id="tx-cat" placeholder="例如 餐饮 / 交通 / 保费"></label>
+      <label class="field"><span class="field-label">日期（可空，默认今天）</span><input class="input" type="date" id="tx-date"></label>
+      <label class="field"><span class="field-label">摘要</span><input class="input" id="tx-summary" placeholder="银行给的描述，可选"></label>
+    </div>
+    <div class="modal-actions"><button class="button" id="tx-cancel">取消</button><button class="button primary" id="tx-save">保存</button></div>`;
+  dialog.showModal();
+  $("#tx-cancel").onclick=()=>dialog.close();
+  $("#tx-save").onclick=async()=>{
+    const body={asset_id:$("#tx-asset").value, amount:$("#tx-amount").value,
+                counterparty:String($("#tx-party").value||"").trim(),
+                category:String($("#tx-cat").value||"").trim(),
+                occurred_at:String($("#tx-date").value||"").trim(),
+                summary:String($("#tx-summary").value||"").trim()};
+    if(!body.amount || isNaN(Number(body.amount))){ toast("请填金额（数字）",true); return; }
+    try{ await api("/v1/asset-transactions",{method:"POST",body:JSON.stringify(body)}); toast("已记一笔"); dialog.close(); render(); }
+    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+}
+
 function openAssetModal(row){
   const dialog=$("#record-dialog"), content=$("#dialog-content");
   if(!dialog||!content) return;
@@ -1910,6 +1940,32 @@ async function renderAssets(view){
            <div class="panel-caption">${esc(a.value_summary||"（未填金额摘要）")}${a.asset_note?` · ${esc(a.asset_note)}`:""}</div>
          </div>`).join(""):`<div class="empty-state">还没有资产。先加一个"工资卡"试试：标识填 **** 1234，金额填"余额 5 万左右"。</div>`}
      </div></section>`;
+  // 流水（ledger 独立段）：默认展示最近 20 笔
+  let txs=[];
+  try{ txs=((await api("/v1/asset-transactions"))||{}).items||[] }catch(e){ txs=[] }
+  const spend = txs.filter(t=>Number(t.amount)<0).reduce((acc,t)=>acc+Math.abs(Number(t.amount)||0),0);
+  const income = txs.filter(t=>Number(t.amount)>0).reduce((acc,t)=>acc+Number(t.amount||0),0);
+  view.insertAdjacentHTML("beforeend", `<section class="panel" style="padding:18px;margin-top:14px">
+     <div class="panel-title">流水 · ${txs.length}</div>
+     <p class="panel-caption">支出 ${spend.toFixed(2)} ｜ 收入 ${income.toFixed(2)} ｜ 存在独立账本段，不参与对外授权。</p>
+     <div style="margin-top:12px"><button class="button" id="tx-new">＋ 记一笔</button></div>
+     <div style="margin-top:14px;display:grid;gap:8px">
+       ${txs.length?txs.slice(0,20).map(t=>`
+         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid #f0f2f0;padding-bottom:6px">
+           <span class="mono" style="min-width:84px">${esc(String(t.occurred_at||"").slice(0,10))}</span>
+           <span style="min-width:150px">${esc(t.counterparty||"（未填对方）")}</span>
+           <span class="badge neutral">${esc(t.category||"未分类")}</span>
+           <span class="mono" style="margin-left:auto;color:${Number(t.amount)<0?"#a5403a":"#32735a"}">${Number(t.amount)<0?"-":"+"}${Math.abs(Number(t.amount)||0).toFixed(2)}</span>
+           <button class="button danger" data-tx-del="${esc(t.id)}">删除</button>
+         </div>`).join(""):`<div class="empty-state">还没有流水。可以从银行导出的对账单里挑几笔记进来。</div>`}
+     </div></section>`);
+  $("#tx-new").onclick=()=>openTxModal(rows);
+  $$('[data-tx-del]',view).forEach(b=>b.onclick=()=>{
+    confirmModal({title:"删除这笔流水？", body:"只删这一笔，资产本身不受影响。", danger:true, okText:"删除", onOk: async ()=>{
+      try{ await api(`/v1/asset-transactions/${encodeURIComponent(b.dataset.txDel)}`,{method:"DELETE"}); toast("已删除"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    }});
+  });
   $("#as-new").onclick=()=>openAssetModal(null);
   $$('[data-as-edit]',view).forEach(b=>b.onclick=()=>{ const a=rows.find(x=>String(x.id)===String(b.dataset.asEdit)); if(a) openAssetModal(a); });
   $$('[data-as-del]',view).forEach(b=>b.onclick=()=>{
