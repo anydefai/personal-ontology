@@ -1277,7 +1277,7 @@ function revealItemModal(it){
   if(!dialog||!content) return;
   const label=esc(it.label_zh||it.field_key||"资料项");
   content.innerHTML=`<div class="modal-kicker">REVEAL</div><h2>查看「${label}」</h2>
-    <p class="modal-intro">本次查看会写入记录。确认后显示明文。</p>
+    <p class="modal-intro">注意：查看记录功能尚未接入，本次查看不会被记录。确认后显示明文。</p>
     <div class="modal-actions"><button class="button" id="rv-cancel">取消</button><button class="button primary" id="rv-ok">确认查看</button></div>`;
   dialog.showModal();
   $("#rv-cancel").onclick=()=>dialog.close();
