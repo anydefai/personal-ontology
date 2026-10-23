@@ -392,16 +392,16 @@ async function renderProfessionalSlices(view){
  </section>`;
  const defSel=$("#pro-def");
  const startBtn=$("#pro-start"); if(startBtn) startBtn.onclick=async()=>{
-   const id=defSel?.value; if(!id){alert("请先选择一个专业场景。");return}
+   const id=defSel?.value; if(!id){alertModal("请先选择一个专业场景。");return}
    const label=defSel.options[defSel.selectedIndex].text;
    const r=await api("/v1/scenario-slices",{method:"POST",body:JSON.stringify({original_text:label,status:"analyzed",scenario_definition_id:id,scenario_profile:{kind:"professional"},analysis:{title:label},updated_at:new Date().toISOString()})});
    if(r?.id){proSliceId=r.id;cache["scenario-slices"]=null;render()}};
  const sliceSel=$("#pro-slice"); if(sliceSel) sliceSel.onchange=()=>{proSliceId=sliceSel.value;render()};
  const save=$("#pro-save"); if(save) save.onclick=async()=>{
-   if(!proSliceId){alert("请先点「开始录入我的判断」。");return}
+   if(!proSliceId){alertModal("请先点「开始录入我的判断」。");return}
    const premise={}; document.querySelectorAll("[data-premise]").forEach(i=>{if(i.value.trim())premise[i.dataset.premise]=i.value.trim()});
    const body={slice_id:proSliceId,premise,conclusion:$("#pro-conclusion").value.trim(),exception:$("#pro-exception").value.trim(),basis:$("#pro-basis").value.trim(),authority:$("#pro-authority").value,review_state:"draft",version:"1",updated_at:new Date().toISOString()};
-   if(!body.conclusion){alert("请填写「我的判断」。");return}
+   if(!body.conclusion){alertModal("请填写「我的判断」。");return}
    await api("/v1/knowledge-entries",{method:"POST",body:JSON.stringify(body)});cache["knowledge-entries"]=null;render() };
  document.querySelectorAll("[data-pro-toggle]").forEach(b=>b.onclick=async()=>{
    await api(`/v1/knowledge-entries/${b.dataset.proToggle}`,{method:"PATCH",body:JSON.stringify({review_state:b.dataset.to,reviewed_at:new Date().toISOString()})});cache["knowledge-entries"]=null;render() });
@@ -840,11 +840,11 @@ async function renderProfessionalPreview(view){
   document.querySelectorAll("[data-pro-mode]").forEach(b=>b.onclick=()=>{professionalMode=b.dataset.proMode==="professional";proEvalResult=null;render()});
   const sel=$("#pe-def"); if(sel) sel.onchange=()=>{proEvalDefId=sel.value;proEvalResult=null;render()};
   const saveFw=$("#pe-save-framework"); if(saveFw) saveFw.onclick=async()=>{
-    let parsed; try{ parsed=JSON.parse($("#pe-framework").value); }catch(e){ alert("框架 JSON 解析失败："+e.message); return; }
-    if(typeof parsed!=="object"||!parsed){ alert("框架必须是一个对象。"); return; }
+    let parsed; try{ parsed=JSON.parse($("#pe-framework").value); }catch(e){ alertModal("框架 JSON 解析失败："+e.message); return; }
+    if(typeof parsed!=="object"||!parsed){ alertModal("框架必须是一个对象。"); return; }
     await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}`,{method:"PATCH",body:JSON.stringify({framework:parsed})});
     cache["scenario-definitions"]=null; render(); };
-  const parseCases=()=>{ try{ return JSON.parse($("#pe-cases").value); }catch(e){ alert("案例 JSON 解析失败："+e.message); return null; } };
+  const parseCases=()=>{ try{ return JSON.parse($("#pe-cases").value); }catch(e){ alertModal("案例 JSON 解析失败："+e.message); return null; } };
   const sendFeedback=async(verdict)=>{
     const out=await api(`/v1/scenario-slices/${encodeURIComponent(proEvalDefId)}/judgment-feedback`,{method:"POST",body:JSON.stringify({verdict})});
     const h=$("#pe-fb-hint");
@@ -1175,7 +1175,7 @@ document.addEventListener("click", event => {
   api("/v1/scenario-slices/" + encodeURIComponent(b.dataset.unconfirmSlice),
     { method: "PATCH", body: JSON.stringify({ status: "analyzed" }) })
     .then(() => { cache["scenario-slices"] = null; render(); })
-    .catch(err => alert("退回草稿失败：" + (err && err.message ? err.message : err)));
+    .catch(err => alertModal("退回草稿失败：" + (err && err.message ? err.message : err)));
 });
 
 
@@ -1248,6 +1248,16 @@ function bindProfileForm(view){
       profileEdit=null; render();
     }catch(e){toast(e.message,true)}
   };
+}
+function alertModal(message, title){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content){ window.alert(message); return; }
+  content.innerHTML=`<div class="modal-kicker">NOTICE</div>
+    <h2>${esc(title||"提示")}</h2>
+    <p class="modal-intro" style="white-space:pre-wrap">${esc(message)}</p>
+    <div class="modal-actions"><button class="button primary" id="am-ok">知道了</button></div>`;
+  dialog.showModal();
+  $("#am-ok").onclick=()=>dialog.close();
 }
 function confirmModal(opts){
   const dialog=$("#record-dialog"), content=$("#dialog-content");
