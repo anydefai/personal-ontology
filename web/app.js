@@ -14,6 +14,8 @@ const labels = {
   "places": {title:"地", subtitle:"常住地、常用地址与行程；哪些信息在哪个地点可用。"},
   "assets": {title:"财", subtitle:"账户、资产、保险与订阅；流水单独一页，默认折叠。"},
   "knowledge": {title:"识", subtitle:"笔记、作品、照片、证据与知识卡。"},
+  "boundaries": {title:"界", subtitle:"授权规则、每次预填、红线、偏好与禁区。"},
+  "devices": {title:"器", subtitle:"设备、智能体、服务账号与 MCP 接入。"},
   "profiles": {title:"个人资料", subtitle:"实名、证件、联系方式等敏感信息的存放处。字段随时可增删改，界面默认只显示掩码。"},
   "scenario-instances": {title:"场景实例",subtitle:"统一维护由场景切片确认写入本体的可复用实例。"},
   "account-security": {title:"登录与安全",subtitle:"管理登录密码、锁定状态与加密容器。"},
@@ -117,6 +119,8 @@ function titleBlock(kicker,title,subtitle,action=""){return `<div class="title-r
 function badge(value){const v=String(value??"").toLowerCase();const kind=["allow","deny","ask"].includes(v)?v:["true","active","person"].includes(v)?"active":["revoked","false"].includes(v)?"revoked":["high","critical"].includes(v)?"ask":"neutral";const text={allow:"允许",deny:"拒绝",ask:"需确认",true:"启用",false:"停用",person:"个人",low:"低",medium:"中",high:"高",critical:"严重"}[v]||value||"—";return `<span class="badge ${kind}">${esc(text)}</span>`}
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);
+  else if(currentPage==="boundaries")renderComingSoon(view,"界","授权规则、每次预填、红线、偏好与禁区。","把授权对象扩成 个体 / 圈 / 一次性，并在此页统一管理");
+  else if(currentPage==="devices")renderComingSoon(view,"器","设备、智能体、服务账号与 MCP 接入。","把 agent-clients 从明文迁进本体（devices），再接此页");
   else if(currentPage==="circles")renderComingSoon(view,"圈","谁能看到什么，按圈来。一圈人、一个默认边界。","建 circles / circle-members 两个集合，再做列表与成员管理");
   else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
   else if(currentPage==="places")renderComingSoon(view,"地","常住地、常用地址与行程。","建 places 集合，先只做手动录入");
