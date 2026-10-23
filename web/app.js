@@ -130,7 +130,7 @@ async function render(){const view=$("#view");if(!sessionStorage.getItem(session
   else if(currentPage==="commitments")await renderCommitments(view);
   else if(currentPage==="places")await renderPlaces(view);
   else if(currentPage==="assets")await renderAssets(view);
-  else if(currentPage==="knowledge")renderComingSoon(view,"识","笔记、作品、照片、证据与知识卡。","把 knowledge-entries 扩成通用条目，再接文件索引");else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
+  else if(currentPage==="knowledge")await renderKnowledge(view);else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
   else if(currentPage==="feedback")await renderFeedback(view);else if(currentPage==="display-settings")await renderDisplaySettings(view);else if(currentPage==="decisions")await renderDecisions(view);else if(currentPage==="delivery")await renderDelivery(view);else if(currentPage==="agent-access")await renderAgentAccess(view);else if(currentPage==="agent-integration")await renderAgentIntegration(view);else if(currentPage==="service-monitor")await renderServiceMonitor(view);else await renderCollection(view,currentPage)}catch(error){view.innerHTML=`<div class="panel empty-state"><div class="empty-icon">!</div><strong>暂时无法读取数据</strong><p>${esc(error.message)}</p><button class="button" onclick="reloadAll()">重新连接</button></div>`;if(error instanceof AuthRequired){sessionStorage.removeItem(sessionKey);renderAuth(view,await serviceHealth())}}finally{applyI18n()}}
  if(["scenario-slices","scenario-instances","scenario-preview","delivery","decisions"].includes(currentPage)&&!view.querySelector("[data-pro-mode]"))view.insertAdjacentHTML("afterbegin",proModeButtons());   // Fallback: these three pages must carry the mode switch, whichever branch rendered.
 async function renderAgentIntegration(view){
@@ -1908,6 +1908,79 @@ async function renderAssets(view){
     const a=rows.find(x=>String(x.id)===String(b.dataset.asDel))||{};
     confirmModal({title:`删除「${a.display_name_zh||"这个资产"}」？`, body:"删除后不可恢复。已存在的流水不会被删除（它们在独立的账本段里）。", danger:true, okText:"删除", onOk: async ()=>{
       try{ await api(`/v1/assets/${encodeURIComponent(a.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    }});
+  });
+}
+
+// ===== 识：笔记与结论卡（复用 knowledge-entries）=====
+function openKnowledgeModal(row){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content) return;
+  const k = row || {};
+  const f = (id, label, value, ph, area)=>`<label class="field"><span class="field-label">${label}</span>${area?`<textarea class="textarea" id="${id}" rows="2" placeholder="${ph}">${esc(value||"")}</textarea>`:`<input class="input" id="${id}" value="${esc(value||"")}" placeholder="${ph}">`}</label>`;
+  content.innerHTML=`<div class="modal-kicker">NOTE</div>
+    <h2>${row?"编辑":"新建"}一条</h2>
+    <p class="modal-intro">把"我凭什么得出这个结论"一起记下来：前提、结论、依据、出处、例外。以后回看时能立刻复现当时的推理。</p>
+    <div class="modal-form">
+      ${f("kn-title","标题","","例如 新能源并购的估值区间怎么定")}
+      ${f("kn-premise","前提","" ,"例如 标的 2026 年营收 12 亿、毛利率 18%",true)}
+      ${f("kn-conclusion","结论","" ,"例如 合理区间 8–10 倍市盈率",true)}
+      ${f("kn-basis","依据","", "例如 同行业可比交易 5 笔，中位数 9 倍",true)}
+      ${f("kn-authority","出处 / 权威","", "例如 某券商研报 / 本人经验")}
+      ${f("kn-exception","例外","", "例如 若对赌缺失，区间下移到 6–8 倍")}
+    </div>
+    <div class="modal-actions"><button class="button" id="kn-cancel">取消</button><button class="button primary" id="kn-save">保存</button></div>`;
+  dialog.showModal();
+  $("#kn-cancel").onclick=()=>dialog.close();
+  $("#kn-save").onclick=async()=>{
+    const body={entry_id: row ? row.id : undefined,
+                premise:String($("#kn-premise").value||"").trim(),
+                conclusion:String($("#kn-conclusion").value||"").trim(),
+                basis:String($("#kn-basis").value||"").trim(),
+                authority:String($("#kn-authority").value||"").trim(),
+                exception:String($("#kn-exception").value||"").trim(),
+                applies_to:String($("#kn-title").value||"").trim()};
+    if(!body.conclusion){ toast("至少写一句结论",true); return; }
+    try{
+      if(row){ await api(`/v1/knowledge-entries/${encodeURIComponent(row.id)}`,{method:"PATCH",body:JSON.stringify(body)}); toast("已保存"); }
+      else { await api("/v1/knowledge-entries",{method:"POST",body:JSON.stringify(body)}); toast("已新建"); }
+      dialog.close(); render();
+    }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+}
+
+async function renderKnowledge(view){
+  let rows=[];
+  try{ rows=((await api("/v1/knowledge-entries"))||{}).items||[] }catch(e){ rows=[] }
+  view.innerHTML=`${titleBlock("KNOWLEDGE","识","笔记与结论卡：把前提、结论、依据、出处、例外放在一起。以后回看时能复现当时的推理，而不是只剩一句结论。")}
+   <section class="panel" style="padding:18px">
+     <div class="panel-title">知识条目 · ${rows.length}</div>
+     <p class="panel-caption">照片、文档与语音索引还没做；这一页现在放的是"结论卡"。</p>
+     <div style="margin-top:12px"><button class="button primary" id="kn-new">＋ 新建一条</button></div>
+     <div style="margin-top:14px;display:grid;gap:10px">
+       ${rows.length?rows.map(k=>`
+         <div class="decision-detail" style="margin:0">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <strong>${esc(k.applies_to||k.conclusion||k.id).slice(0,40)}</strong>
+             ${k.authority?`<span class="badge neutral">${esc(k.authority)}</span>`:""}
+             <span style="margin-left:auto;display:flex;gap:6px">
+               <button class="button" data-kn-edit="${esc(k.id)}">编辑</button>
+               <button class="button danger" data-kn-del="${esc(k.id)}">删除</button>
+             </span>
+           </div>
+           ${k.premise?`<div class="panel-caption">前提：${esc(k.premise)}</div>`:""}
+           ${k.conclusion?`<div class="panel-caption">结论：${esc(k.conclusion)}</div>`:""}
+           ${k.basis?`<div class="panel-caption">依据：${esc(k.basis)}</div>`:""}
+           ${k.exception?`<div class="panel-caption">例外：${esc(k.exception)}</div>`:""}
+         </div>`).join(""):`<div class="empty-state">还没有条目。试着写第一条：前提是什么、结论是什么、依据在哪、什么情况算例外。</div>`}
+     </div></section>`;
+  $("#kn-new").onclick=()=>openKnowledgeModal(null);
+  $$('[data-kn-edit]',view).forEach(b=>b.onclick=()=>{ const k=rows.find(x=>String(x.id)===String(b.dataset.knEdit)); if(k) openKnowledgeModal(k); });
+  $$('[data-kn-del]',view).forEach(b=>b.onclick=()=>{
+    const k=rows.find(x=>String(x.id)===String(b.dataset.knDel))||{};
+    confirmModal({title:"删除这条知识？", body:"删除后不可恢复。已经据此做出的判断记录仍会保留在判定记录里。", danger:true, okText:"删除", onOk: async ()=>{
+      try{ await api(`/v1/knowledge-entries/${encodeURIComponent(k.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
       catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
     }});
   });
