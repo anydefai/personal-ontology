@@ -1249,6 +1249,19 @@ function bindProfileForm(view){
     }catch(e){toast(e.message,true)}
   };
 }
+function confirmModal(opts){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  const go=()=>{ try{ opts.onOk && opts.onOk() }catch(e){ console.error(e) } };
+  if(!dialog||!content){ if(window.confirm(opts.title||"确认？")) go(); return; }
+  content.innerHTML=`<div class="modal-kicker">${esc(opts.kicker||"CONFIRM")}</div>
+    <h2>${esc(opts.title||"确认")}</h2>
+    <p class="modal-intro">${esc(opts.body||"")}</p>
+    <div class="modal-actions"><button class="button" id="cm-cancel">取消</button>
+      <button class="button ${opts.danger?"danger":"primary"}" id="cm-ok">${esc(opts.okText||"确认")}</button></div>`;
+  dialog.showModal();
+  $("#cm-cancel").onclick=()=>dialog.close();
+  $("#cm-ok").onclick=()=>{ dialog.close(); go(); };
+}
 function revealItemModal(it){
   const dialog=$("#record-dialog"), content=$("#dialog-content");
   if(!dialog||!content) return;
@@ -1329,8 +1342,9 @@ async function renderProfiles(view){
     render();
   });
   $$('[data-del-profile]',view).forEach(b=>b.onclick=async()=>{
-    if(!confirm("删除这份资料？删除后不可恢复。"))return;
-    try{await api(`/v1/profiles/${encodeURIComponent(b.dataset.delProfile)}`,{method:"DELETE"});toast("已删除");render()}catch(e){toast(e.message,true)}
+    confirmModal({title:"删除这份资料？", body:"删除后不可恢复。", danger:true, okText:"删除", onOk: async ()=>{
+      try{await api(`/v1/profiles/${encodeURIComponent(b.dataset.delProfile)}`,{method:"DELETE"});toast("已删除");render()}catch(e){toast(e.message,true)}
+    } });
   });
   // 反查：我的资料被谁用过
   try{
