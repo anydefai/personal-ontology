@@ -1277,13 +1277,20 @@ function revealItemModal(it){
   if(!dialog||!content) return;
   const label=esc(it.label_zh||it.field_key||"资料项");
   content.innerHTML=`<div class="modal-kicker">REVEAL</div><h2>查看「${label}」</h2>
-    <p class="modal-intro">注意：查看记录功能尚未接入，本次查看不会被记录。确认后显示明文。</p>
+    <p class="modal-intro">本次查看会写入记录（谁、什么时候、看了哪一项）。确认后显示明文。</p>
     <div class="modal-actions"><button class="button" id="rv-cancel">取消</button><button class="button primary" id="rv-ok">确认查看</button></div>`;
   dialog.showModal();
   $("#rv-cancel").onclick=()=>dialog.close();
-  $("#rv-ok").onclick=()=>{
+  $("#rv-ok").onclick=async()=>{
+    let note = "";
+    try{
+      const r = await api(`/v1/profile-items/${encodeURIComponent(it.id)}/reveal`, {method:"POST", body:JSON.stringify({purpose:"查看明文"})});
+      note = `已写入记录 · 第 ${r.times_revealed||1} 次查看`;
+    }catch(e){
+      note = "记录写入失败（本次查看没有被记下来）";
+    }
     content.innerHTML=`<div class="modal-kicker">REVEAL</div><h2>${label}</h2>
-      <p class="modal-intro">${esc(it.field_key||"")} · ${esc(it.item_sensitivity||"normal")}${it.item_verified==="true"?" · 已验证":""}</p>
+      <p class="modal-intro">${esc(it.field_key||"")} · ${esc(it.item_sensitivity||"normal")}${it.item_verified==="true"?" · 已验证":""}<br>${esc(note)}</p>
       <div style="font-size:15px;word-break:break-all;background:#fbfcfb;border:1px solid #e6eae7;border-radius:8px;padding:12px">${esc(it.item_value||"（空）")}</div>
       <div class="modal-actions"><button class="button" id="rv-close">关闭</button></div>`;
     $("#rv-close").onclick=()=>dialog.close();
