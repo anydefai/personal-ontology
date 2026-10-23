@@ -1470,6 +1470,108 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 圈：只描述关系，不存对方资料 ──
+CIRCLE_TYPES = {"family", "friend", "work", "class", "service", "org", "other"}
+MEMBER_STRENGTH = {"close", "normal", "distant"}
+
+
+@app.get("/v1/circles", dependencies=[Depends(require_session)])
+async def list_circles() -> Any:
+    return {"items": store.list("circles")}
+
+
+@app.post("/v1/circles", status_code=201, dependencies=[Depends(require_session)])
+async def create_circle(body: dict[str, Any]) -> Any:
+    name = str(body.get("display_name_zh") or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    ctype = str(body.get("circle_type") or "other")
+    if ctype not in CIRCLE_TYPES:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    cid = "circle_" + uuid4().hex[:12]
+    record = {"display_name_zh": name,
+              "display_name_en": str(body.get("display_name_en") or name),
+              "circle_type": ctype,
+              "my_role": str(body.get("my_role") or ""),
+              "circle_sensitivity": str(body.get("sensitivity") or "sensitive"),
+              "default_grant_note": str(body.get("default_grant_note") or ""),
+              "circle_created_at": stamp, "circle_updated_at": stamp}
+    store.put("circles", cid, record, create_only=True)
+    return {"id": cid, **record}
+
+
+@app.patch("/v1/circles/{circle_id}", dependencies=[Depends(require_session)])
+async def update_circle(circle_id: str, body: dict[str, Any]) -> Any:
+    cur = store.get("circles", circle_id)
+    if not cur:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    updated = dict(cur)
+    for key in ("display_name_zh", "display_name_en", "circle_type", "my_role",
+                "circle_sensitivity", "default_grant_note"):
+        if key in body:
+            updated[key] = body[key]
+    if str(updated.get("circle_type")) not in CIRCLE_TYPES:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    updated["circle_updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    store.put("circles", circle_id, {k: v for k, v in updated.items() if k not in {"id", "circle_id"}})
+    return {"id": circle_id, **{k: v for k, v in updated.items() if k not in {"id", "circle_id"}}}
+
+
+@app.delete("/v1/circles/{circle_id}", dependencies=[Depends(require_session)])
+async def delete_circle(circle_id: str) -> Any:
+    if not store.get("circles", circle_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    removed = 0
+    for member in store.list("circle-members"):
+        if str(member.get("circle_id")) == circle_id:
+            if store.delete("circle-members", str(member.get("id"))):
+                removed += 1
+    store.delete("circles", circle_id)
+    return {"deleted": circle_id, "members_removed": removed}
+
+
+@app.get("/v1/circles/{circle_id}/members", dependencies=[Depends(require_session)])
+async def list_circle_members(circle_id: str) -> Any:
+    if not store.get("circles", circle_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    rows = [x for x in store.list("circle-members") if str(x.get("circle_id")) == circle_id]
+    return {"items": rows}
+
+
+@app.post("/v1/circles/{circle_id}/members", status_code=201, dependencies=[Depends(require_session)])
+async def create_circle_member(circle_id: str, body: dict[str, Any]) -> Any:
+    name = str(body.get("display_name_zh") or "").strip()
+    if not circle_id or not name:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    if not store.get("circles", circle_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    strength = str(body.get("strength") or "normal")
+    if strength not in MEMBER_STRENGTH:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    mid = "member_" + uuid4().hex[:12]
+    record = {"circle_id": circle_id,
+              "principal_id": str(body.get("principal_id") or ""),
+              "contact_ref": str(body.get("contact_ref") or ""),
+              "display_name_zh": name,
+              "member_role": str(body.get("member_role") or ""),
+              "strength": strength,
+              "last_interaction_at": str(body.get("last_interaction_at") or ""),
+              "member_source": str(body.get("source") or "manual"),
+              "member_added_at": stamp}
+    store.put("circle-members", mid, record, create_only=True)
+    return {"id": mid, **record}
+
+
+@app.delete("/v1/circle-members/{member_id}", dependencies=[Depends(require_session)])
+async def delete_circle_member(member_id: str) -> Any:
+    if not store.get("circle-members", member_id):
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    store.delete("circle-members", member_id)
+    return {"deleted": member_id}
+
+
 # ── 个人资料（灵活字段）：用户可随时增删改，内容整体存在 items 里 ──
 @app.get("/v1/profiles", dependencies=[Depends(require_session)])
 async def list_profiles() -> Any:
