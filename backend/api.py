@@ -1498,6 +1498,16 @@ async def create_circle(body: dict[str, Any]) -> Any:
               "default_grant_note": str(body.get("default_grant_note") or ""),
               "circle_created_at": stamp, "circle_updated_at": stamp}
     store.put("circles", cid, record, create_only=True)
+    # 圈也是一个"集体主体"：规则里把 grantee 写成圈 ID 时，po:grantee 的 rdfs:range 会把它推理成
+    # Principal，因此必须有一条 principalType=group 的主体记录，否则 SHACL 数据类型校验会失败。
+    try:
+        if not store.get("principals", cid):
+            store.put("principals", cid, {"principal_id": cid, "principal_type": "group",
+                                          "display_name_zh": name,
+                                          "display_name_en": str(body.get("display_name_en") or name)},
+                      create_only=True)
+    except Exception:                                   # noqa: BLE001 - 主体建失败不应让建圈失败
+        pass
     return {"id": cid, **record}
 
 
@@ -1522,12 +1532,23 @@ async def update_circle(circle_id: str, body: dict[str, Any]) -> Any:
 async def delete_circle(circle_id: str) -> Any:
     if not store.get("circles", circle_id):
         raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    refs = [r for r in store.list("authorizations")
+            if str(r.get("grantee_id")) == circle_id and not r.get("revoked")]
+    if refs:
+        raise HTTPException(status_code=409, detail={"error": "circle_in_use",
+            "message": f"还有 {len(refs)} 条授权规则指向这个圈，请先在「界」里暂停或删除它们，再删圈。"})
     removed = 0
     for member in store.list("circle-members"):
         if str(member.get("circle_id")) == circle_id:
             if store.delete("circle-members", str(member.get("id"))):
                 removed += 1
     store.delete("circles", circle_id)
+    try:
+        _p = store.get("principals", circle_id)
+        if _p and str(_p.get("principal_type")) == "group":
+            store.delete("principals", circle_id)
+    except Exception:                                   # noqa: BLE001
+        pass
     return {"deleted": circle_id, "members_removed": removed}
 
 

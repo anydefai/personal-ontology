@@ -471,6 +471,17 @@ class RDFStore:
             if parent_id in ancestry: break
             ancestry.add(parent_id)
             cursor = self.get("principals", parent_id) or {}
+        # 圈：把"我所属的圈"也并入 ancestry，于是 grantee_id 写成圈 ID 的规则会自动命中圈内成员。
+        # 规则格式不变、旧数据不变；只有新写的圈规则会走到这里。
+        try:
+            _me = str(request["principal_id"])
+            for _m in self.list("circle-members"):
+                if str(_m.get("principal_id") or "") == _me:
+                    _cid = str(_m.get("circle_id") or "")
+                    if _cid:
+                        ancestry.add(_cid)
+        except Exception:                                   # noqa: BLE001 - 圈读不到不影响其它规则
+            pass
         matched = []
         used_context_keys = {"source_trust"}   # 风险门槛总会读取它
         for rule in candidates:
