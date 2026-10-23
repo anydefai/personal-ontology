@@ -124,7 +124,7 @@ function titleBlock(kicker,title,subtitle,action=""){return `<div class="title-r
 function badge(value){const v=String(value??"").toLowerCase();const kind=["allow","deny","ask"].includes(v)?v:["true","active","person"].includes(v)?"active":["revoked","false"].includes(v)?"revoked":["high","critical"].includes(v)?"ask":"neutral";const text={allow:"允许",deny:"拒绝",ask:"需确认",true:"启用",false:"停用",person:"个人",low:"低",medium:"中",high:"高",critical:"严重"}[v]||value||"—";return `<span class="badge ${kind}">${esc(text)}</span>`}
 async function render(){const view=$("#view");if(!sessionStorage.getItem(sessionKey)){const health=await serviceHealth();if(!health.offline&&health.initialized===false)authMode="setup";renderAuth(view,health);applyI18n();return}
  try{if(currentPage==="dashboard")await renderDashboard(view);else if(currentPage==="scenario-slices")await renderScenarios(view);else if(currentPage==="scenario-instances")await renderScenarioInstances(view);else if(currentPage==="profiles")await renderProfiles(view);
-  else if(currentPage==="boundaries")renderComingSoon(view,"界","授权规则、每次预填、红线、偏好与禁区。","把授权对象扩成 个体 / 圈 / 一次性，并在此页统一管理");
+  else if(currentPage==="boundaries")await renderBoundaries(view);
   else if(currentPage==="devices")await renderDevices(view);
   else if(currentPage==="circles")await renderCircles(view);
   else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
@@ -1586,4 +1586,54 @@ async function renderDevices(view){
       toast(`已同步 ${r.synced||0} 条`); render(); }
     catch(e){ btn.disabled=false; btn.textContent="↻ 从接入清单同步"; if(!(e instanceof AuthRequired)) toast(e.message,true); }
   };
+}
+
+// ===== 界：授权与边界（总览；增删启停仍在各场景页操作）=====
+const EFFECT_TEXT = {allow:"允许", deny:"拒绝", ask:"暂停并询问"};
+const POLICY_TEXT = {active:"生效中", draft:"草稿（未生效）", suspended:"已暂停"};
+
+async function renderBoundaries(view){
+  let rules=[], circles=[], principals=[];
+  try{ rules=((await api("/v1/authorizations"))||{}).items||[] }catch(e){ rules=[] }
+  try{ circles=((await api("/v1/circles"))||{}).items||[] }catch(e){ circles=[] }
+  try{ principals=((await api("/v1/principals"))||{}).items||[] }catch(e){ principals=[] }
+  const cname = Object.fromEntries(circles.map(c=>[String(c.id), c.display_name_zh||c.id]));
+  const pname = Object.fromEntries(principals.map(p=>[String(p.id), displayName("principals", p)]));
+  const whoText = (r)=> cname[String(r.grantee_id)] ? `圈：${cname[String(r.grantee_id)]}`
+                    : (pname[String(r.grantee_id)] || String(r.grantee_id||"—"));
+  const live = rules.filter(r=>!r.revoked && String(r.policy_status||"active")==="active");
+  const drafts = rules.filter(r=>!r.revoked && String(r.policy_status)==="draft");
+  const paused = rules.filter(r=>!r.revoked && String(r.policy_status)==="suspended");
+  const revoked = rules.filter(r=>r.revoked);
+  const circleCount = live.filter(r=>cname[String(r.grantee_id)]).length;
+
+  const card = (r)=>`
+    <div class="decision-detail" style="margin:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <strong>${esc(whoText(r))}</strong>
+        <span class="badge ${String(r.effect)==="allow"?"active":(String(r.effect)==="deny"?"deny":"pending")}">${esc(EFFECT_TEXT[String(r.effect)]||r.effect||"—")}</span>
+        <span class="badge neutral">${esc(POLICY_TEXT[String(r.policy_status||"active")]||r.policy_status||"生效中")}</span>
+        ${r.revoked?'<span class="badge deny">已撤回</span>':""}
+        <span class="panel-caption" style="margin:0">资源 ${esc(relationName("resource-types", r.resource_type_id))} · 动作 ${esc((r.actions||[]).map(a=>relationName("actions",a)).join("、")||"—")}</span>
+        <span class="panel-caption" style="margin:0">条件 ${((r.constraints||[]).length)}</span>
+      </div>
+      <div class="panel-caption">来源：${esc(String(r.source||"—"))}</div>
+    </div>`;
+
+  view.innerHTML=`${titleBlock("BOUNDARIES","界","谁能做什么、给到哪一层。按圈的规则与按个体的规则在这里一起看；启停与增删仍在各自的场景页操作。")}
+   <div class="stats-grid">
+     <div class="stat-card"><div class="stat-top"><span>生效中</span><span class="stat-icon">✓</span></div><div class="stat-num">${live.length}</div><div class="stat-foot">其中按圈 ${circleCount} 条</div></div>
+     <div class="stat-card"><div class="stat-top"><span>草稿</span><span class="stat-icon">◌</span></div><div class="stat-num">${drafts.length}</div><div class="stat-foot">未参与判定</div></div>
+     <div class="stat-card"><div class="stat-top"><span>已暂停</span><span class="stat-icon">‖</span></div><div class="stat-num">${paused.length}</div><div class="stat-foot">可重新启用</div></div>
+     <div class="stat-card"><div class="stat-top"><span>已撤回</span><span class="stat-icon">×</span></div><div class="stat-num">${revoked.length}</div><div class="stat-foot">留痕仍在</div></div>
+   </div>
+   <section class="panel" style="padding:18px;margin-bottom:14px">
+     <div class="panel-title">生效中 · ${live.length}</div>
+     <div style="display:grid;gap:10px;margin-top:12px">
+       ${live.length?live.map(card).join(""):`<div class="empty-state">还没有生效的规则。到场景实例里生成规则并启用，或给某个圈授权。</div>`}
+     </div>
+   </section>
+   ${drafts.length?`<section class="panel" style="padding:18px;margin-bottom:14px"><div class="panel-title">草稿 · ${drafts.length}</div><p class="panel-caption">草稿不参与判定，需要在场景实例或规则页显式启用。</p><div style="display:grid;gap:10px;margin-top:12px">${drafts.map(card).join("")}</div></section>`:""}
+   ${paused.length?`<section class="panel" style="padding:18px;margin-bottom:14px"><div class="panel-title">已暂停 · ${paused.length}</div><div style="display:grid;gap:10px;margin-top:12px">${paused.map(card).join("")}</div></section>`:""}
+   ${revoked.length?`<section class="panel" style="padding:18px"><div class="panel-title">已撤回 · ${revoked.length}</div><p class="panel-caption">撤回后立即失去访问权；记录保留以便审计。</p><div style="display:grid;gap:10px;margin-top:12px">${revoked.map(card).join("")}</div></section>`:""}`;
 }
