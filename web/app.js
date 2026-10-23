@@ -127,7 +127,7 @@ async function render(){const view=$("#view");if(!sessionStorage.getItem(session
   else if(currentPage==="boundaries")await renderBoundaries(view);
   else if(currentPage==="devices")await renderDevices(view);
   else if(currentPage==="circles")await renderCircles(view);
-  else if(currentPage==="commitments")renderComingSoon(view,"事","日程、约定、承诺、合同与保修。","建 commitments 集合，并接入到期提醒");
+  else if(currentPage==="commitments")await renderCommitments(view);
   else if(currentPage==="places")await renderPlaces(view);
   else if(currentPage==="assets")renderComingSoon(view,"财","账户、资产、保险与订阅；流水单独一页。","建 assets 与 asset-transactions（ledger 段已就绪）");
   else if(currentPage==="knowledge")renderComingSoon(view,"识","笔记、作品、照片、证据与知识卡。","把 knowledge-entries 扩成通用条目，再接文件索引");else if(currentPage==="scenario-preview")await renderScenarioPreview(view);else if(currentPage==="model-service")await renderModelService(view);else if(currentPage==="account-security")await renderAccountSecurity(view);
@@ -1705,6 +1705,116 @@ async function renderPlaces(view){
     const p=rows.find(x=>String(x.id)===String(b.dataset.placeDel))||{};
     confirmModal({title:`删除「${p.display_name_zh||"这个地点"}」？`, body:"删除后不可恢复；它不会被其它记录引用，删了不影响已有规则。", danger:true, okText:"删除", onOk: async ()=>{
       try{ await api(`/v1/places/${encodeURIComponent(p.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    }});
+  });
+}
+
+// ===== 事：约定、截止、合同、保修 =====
+const COMMIT_KINDS = {appointment:"约定", deadline:"截止", contract:"合同", warranty:"保修", renewal:"续费", promise:"承诺"};
+const commitKindText = (k)=> COMMIT_KINDS[k] || "约定";
+function daysLeft(dueAt){
+  if(!dueAt) return null;
+  const t = Date.parse(String(dueAt).length<=10 ? dueAt+"T00:00:00Z" : dueAt);
+  if(isNaN(t)) return null;
+  return Math.ceil((t - Date.now()) / 86400000);
+}
+function commitBadge(row){
+  if(String(row.commitment_status||"pending")==="done") return '<span class="badge active">已完成</span>';
+  const d = daysLeft(row.due_at);
+  if(d===null) return '<span class="badge neutral">无到期日</span>';
+  if(d < 0) return `<span class="badge deny">已逾期 ${Math.abs(d)} 天</span>`;
+  if(d <= 7) return `<span class="badge pending">${d} 天后</span>`;
+  return `<span class="badge neutral">${d} 天后</span>`;
+}
+
+function openCommitModal(row){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content) return;
+  const c = row || {};
+  const due = String(c.due_at||"").slice(0,10);
+  content.innerHTML=`<div class="modal-kicker">COMMITMENT</div>
+    <h2>${row?"编辑":"新建"}一条</h2>
+    <p class="modal-intro">约定、截止、合同、保修、续费都记在这里；到期前按你设定的天数提醒。</p>
+    <div class="modal-form">
+      <label class="field"><span class="field-label">这件事叫什么</span><input class="input" id="cm-title" value="${esc(c.display_name_zh||"")}" placeholder="例如 车险续保 / 和张律师会面"></label>
+      <label class="field"><span class="field-label">类型</span><select class="select" id="cm-kind">${Object.keys(COMMIT_KINDS).map(k=>`<option value="${k}" ${((c.commitment_kind||"appointment")===k)?"selected":""}>${COMMIT_KINDS[k]}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">对方（可空）</span><input class="input" id="cm-party" value="${esc(c.counterparty_ref||"")}" placeholder="例如 某保险公司 / 张三"></label>
+      <label class="field"><span class="field-label">到期日（可空）</span><input class="input" type="date" id="cm-due" value="${esc(due)}"></label>
+      <label class="field"><span class="field-label">提前几天提醒</span><input class="input" id="cm-remind" value="${esc(c.remind_before_days||"")}" placeholder="例如 14"></label>
+      <label class="field"><span class="field-label">备注</span><input class="input" id="cm-note" value="${esc(c.commitment_note||"")}" placeholder="可选"></label>
+    </div>
+    <div class="modal-actions"><button class="button" id="cm-cancel">取消</button><button class="button primary" id="cm-save">保存</button></div>`;
+  dialog.showModal();
+  $("#cm-cancel").onclick=()=>dialog.close();
+  $("#cm-save").onclick=async()=>{
+    const body={display_name_zh:String($("#cm-title").value||"").trim(),
+                commitment_kind:$("#cm-kind").value,
+                counterparty_ref:String($("#cm-party").value||"").trim(),
+                due_at:String($("#cm-due").value||"").trim(),
+                remind_before_days:String($("#cm-remind").value||"").trim(),
+                note:String($("#cm-note").value||"").trim()};
+    if(!body.display_name_zh){ toast("请填这件事叫什么",true); return; }
+    try{
+      if(row){ await api(`/v1/commitments/${encodeURIComponent(row.id)}`,{method:"PATCH",body:JSON.stringify(body)}); toast("已保存"); }
+      else { await api("/v1/commitments",{method:"POST",body:JSON.stringify(body)}); toast("已新建"); }
+      dialog.close(); render();
+    }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+}
+
+async function renderCommitments(view){
+  let rows=[];
+  try{ rows=((await api("/v1/commitments"))||{}).items||[] }catch(e){ rows=[] }
+  // 排序：未完成且有过期日的按剩余天数升序；其它排后面
+  const rank = (r)=>{
+    if(String(r.commitment_status||"pending")==="done") return 1e9;
+    const d = daysLeft(r.due_at);
+    return d===null ? 1e8 : d;
+  };
+  const sorted = rows.slice().sort((a,b)=>rank(a)-rank(b));
+  const pendingDue = sorted.filter(r=>String(r.commitment_status||"pending")!=="done" && daysLeft(r.due_at)!==null);
+  const soon = pendingDue.filter(r=>{ const d=daysLeft(r.due_at); return d!==null && d<=30; }).length;
+  const late = pendingDue.filter(r=>{ const d=daysLeft(r.due_at); return d!==null && d<0; }).length;
+  view.innerHTML=`${titleBlock("COMMITMENTS","事","约定、截止、合同、保修、续费。到期前按你设定的天数提醒；这些都留在一个地方，不再散在日历与邮箱里。")}
+   <div class="stats-grid">
+     <div class="stat-card"><div class="stat-top"><span>待办</span><span class="stat-icon">◷</span></div><div class="stat-num">${rows.filter(r=>String(r.commitment_status||"pending")!=="done").length}</div><div class="stat-foot">含无到期日</div></div>
+     <div class="stat-card"><div class="stat-top"><span>30 天内到期</span><span class="stat-icon">!</span></div><div class="stat-num">${soon}</div><div class="stat-foot">该安排了</div></div>
+     <div class="stat-card"><div class="stat-top"><span>已逾期</span><span class="stat-icon">×</span></div><div class="stat-num">${late}</div><div class="stat-foot">越早处理越好</div></div>
+     <div class="stat-card"><div class="stat-top"><span>全部</span><span class="stat-icon">▤</span></div><div class="stat-num">${rows.length}</div><div class="stat-foot">含已完成</div></div>
+   </div>
+   <section class="panel" style="padding:18px">
+     <div class="panel-title">清单 · ${rows.length}</div>
+     <p class="panel-caption">按剩余天数排序：越靠上越该先处理。</p>
+     <div style="margin-top:12px"><button class="button primary" id="cm-new">＋ 新建一条</button></div>
+     <div style="margin-top:14px;display:grid;gap:10px">
+       ${sorted.length?sorted.map(c=>`
+         <div class="decision-detail" style="margin:0">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <strong>${esc(c.display_name_zh||c.id)}</strong>
+             <span class="badge neutral">${esc(commitKindText(c.commitment_kind))}</span>
+             ${commitBadge(c)}
+             ${c.due_at?`<span class="panel-caption" style="margin:0">到期 ${esc(String(c.due_at).slice(0,10))}</span>`:""}
+             ${c.counterparty_ref?`<span class="panel-caption" style="margin:0">对方 ${esc(c.counterparty_ref)}</span>`:""}
+             <span style="margin-left:auto;display:flex;gap:6px">
+               ${String(c.commitment_status||"pending")!=="done"?`<button class="button" data-cm-done="${esc(c.id)}">完成</button>`:""}
+               <button class="button" data-cm-edit="${esc(c.id)}">编辑</button>
+               <button class="button danger" data-cm-del="${esc(c.id)}">删除</button>
+             </span>
+           </div>
+           ${c.commitment_note?`<div class="panel-caption">${esc(c.commitment_note)}</div>`:""}
+         </div>`).join(""):`<div class="empty-state">还没有事。先记一条"车险续保"试试：到期日 + 提前 14 天提醒。</div>`}
+     </div></section>`;
+  $("#cm-new").onclick=()=>openCommitModal(null);
+  $$('[data-cm-edit]',view).forEach(b=>b.onclick=()=>{ const r=rows.find(x=>String(x.id)===String(b.dataset.cmEdit)); if(r) openCommitModal(r); });
+  $$('[data-cm-done]',view).forEach(b=>b.onclick=async()=>{
+    try{ await api(`/v1/commitments/${encodeURIComponent(b.dataset.cmDone)}`,{method:"PATCH",body:JSON.stringify({commitment_status:"done"})}); toast("已完成"); render(); }
+    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  });
+  $$('[data-cm-del]',view).forEach(b=>b.onclick=()=>{
+    const r=rows.find(x=>String(x.id)===String(b.dataset.cmDel))||{};
+    confirmModal({title:`删除「${r.display_name_zh||"这条"}」？`, body:"删除后不可恢复；已完成的记录也会消失。", danger:true, okText:"删除", onOk: async ()=>{
+      try{ await api(`/v1/commitments/${encodeURIComponent(r.id)}`,{method:"DELETE"}); toast("已删除"); render(); }
       catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
     }});
   });
