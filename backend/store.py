@@ -386,7 +386,9 @@ class RDFStore:
             candidate.remove((subject, None, None))
             # Protect referential integrity. Do not leave dangling subject references.
             inbound = list(candidate.triples((None, None, subject)))
-            if inbound: raise StoreError(f"cannot delete; referenced by {len(inbound)} record(s)")
+            if inbound:
+                _who = sorted({str(x).rsplit(":", 1)[-1] for x in inbound})[:3]
+                raise StoreError(f"cannot delete; referenced by {len(inbound)} record(s): " + ", ".join(_who))
             self._validate(candidate, collection, item_id)
             old = self.graph
             self.graph = candidate

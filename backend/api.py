@@ -1793,8 +1793,14 @@ async def update_profile(profile_id: str, body: dict[str, Any]) -> Any:
 async def delete_profile(profile_id: str) -> Any:
     if not store.get("profiles", profile_id):
         raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    # 资料项引用着这份资料：先级联删掉它们，否则存储层会以"被引用"为由拒绝删除。
+    items_removed = 0
+    for it in store.list("profile-items"):
+        if str(it.get("profile_id")) == profile_id:
+            if store.delete("profile-items", str(it.get("id"))):
+                items_removed += 1
     ok = store.delete("profiles", profile_id)
-    return {"deleted": profile_id, "ok": bool(ok)}
+    return {"deleted": profile_id, "ok": bool(ok), "items_removed": items_removed}
 
 
 @app.get("/v1/scenario-slices/{scenario_id}/policies", dependencies=[Depends(require_session)])
