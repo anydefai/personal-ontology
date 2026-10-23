@@ -227,7 +227,7 @@ async function renderDisplaySettings(view){
  };
 }
 function renderComingSoon(view,title,desc,next){
-  view.innerHTML=`${proModeButtons()}${titleBlock("COMING SOON",title,desc,"")}
+  view.innerHTML=`${titleBlock("COMING SOON",title,desc,"")}
    <section class="panel" style="padding:24px"><div class="panel-title">这一块还没做</div>
     <p class="panel-caption" style="margin-top:8px">模型已设计好（见 docs/07 与 docs/08），界面按第一期顺序推进。</p>
     <p class="panel-caption" style="margin-top:6px">下一步：${esc(next)}</p></section>`;
@@ -1247,7 +1247,7 @@ function bindProfileForm(view){
 async function renderProfiles(view){
   let rows=[]; try{ rows=((await api("/v1/profiles"))||{}).items||[] }catch(e){ rows=[] }
   const editing=(profileEdit!==null);
-  view.innerHTML=`${proModeButtons()}${titleBlock("PERSONAL PROFILE","个人资料","实名、证件、联系方式等敏感信息放在这里，场景只引用不复制。字段可随时增删改；列表默认显示掩码。")}
+  view.innerHTML=`${titleBlock("PERSONAL PROFILE","个人资料","实名、证件、联系方式等敏感信息放在这里，场景只引用不复制。字段可随时增删改；列表默认显示掩码。")}
    ${editing?profileFormHtml():""}
    <section class="panel" style="padding:18px;margin-bottom:14px">
      <div class="panel-title">资料 ${rows.length?`· ${rows.length} 份`:""}</div>
@@ -1342,7 +1342,7 @@ function bindCircleForm(view){
 }
 
 function circleDetailHtml(c, memberCount){
-  return `${proModeButtons()}${titleBlock("CIRCLE","圈","一圈人、一个默认边界。移出成员会立即影响圈级授权。",'<button class="button" id="circle-back">← 返回列表</button>')}
+  return `${titleBlock("CIRCLE","圈","一圈人、一个默认边界。移出成员会立即影响圈级授权。",'<button class="button" id="circle-back">← 返回列表</button>')}
   <section class="panel" style="padding:18px;margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <strong style="font-size:17px">${esc(c.display_name_zh||c.id)}</strong>
@@ -1432,7 +1432,7 @@ async function renderCircles(view){
     }
     activeCircleId=null;
   }
-  view.innerHTML=`${proModeButtons()}${titleBlock("CIRCLES","圈","谁能看到什么，按圈来。一圈人、一个默认边界。")}
+  view.innerHTML=`${titleBlock("CIRCLES","圈","谁能看到什么，按圈来。一圈人、一个默认边界。")}
    ${circleForm?circleFormHtml():""}
    <section class="panel" style="padding:18px;margin-bottom:14px">
      <div class="panel-title">圈 · ${rows.length}</div>
