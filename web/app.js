@@ -1504,9 +1504,10 @@ function bindCircleDetail(view, c){
     catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
   };
   $$('[data-member-del]',view).forEach(b=>b.onclick=async()=>{
-    if(!confirm("移出这一位？移出后他将立即失去本圈的圈级授权，并写入变更记录。")) return;
-    try{ await api(`/v1/circle-members/${encodeURIComponent(b.dataset.memberDel)}`,{method:"DELETE"}); toast("已移出"); render(); }
-    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    confirmModal({title:"移出这一位？移出后他将立即失去本圈的圈级授权，并写入变更记录。", danger:true, okText:"确认", onOk: async ()=>{
+      try{ await api(`/v1/circle-members/${encodeURIComponent(b.dataset.memberDel)}`,{method:"DELETE"}); toast("已移出"); render(); }
+      catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    } });
   });
 }
 
