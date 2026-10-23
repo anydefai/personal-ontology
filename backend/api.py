@@ -1470,6 +1470,52 @@ def _condition_signature(constraint_ids: list[str]) -> tuple:
 def _scenario_analysis(scene: dict[str, Any]) -> dict[str, Any]:
     return scene.get("analysis") if isinstance(scene.get("analysis"), dict) else {}
 
+# ── 器：设备与智能体清单。同步只搬元数据（名称/状态/范围/时间），绝不复制客户端密钥。──
+APPROVED_TRUST = {"approved": "trusted", "pending": "limited", "denied": "blocked"}
+
+
+@app.get("/v1/devices", dependencies=[Depends(require_session)])
+async def list_devices() -> Any:
+    return {"items": store.list("devices")}
+
+
+@app.post("/v1/devices/sync", dependencies=[Depends(require_session)])
+async def sync_devices() -> Any:
+    import json as _json
+    from .agent_access import CLIENTS_FILE
+    if not CLIENTS_FILE.is_file():
+        return {"synced": 0, "note": "还没有智能体接入记录"}
+    try:
+        doc = _json.loads(CLIENTS_FILE.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=422, detail={"error": "clients_unreadable", "message": str(exc)})
+    clients = doc.get("clients") if isinstance(doc, dict) else None
+    if not isinstance(clients, dict):
+        return {"synced": 0, "note": "清单为空"}
+    stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    synced = 0
+    for key, rec in clients.items():
+        if not isinstance(rec, dict):
+            continue
+        device_id = f"agent_{key}"
+        state = str(rec.get("state") or "")
+        record = {"display_name_zh": str(rec.get("name") or key),
+                  "display_name_en": str(rec.get("name") or key),
+                  "device_kind": "agent",
+                  "agent_client_id": str(key),
+                  "device_state": state,
+                  "trust_level": APPROVED_TRUST.get(state, "limited"),
+                  "device_scopes": rec.get("scopes") if isinstance(rec.get("scopes"), list) else [],
+                  "last_seen_at": str(rec.get("last_seen") or rec.get("approved_at") or ""),
+                  "device_created_at": str(rec.get("created_at") or stamp)}
+        try:
+            store.put("devices", device_id, record)
+            synced += 1
+        except Exception:                                  # noqa: BLE001 - 单条失败不影响其余
+            continue
+    return {"synced": synced, "note": "只同步清单元数据，密钥仍只在原文件"}
+
+
 # ── 圈：只描述关系，不存对方资料 ──
 CIRCLE_TYPES = {"family", "friend", "work", "class", "service", "org", "other"}
 MEMBER_STRENGTH = {"close", "normal", "distant"}

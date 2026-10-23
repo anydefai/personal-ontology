@@ -22,6 +22,7 @@ CLASSES = {
     "profiles": "Profile",
     "asset-transactions": "AssetTransaction",
     "circles": "Circle",
+    "devices": "Device",
     "circle-members": "CircleMember",
     # 专业判断侧（日常生活侧不使用这三个集合，新增是纯增量）
     "domain-packs": "DomainPack",
@@ -58,6 +59,15 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                  "items": ("profileItems", "json"),
                  "note": ("profileNote", "lit"),
                  "updated_at": ("profileUpdatedAt", "lit")},
+    # 器：设备与智能体清单（只存清单元数据，绝不存客户端密钥）。
+    "devices": {"display_name_zh": ("displayNameZh", "lit"),
+                "device_kind": ("deviceKind", "lit"),
+                "agent_client_id": ("agentClientId", "lit"),
+                "trust_level": ("deviceTrustLevel", "lit"),
+                "device_scopes": ("deviceScopes", "json"),
+                "device_state": ("deviceState", "lit"),
+                "last_seen_at": ("deviceLastSeenAt", "lit"),
+                "device_created_at": ("deviceCreatedAt", "lit")},
     # 圈：与主体/联系方式解耦，只描述"关系"。谓词一律专属，避免 rdfs:domain 把节点误定型。
     "circles": {"display_name_zh": ("displayNameZh", "lit"),
                 "display_name_en": ("displayNameEn", "lit"),
@@ -124,7 +134,8 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
 }
 
 ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId", "domain-packs": "packId", "scenario-definitions": "scenarioDefinitionId", "knowledge-entries": "entryId", "profiles": "profileId", "asset-transactions": "transactionId",
-    "circles": "circleId", "circle-members": "memberId"}
+    "circles": "circleId", "circle-members": "memberId",
+    "devices": "deviceId"}
 INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id", "executions":"execution_id", "contacts":"contact_id", "triggers":"trigger_id", "notifications":"notification_id", "evidence":"evidence_id", "taxonomies":"taxonomy_id", "taxonomy-items":"item_id", "resource-types":"type_name", "actions":"action_id", "matchers":"pattern_type", "notifiers":"channel_id", "crypto-providers":"name", "principals":"principal_id", "params":"param_id", "redlines":"redline_id", "decision-results":"result_id", "contexts":"context_id", "interactions":"interaction_id", "constraints":"constraint_id", "scenario-slices":"scenario_id", "domain-packs":"pack_id", "scenario-definitions":"scenario_definition_id", "knowledge-entries":"entry_id", "profiles":"profile_id"}
 
 def node_uri(collection: str, item_id: str) -> URIRef:
