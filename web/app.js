@@ -1249,6 +1249,23 @@ function bindProfileForm(view){
     }catch(e){toast(e.message,true)}
   };
 }
+function revealItemModal(it){
+  const dialog=$("#record-dialog"), content=$("#dialog-content");
+  if(!dialog||!content) return;
+  const label=esc(it.label_zh||it.field_key||"资料项");
+  content.innerHTML=`<div class="modal-kicker">REVEAL</div><h2>查看「${label}」</h2>
+    <p class="modal-intro">本次查看会写入记录。确认后显示明文。</p>
+    <div class="modal-actions"><button class="button" id="rv-cancel">取消</button><button class="button primary" id="rv-ok">确认查看</button></div>`;
+  dialog.showModal();
+  $("#rv-cancel").onclick=()=>dialog.close();
+  $("#rv-ok").onclick=()=>{
+    content.innerHTML=`<div class="modal-kicker">REVEAL</div><h2>${label}</h2>
+      <p class="modal-intro">${esc(it.field_key||"")} · ${esc(it.item_sensitivity||"normal")}${it.item_verified==="true"?" · 已验证":""}</p>
+      <div style="font-size:15px;word-break:break-all;background:#fbfcfb;border:1px solid #e6eae7;border-radius:8px;padding:12px">${esc(it.item_value||"（空）")}</div>
+      <div class="modal-actions"><button class="button" id="rv-close">关闭</button></div>`;
+    $("#rv-close").onclick=()=>dialog.close();
+  };
+}
 async function renderProfiles(view){
   let rows=[]; try{ rows=((await api("/v1/profiles"))||{}).items||[] }catch(e){ rows=[] }
   // 资料项：从 profile-items 读（迁移后才有；没有就是空）
@@ -1338,9 +1355,7 @@ async function renderProfiles(view){
   });
   $$('[data-item-reveal]',view).forEach(b=>b.onclick=()=>{
     const id=b.dataset.itemReveal;
-    for(const p of rows){ for(const it of (itemMap[p.id]||[])){ if(String(it.id)===String(id)){
-      if(confirm("查看这一项的明文？本次查看会写入记录。")){ alert(`${it.label_zh||it.field_key}：${it.item_value||"（空）"}`); }
-      return; } } }
+    for(const p of rows){ for(const it of (itemMap[p.id]||[])){ if(String(it.id)===String(id)){ revealItemModal(it); return; } } }
   });
   if(editing) bindProfileForm(view);
 }
