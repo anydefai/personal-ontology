@@ -1525,6 +1525,8 @@ async function renderCircles(view){
       try{ circleMembers=((await api(`/v1/circles/${encodeURIComponent(cur.id)}/members`))||{}).items||[] }catch(e){ circleMembers=[] }
       view.innerHTML=circleDetailHtml(cur,counts[cur.id]);
       bindCircleDetail(view,cur);
+      await loadContactsOnce();
+      renderContactPicker(view, cur, circleMembers);
       return;
     }
     activeCircleId=null;
@@ -2048,4 +2050,82 @@ async function renderKnowledge(view){
       catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
     }});
   });
+}
+
+// ===== 从通讯录补人：把 contact-records 里的人挑进某个圈 =====
+let contactCache = null;
+async function loadContactsOnce(){
+  if(contactCache) return contactCache;
+  try{ contactCache = ((await api("/v1/contact-records"))||{}).items||[] }catch(e){ contactCache = [] }
+  return contactCache;
+}
+
+function renderContactPicker(view, circle, members){
+  const have = new Set((members||[]).map(m=>String(m.display_name_zh||"").trim()));
+  const all = (contactCache||[]).filter(c=>{
+    const n = String(c.display_name_zh||"").trim();
+    return n && !have.has(n);
+  });
+  const box = document.createElement("section");
+  box.className = "panel";
+  box.style.cssText = "padding:18px;margin-bottom:14px";
+  box.innerHTML = `<div class="panel-title">从通讯录补人 · 可选 ${all.length}</div>
+    <p class="panel-caption">这些是导入的通讯录条目（只读）。加入圈时只写"关系"：圈内身份、亲近程度；电话邮箱仍留在通讯录里，不进圈。</p>
+    <div class="collection-toolbar" style="margin-top:12px">
+      <div class="search-box"><input class="input" id="cp-search" placeholder="搜索姓名或公司…"></div>
+      <span class="record-count" id="cp-count"></span>
+    </div>
+    <div id="cp-list" style="display:grid;gap:6px;max-height:320px;overflow:auto;margin-top:8px"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      <button class="button primary" id="cp-add">加入这一圈</button>
+      <span class="panel-caption" id="cp-selected" style="margin:0">已选 0 人</span>
+    </div>`;
+  view.appendChild(box);
+
+  const list = box.querySelector("#cp-list");
+  const countEl = box.querySelector("#cp-count");
+  const selEl = box.querySelector("#cp-selected");
+  let shown = [];
+  const renderList = (q)=>{
+    const query = String(q||"").trim().toLowerCase();
+    shown = all.filter(c=>{
+      if(!query) return true;
+      const hay = (String(c.display_name_zh||"") + " " + String(c.contact_org||"")).toLowerCase();
+      return hay.includes(query);
+    }).slice(0, 200);
+    countEl.textContent = query ? `命中 ${shown.length}` : `先显示前 ${shown.length} 位（搜索可缩小）`;
+    list.innerHTML = shown.length ? shown.map((c,i)=>`
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px">
+        <input type="checkbox" data-cp-pick="${i}">
+        <strong>${esc(c.display_name_zh||"（无姓名）")}</strong>
+        ${c.contact_org?`<span class="panel-caption" style="margin:0">${esc(c.contact_org)}</span>`:""}
+        ${(c.contact_phones||[]).length?`<span class="mono">${esc((c.contact_phones||[]).length)} 个号码</span>`:""}
+      </label>`).join("") : `<div class="empty-state">没有匹配的人。</div>`;
+    syncSelected();
+  };
+  const syncSelected = ()=>{
+    const n = box.querySelectorAll("[data-cp-pick]:checked").length;
+    selEl.textContent = `已选 ${n} 人`;
+  };
+  list.addEventListener("change", syncSelected);
+  box.querySelector("#cp-search").oninput = (e)=>renderList(e.target.value);
+  box.querySelector("#cp-add").onclick = async ()=>{
+    const picks = [...box.querySelectorAll("[data-cp-pick]:checked")].map(x=>shown[Number(x.dataset.cpPick)]).filter(Boolean);
+    if(!picks.length){ toast("先勾选要加入的人", true); return; }
+    const btn = box.querySelector("#cp-add"); btn.disabled = true; btn.textContent = "正在加入…";
+    let ok = 0, fail = 0;
+    for(const c of picks){
+      try{
+        await api(`/v1/circles/${encodeURIComponent(circle.id)}/members`, {method:"POST",
+          body:JSON.stringify({display_name_zh: String(c.display_name_zh||"").trim(),
+                               member_role: String(c.contact_org||"").trim(),
+                               strength: "normal", source: "contacts_import"})});
+        ok++;
+      }catch(e){ fail++; }
+    }
+    toast(`已加入 ${ok} 人${fail?`，失败 ${fail} 人`:""}`);
+    contactCache = null;
+    render();
+  };
+  renderList("");
 }
