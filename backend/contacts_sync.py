@@ -16,18 +16,49 @@ def adb_available() -> bool:
     return shutil.which("adb") is not None
 
 
-def _run_adb(args: list[str], timeout: int = 120) -> str:
-    proc = subprocess.run(["adb", *args], capture_output=True, text=True, timeout=timeout)
+def _run_adb(args: list[str], timeout: int = 120, serial: str | None = None) -> str:
+    cmd = ["adb"] + (["-s", serial] if serial else []) + list(args)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout or "adb failed").strip()[:300])
     return proc.stdout
 
 
-def device_label() -> str:
-    """设备标签：型号 + 序列号后四位，用于给导入的数据打标。"""
-    model = _run_adb(["shell", "getprop", "ro.product.model"]).strip() or "android"
-    serial = (_run_adb(["shell", "getprop", "ro.serialno"]).strip() or "")[-4:]
-    return f"{model}" + (f" · {serial}" if serial else "")
+def list_devices() -> list[dict[str, str]]:
+    """已连接的安卓设备（用 adb 的完整序列号区分同型号手机）。"""
+    out = _run_adb(["devices", "-l"])
+    devices = []
+    for line in out.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == "device":
+            serial = parts[0]
+            model = ""
+            for token in parts[2:]:
+                if token.startswith("model:"):
+                    model = token.split(":", 1)[1]
+            devices.append({"serial": serial, "model": model})
+    return devices
+
+
+def device_label(serial: str | None = None) -> str:
+    """设备标签：型号 + 完整序列号（序列号为空时退化为 adb 连接序号）。"""
+    devs = []
+    try:
+        devs = list_devices()
+    except Exception:                                   # noqa: BLE001
+        devs = []
+    if serial is None and devs:
+        serial = devs[0]["serial"]
+    model = ""
+    try:
+        model = _run_adb(["shell", "getprop", "ro.product.model"], serial=serial).strip()
+    except Exception:                                   # noqa: BLE001
+        model = ""
+    if serial is None and devs:
+        serial = devs[0]["serial"]
+    if not serial:
+        serial = f"device-{(len(devs) or 1)}"
+    return f"{(model or 'android')} · {serial}"
 
 
 def _parse_row(line: str) -> dict[str, str] | None:
@@ -99,16 +130,17 @@ def parse_accounts(raw: str) -> dict[str, dict[str, str]]:
     return out
 
 
-def pull_from_phone() -> tuple[list[dict[str, Any]], dict[str, dict[str, str]], str]:
-    """从手机拉取三张表并解析。返回 (联系人, 账户映射, 设备标签)。"""
+def pull_from_phone(serial: str | None = None) -> tuple[list[dict[str, Any]], dict[str, dict[str, str]], str]:
+    """从指定设备拉取并解析。返回 (联系人, 账户映射, 设备标签)。"""
     if not adb_available():
         raise RuntimeError("没有找到 adb，无法从手机同步。")
-    label = device_label()
-    raw = _run_adb(["shell", "content", "query", "--uri", DATA_URI, "--projection", PROJECTION])
+    label = device_label(serial)
+    raw = _run_adb(["shell", "content", "query", "--uri", DATA_URI, "--projection", PROJECTION], serial=serial)
     accounts: dict[str, dict[str, str]] = {}
     try:
         accounts = parse_accounts(_run_adb(["shell", "content", "query", "--uri", RAW_URI,
-                                            "--projection", "_id:account_name:account_type"]))
+                                            "--projection", "contact_id:account_name:account_type"],
+                                           serial=serial))
     except RuntimeError:
         accounts = {}
     return parse_rows(raw), accounts, label

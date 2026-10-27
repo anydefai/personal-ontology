@@ -1556,12 +1556,63 @@ async def set_acts_for(principal_id: str, body: dict[str, Any]) -> Any:
     return {"principal_id": principal_id, "acts_for": target}
 
 
+@app.get("/v1/contacts/devices", dependencies=[Depends(require_session)])
+async def list_contact_devices() -> Any:
+    from . import contacts_sync
+    try:
+        devs = contacts_sync.list_devices()
+    except Exception as exc:                            # noqa: BLE001
+        return {"items": [], "error": str(exc)[:200]}
+    aliases = _read_device_aliases()
+    for dev in devs:
+        dev["alias"] = aliases.get(dev["serial"], "")
+        dev["label"] = contacts_sync.device_label(dev["serial"])
+    return {"items": devs}
+
+
+@app.post("/v1/contacts/devices/alias", dependencies=[Depends(require_session)])
+async def set_contact_device_alias(body: dict[str, Any]) -> Any:
+    serial = str((body or {}).get("serial") or "").strip()
+    alias = str((body or {}).get("alias") or "").strip()[:40]
+    if not serial:
+        raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+    data = _read_device_aliases()
+    if alias:
+        data[serial] = alias
+    else:
+        data.pop(serial, None)
+    _write_device_aliases(data)
+    return {"serial": serial, "alias": alias}
+
+
+def _aliases_path():
+    from .config import DATA_DIR
+    return DATA_DIR / "contact-devices.json"
+
+
+def _read_device_aliases() -> dict[str, str]:
+    import json as _json
+    try:
+        return _json.loads(_aliases_path().read_text(encoding="utf-8"))
+    except Exception:                                   # noqa: BLE001
+        return {}
+
+
+def _write_device_aliases(data: dict[str, str]) -> None:
+    import json as _json
+    try:
+        _aliases_path().write_text(_json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
 @app.post("/v1/contacts/sync", dependencies=[Depends(require_session)])
 async def sync_contacts_from_phone(body: dict[str, Any]) -> Any:
     """界面上点一下就把手机通讯录同步进本体：后端自己调 adb，按 contact_id 就地更新。"""
     from . import contacts_sync
+    serial = str((body or {}).get("device") or "").strip() or None
     try:
-        records, accounts, device = await asyncio.to_thread(contacts_sync.pull_from_phone)
+        records, accounts, device = await asyncio.to_thread(contacts_sync.pull_from_phone, serial)
     except Exception as exc:                            # noqa: BLE001
         raise HTTPException(status_code=422, detail={"error": "phone_sync_failed",
             "message": f"从手机读取失败：{exc}。请确认数据线已连接、手机上已允许 USB 调试。"})
