@@ -2080,13 +2080,18 @@ function renderContactPicker(view, circle, members){
       <button class="button primary" id="cp-add">加入这一圈</button>
       <span class="panel-caption" id="cp-selected" style="margin:0">已选 0 人</span>
     </div>`;
-  view.appendChild(box);
+  const panels = view.querySelectorAll("section.panel");
+  if(panels.length){ panels[0].after(box); } else { view.appendChild(box); }
 
   const list = box.querySelector("#cp-list");
   const countEl = box.querySelector("#cp-count");
   const selEl = box.querySelector("#cp-selected");
   let shown = [];
-  const renderList = (q)=>{
+
+  function syncSelected(){
+    selEl.textContent = `已选 ${box.querySelectorAll("[data-cp-pick]:checked").length} 人`;
+  }
+  function renderList(q){
     const query = String(q||"").trim().toLowerCase();
     shown = all.filter(c=>{
       if(!query) return true;
@@ -2102,11 +2107,7 @@ function renderContactPicker(view, circle, members){
         ${(c.contact_phones||[]).length?`<span class="mono">${esc((c.contact_phones||[]).length)} 个号码</span>`:""}
       </label>`).join("") : `<div class="empty-state">没有匹配的人。</div>`;
     syncSelected();
-  };
-  const syncSelected = ()=>{
-    const n = box.querySelectorAll("[data-cp-pick]:checked").length;
-    selEl.textContent = `已选 ${n} 人`;
-  };
+  }
   list.addEventListener("change", syncSelected);
   box.querySelector("#cp-search").oninput = (e)=>renderList(e.target.value);
   box.querySelector("#cp-add").onclick = async ()=>{
