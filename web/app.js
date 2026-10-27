@@ -1448,9 +1448,19 @@ function circleDetailHtml(c, memberCount){
       <span class="panel-caption" style="margin:0">${memberCount!=null?memberCount+" 人":"—"}</span>
     </div>
     <div class="form-grid" style="margin-top:14px">
+      <label class="field"><span class="field-label">名称</span>
+        <input class="input" id="circle-edit-name" value="${esc(c.display_name_zh||"")}" placeholder="例如 工作"></label>
+      <label class="field"><span class="field-label">类型</span>
+        <select class="select" id="circle-edit-type">${Object.keys(CIRCLE_TYPES).map(k=>`<option value="${k}" ${((c.circle_type||"other")===k)?"selected":""}>${CIRCLE_TYPES[k]}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">我在这一圈里的身份</span>
+        <input class="input" id="circle-edit-myrole" value="${esc(c.my_role||"")}" placeholder="例如 父亲 / 下属 / 甲方"></label>
       <label class="field"><span class="field-label">默认边界（一句话）</span>
         <input class="input" id="circle-edit-note" value="${esc(c.default_grant_note||"")}" placeholder="例如 可看行程空闲，不给具体内容"></label>
-      <div style="display:flex;align-items:flex-end"><button class="button" id="circle-note-save">保存边界</button></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      <button class="button primary" id="circle-save-all">保存圈的设置</button>
+      <button class="button danger" id="circle-delete">删除这个圈</button>
+      <span class="panel-caption" id="circle-edit-error" style="margin:0"></span>
     </div>
   </section>
 
@@ -1488,10 +1498,29 @@ function circleDetailHtml(c, memberCount){
 
 function bindCircleDetail(view, c){
   $("#circle-back").onclick=()=>{ activeCircleId=null; render(); };
-  $("#circle-note-save").onclick=async()=>{
-    try{ await api(`/v1/circles/${encodeURIComponent(c.id)}`,{method:"PATCH",body:JSON.stringify({default_grant_note:String($("#circle-edit-note").value||"").trim()})});
-      toast("已保存默认边界"); render(); }
-    catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  $("#circle-save-all").onclick=async()=>{
+    const err=$("#circle-edit-error"); if(err) err.textContent="";
+    const body={display_name_zh:String($("#circle-edit-name").value||"").trim(),
+                circle_type:$("#circle-edit-type").value,
+                my_role:String($("#circle-edit-myrole").value||"").trim(),
+                default_grant_note:String($("#circle-edit-note").value||"").trim()};
+    if(!body.display_name_zh){ if(err) err.textContent="名称不能为空"; return; }
+    try{ await api(`/v1/circles/${encodeURIComponent(c.id)}`,{method:"PATCH",body:JSON.stringify(body)});
+      toast("圈已保存"); render(); }
+    catch(e){ if(err) err.textContent=e.message; else if(!(e instanceof AuthRequired)) toast(e.message,true); }
+  };
+  $("#circle-delete").onclick=()=>{
+    confirmModal({title:`删除「${c.display_name_zh||"这个圈"}」？`,
+      body:"删圈会一并清掉它的成员与变更记录，不可恢复。如果还有授权规则指向它，系统会先拦住你并告诉你还有几条。",
+      danger:true, okText:"删除这个圈", onOk: async ()=>{
+        try{ await api(`/v1/circles/${encodeURIComponent(c.id)}`,{method:"DELETE"});
+          activeCircleId=null; toast("圈已删除"); render(); }
+        catch(e){
+          if(e instanceof AuthRequired) return;
+          const err=$("#circle-edit-error");
+          if(err) err.textContent=e.message; else toast(e.message,true);
+        }
+      }});
   };
   $("#member-add").onclick=async()=>{
     const body={display_name_zh:String($("#member-name").value||"").trim(),
