@@ -1608,7 +1608,7 @@ async function renderCircles(view){
 const TRUST_TEXT = {trusted:"可信", limited:"受限", blocked:"已阻止"};
 const STATE_TEXT = {approved:"已批准", pending:"待批准", denied:"已拒绝"};
 
-async function renderDevices(view){
+async function _renderDevicesBase(view){
   let rows=[];
   try{ rows=((await api("/v1/devices"))||{}).items||[] }catch(e){ rows=[] }
   const agents = rows.filter(x=>String(x.device_kind||"")==="agent");
@@ -2117,6 +2117,18 @@ function renderContactPicker(view, circle, members){
   const box = document.createElement("section");
   box.className = "panel";
   box.style.cssText = "padding:18px;margin-bottom:14px";
+  if(!(contactCache||[]).length){
+    box.innerHTML = '<div class="panel-title">从通讯录补人</div>'
+      + '<p class="panel-caption">还没有导入通讯录，所以这里没有可选的人。导入之后，就能把人勾进这一圈。</p>'
+      + '<div style="margin-top:12px;display:flex;gap:8px;align-items:center">'
+      + '<button class="button primary" id="cp-goimport">去「器」里导入通讯录</button>'
+      + '<span class="panel-caption" style="margin:0">导入只做一次，之后所有人都在这里可选</span></div>';
+    const panels0 = view.querySelectorAll("section.panel");
+    if(panels0.length){ panels0[0].after(box); } else { view.appendChild(box); }
+    const go = box.querySelector("#cp-goimport");
+    if(go) go.onclick = ()=>navigate("devices");
+    return;
+  }
   box.innerHTML = `<div class="panel-title">从通讯录补人 · 可选 ${all.length}</div>
     <p class="panel-caption">这些是导入的通讯录条目（只读）。加入圈时只写"关系"：圈内身份、亲近程度；电话邮箱仍留在通讯录里，不进圈。</p>
     <div class="collection-toolbar" style="margin-top:12px">
@@ -2177,4 +2189,42 @@ function renderContactPicker(view, circle, members){
     render();
   };
   renderList("");
+}
+
+
+// 器：在原页面之后追加「数据来源 · 通讯录」卡片（审计视角：从哪来、多少条、能不能清）
+async function renderDevices(view){
+  await _renderDevicesBase(view);
+  let contactCount = 0; const sources = new Set();
+  try{
+    const rows = ((await api("/v1/contact-records"))||{}).items||[];
+    contactCount = rows.length;
+    rows.forEach(r=>{ if(r.contact_source) sources.add(String(r.contact_source)); });
+  }catch(e){}
+  const sec = document.createElement("section");
+  sec.className = "panel";
+  sec.style.cssText = "padding:18px;margin-top:14px";
+  const srcText = Array.from(sources).map(function(x){ return esc(x); }).join("、");
+  let html = '<div class="panel-title">数据来源 · 通讯录</div>'
+    + '<p class="panel-caption">从手机导入的联系人。全部 restricted：不参与对外授权、不进契约、导出默认排除。</p>'
+    + '<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<span class="badge ' + (contactCount ? "active" : "neutral") + '">' + (contactCount ? contactCount + " 位已导入" : "还没导入") + '</span>'
+    + (sources.size ? '<span class="panel-caption" style="margin:0">来源：' + srcText + '</span>' : '')
+    + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
+    + (contactCount ? '<button class="button danger" id="cr-purge">清除导入的数据</button>' : '')
+    + '<span class="panel-caption" style="margin:0">拉取：<span class="mono">scripts/pull-android-contacts.sh</span></span>'
+    + '</span></div>';
+  sec.innerHTML = html;
+  view.appendChild(sec);
+  const btn = sec.querySelector("#cr-purge");
+  if(btn) btn.onclick = function(){
+    confirmModal({title:"清除全部导入的通讯录？",
+      body:"会删掉 " + contactCount + " 条通讯录条目（电话/邮箱/地址/备注一起删）。已加进圈的人不受影响——他们只是关系，不含联系方式。",
+      danger:true, okText:"清除", onOk: async function(){
+        try{
+          const r = await api("/v1/contacts/purge",{method:"POST",body:JSON.stringify({})});
+          toast("已清除 " + (r.removed||0) + " 条"); render();
+        }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+      }});
+  };
 }

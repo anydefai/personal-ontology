@@ -1520,6 +1520,22 @@ async def delete_asset_transaction(transaction_id: str) -> Any:
     return {"deleted": transaction_id}
 
 
+@app.post("/v1/contacts/purge", dependencies=[Depends(require_session)])
+async def purge_contacts(body: dict[str, Any]) -> Any:
+    """清除导入的通讯录条目。可按来源清（只清某台手机的），不带 source 则清空全部。"""
+    source = str((body or {}).get("source") or "").strip()
+    removed = 0
+    for row in store.list("contact-records"):
+        if source and str(row.get("contact_source") or "") != source:
+            continue
+        try:
+            if store.delete("contact-records", str(row.get("id"))):
+                removed += 1
+        except Exception:                                # noqa: BLE001
+            continue
+    return {"removed": removed, "source": source or "(全部)", "note": "只删通讯录导入的条目，圈里的人不受影响"}
+
+
 # ── 代理关系：某个智能体代表某个主体办事 ──
 @app.post("/v1/principals/{principal_id}/acts-for", dependencies=[Depends(require_session)])
 async def set_acts_for(principal_id: str, body: dict[str, Any]) -> Any:
