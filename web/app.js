@@ -2225,6 +2225,8 @@ async function renderDevices(view){
     + (contactCount ? '<button class="button danger" id="cr-purge">清除导入的数据</button>' : '')
     + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
     + '<select class="select" id="cr-device" style="max-width:230px"><option value="">（检测中…）</option></select>'
+    + '<input class="input" id="cr-alias" placeholder="设备别名（如 主力机）" style="max-width:150px">'
+    + '<button class="button" id="cr-alias-save">存别名</button>'
     + '<button class="button primary" id="cr-sync">从手机同步</button>'
     + '</span></div>'
     + '<div class="panel-caption" id="cr-sync-msg" style="margin:8px 0 0"></div>';
@@ -2294,6 +2296,18 @@ async function renderDevices(view){
   }catch(e){
     if(devSel) devSel.innerHTML = '<option value="">（未检测到设备）</option>';
   }
+  const aliasSave = sec.querySelector("#cr-alias-save");
+  if(aliasSave) aliasSave.onclick = async function(){
+    const serial = devSel ? devSel.value : "";
+    const aliasEl = sec.querySelector("#cr-alias");
+    if(!serial){ toast("先选择一台设备", true); return; }
+    try{
+      await api("/v1/contacts/devices/alias", {method:"POST",
+        body: JSON.stringify({serial: serial, alias: String(aliasEl.value || "").trim()})});
+      toast("别名已保存");
+      render();
+    }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message, true); }
+  };
   const syncBtn = sec.querySelector("#cr-sync");
   if(syncBtn) syncBtn.onclick = async function(){
     const msg = sec.querySelector("#cr-sync-msg");
