@@ -2133,6 +2133,7 @@ function renderContactPicker(view, circle, members){
     <p class="panel-caption">这些是导入的通讯录条目（只读）。加入圈时只写"关系"：圈内身份、亲近程度；电话邮箱仍留在通讯录里，不进圈。</p>
     <div class="collection-toolbar" style="margin-top:12px">
       <div class="search-box"><input class="input" id="cp-search" placeholder="搜索姓名或公司…"></div>
+      <select class="select" id="cp-tag" style="max-width:200px"><option value="">全部标签</option></select>
       <span class="record-count" id="cp-count"></span>
     </div>
     <div id="cp-list" style="display:grid;gap:6px;max-height:320px;overflow:auto;margin-top:8px"></div>
@@ -2151,9 +2152,18 @@ function renderContactPicker(view, circle, members){
   function syncSelected(){
     selEl.textContent = `已选 ${box.querySelectorAll("[data-cp-pick]:checked").length} 人`;
   }
+  const tagSel = box.querySelector("#cp-tag");
+  const allTags = {};
+  all.forEach(c=>{ (c.contact_tags||[]).forEach(t=>{ if(t) allTags[String(t)] = (allTags[String(t)]||0)+1; }); });
+  if(tagSel){
+    tagSel.innerHTML = '<option value="">全部标签</option>' +
+      Object.keys(allTags).sort().map(t=>`<option value="${esc(t)}">${esc(t)}（${allTags[t]}）</option>`).join("");
+  }
   function renderList(q){
     const query = String(q||"").trim().toLowerCase();
+    const tag = tagSel ? tagSel.value : "";
     shown = all.filter(c=>{
+      if(tag && !(c.contact_tags||[]).map(String).includes(tag)) return false;
       if(!query) return true;
       const hay = (String(c.display_name_zh||"") + " " + String(c.contact_org||"")).toLowerCase();
       return hay.includes(query);
@@ -2170,6 +2180,7 @@ function renderContactPicker(view, circle, members){
   }
   list.addEventListener("change", syncSelected);
   box.querySelector("#cp-search").oninput = (e)=>renderList(e.target.value);
+  if(tagSel) tagSel.onchange = ()=>renderList(box.querySelector("#cp-search").value);
   box.querySelector("#cp-add").onclick = async ()=>{
     const picks = [...box.querySelectorAll("[data-cp-pick]:checked")].map(x=>shown[Number(x.dataset.cpPick)]).filter(Boolean);
     if(!picks.length){ toast("先勾选要加入的人", true); return; }
@@ -2212,8 +2223,10 @@ async function renderDevices(view){
     + (sources.size ? '<span class="panel-caption" style="margin:0">来源：' + srcText + '</span>' : '')
     + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
     + (contactCount ? '<button class="button danger" id="cr-purge">清除导入的数据</button>' : '')
-    + '<span class="panel-caption" style="margin:0">拉取：<span class="mono">scripts/pull-android-contacts.sh</span></span>'
-    + '</span></div>';
+    + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
+    + '<button class="button primary" id="cr-sync">从手机同步</button>'
+    + '</span></div>'
+    + '<div class="panel-caption" id="cr-sync-msg" style="margin:8px 0 0"></div>';
   sec.innerHTML = html;
   view.appendChild(sec);
   // 代理关系：智能体代表谁（决定它能否继承那个人的圈与个人授权）
@@ -2267,6 +2280,27 @@ async function renderDevices(view){
       }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
     };
   });
+  const syncBtn = sec.querySelector("#cr-sync");
+  if(syncBtn) syncBtn.onclick = async function(){
+    const msg = sec.querySelector("#cr-sync-msg");
+    syncBtn.disabled = true; syncBtn.textContent = "正在读取手机…";
+    if(msg) msg.textContent = "正在通过数据线读取通讯录（十几秒），请不要拔线。";
+    try{
+      const r = await api("/v1/contacts/sync", {method:"POST", body:JSON.stringify({mark_missing:true})});
+      const line = "设备 " + (r.device||"手机") + " ｜ 读取 " + (r.pulled||0) + " 位 ｜ 新增 " + (r.created||0)
+        + " ｜ 更新 " + (r.updated||0) + " ｜ 未变 " + (r.unchanged||0)
+        + " ｜ 手机上已删 " + (r.deleted_on_phone||0);
+      if(msg) msg.textContent = line;
+      toast("同步完成：新增 " + (r.created||0) + " · 更新 " + (r.updated||0));
+      contactCache = null;
+      render();
+    }catch(e){
+      if(msg) msg.textContent = e.message;
+      if(!(e instanceof AuthRequired)) toast(e.message, true);
+    }finally{
+      syncBtn.disabled = false; syncBtn.textContent = "从手机同步";
+    }
+  };
   const btn = sec.querySelector("#cr-purge");
   if(btn) btn.onclick = function(){
     confirmModal({title:"清除全部导入的通讯录？",
