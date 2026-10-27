@@ -2216,6 +2216,57 @@ async function renderDevices(view){
     + '</span></div>';
   sec.innerHTML = html;
   view.appendChild(sec);
+  // 代理关系：智能体代表谁（决定它能否继承那个人的圈与个人授权）
+  let agents = [], persons = [];
+  try{
+    await load("principals");
+    agents = (cache.principals||[]).filter(p=>String(p.principal_type)==="agent");
+    persons = (cache.principals||[]).filter(p=>["person","role"].includes(String(p.principal_type)));
+  }catch(e){}
+  const proxy = document.createElement("section");
+  proxy.className = "panel";
+  proxy.style.cssText = "padding:18px;margin-top:14px";
+  let ph = '<div class="panel-title">代理关系 · ' + agents.length + ' 个智能体</div>'
+    + '<p class="panel-caption">智能体代表某个人办事时，会继承那个人的圈与个人授权。不设代理，它就只有单独给它的那些授权。</p>';
+  if(!agents.length){
+    ph += '<div class="empty-state">还没有智能体主体。到「主体」里新建一个类型为智能体的主体。</div>';
+  }else if(!persons.length){
+    ph += '<div class="empty-state">还没有可被代表的人（主体里需要至少一个人）。</div>';
+  }else{
+    ph += '<div style="margin-top:12px;display:grid;gap:8px">';
+    agents.forEach(function(ag){
+      const cur = String(ag.acts_for||"");
+      ph += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<strong style="min-width:180px">' + esc(displayName("principals",ag)) + '</strong>'
+        + '<span class="panel-caption" style="margin:0">代表</span>'
+        + '<select class="select" data-acts-for="' + esc(ag.id) + '" style="max-width:220px">'
+        + '<option value="">（不代表任何人）</option>'
+        + persons.map(function(p){
+            return '<option value="' + esc(p.id) + '"' + (String(p.id)===cur?' selected':'') + '>'
+                 + esc(displayName("principals",p)) + '</option>';
+          }).join("")
+        + '</select>'
+        + '<span class="panel-caption" style="margin:0" data-acts-state="' + esc(ag.id) + '">'
+        + (cur ? '已设：继承该人的授权' : '未设') + '</span></div>';
+    });
+    ph += '</div>';
+  }
+  proxy.innerHTML = ph;
+  view.appendChild(proxy);
+  proxy.querySelectorAll("[data-acts-for]").forEach(function(sel){
+    sel.onchange = async function(){
+      const pid = sel.getAttribute("data-acts-for");
+      const val = sel.value;
+      try{
+        await api("/v1/principals/" + encodeURIComponent(pid) + "/acts-for",
+                  {method:"POST", body:JSON.stringify({represents: val})});
+        const st = proxy.querySelector('[data-acts-state="' + pid + '"]');
+        if(st) st.textContent = val ? "已设：继承该人的授权" : "未设";
+        toast(val ? "已建立代理关系" : "已取消代理关系");
+        cache.principals = null;
+      }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
+    };
+  });
   const btn = sec.querySelector("#cr-purge");
   if(btn) btn.onclick = function(){
     confirmModal({title:"清除全部导入的通讯录？",
