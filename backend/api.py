@@ -1520,6 +1520,59 @@ async def delete_asset_transaction(transaction_id: str) -> Any:
     return {"deleted": transaction_id}
 
 
+# ── 通讯录导入：从 DATA_DIR/contacts-import.json 读入（本机文件，不经网络上传）──
+@app.get("/v1/contact-records", dependencies=[Depends(require_session)])
+async def list_contact_records() -> Any:
+    return {"items": store.list("contact-records")}
+
+
+@app.post("/v1/contacts/import-file", dependencies=[Depends(require_session)])
+async def import_contacts_file() -> Any:
+    import json as _json
+    from .config import DATA_DIR
+    src = DATA_DIR / "contacts-import.json"
+    if not src.is_file():
+        raise HTTPException(status_code=422, detail={"error": "contacts_file_missing",
+            "message": "运行目录下没有 contacts-import.json，请先导入通讯录。"})
+    try:
+        doc = _json.loads(src.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=422, detail={"error": "contacts_file_unreadable", "message": str(exc)})
+    records = doc.get("records") if isinstance(doc, dict) else None
+    if not isinstance(records, list):
+        raise HTTPException(status_code=422, detail={"error": "contacts_file_invalid", "message": "文件格式不对"})
+    created, skipped = 0, 0
+    existing = {str(x.get("display_name_zh") or "") + "|" + str(x.get("contact_org") or "")
+                for x in store.list("contact-records")}
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        org = str(item.get("org") or "").strip()
+        if not name and not org:
+            skipped += 1
+            continue
+        key = name + "|" + org
+        if key in existing:
+            skipped += 1
+            continue
+        rid = "cr_" + uuid4().hex[:12]
+        record = {"display_name_zh": name or org, "display_name_en": name or org,
+                  "contact_org": org, "contact_title": str(item.get("title") or ""),
+                  "contact_phones": item.get("phones") or [],
+                  "contact_emails": item.get("emails") or [],
+                  "contact_addresses": item.get("addresses") or [],
+                  "contact_note": "；".join(str(x) for x in (item.get("notes") or []))[:2000],
+                  "contact_group_ids": item.get("group_ids") or [],
+                  "contact_source": str(doc.get("source") or "contacts-import"),
+                  "contact_sensitivity": "restricted"}
+        store.put("contact-records", rid, record, create_only=True)
+        existing.add(key)
+        created += 1
+    return {"created": created, "skipped": skipped, "total": created + skipped,
+            "note": "全部标为 restricted：不参与对外授权、不进契约、导出默认排除"}
+
+
 # ── 资料查看记录：每一次看明文都留一条 ──
 @app.post("/v1/profile-items/{item_id}/reveal", dependencies=[Depends(require_session)])
 async def record_profile_reveal(item_id: str, body: dict[str, Any]) -> Any:

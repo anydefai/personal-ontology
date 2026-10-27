@@ -23,6 +23,7 @@ CLASSES = {
     "asset-transactions": "AssetTransaction",
     "circles": "Circle",
     "circle-changes": "CircleChange",
+    "contact-records": "ContactRecord",
     "devices": "Device",
     "profile-items": "ProfileItem",
     "places": "Place",
@@ -93,6 +94,18 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                     "commitment_status": ("commitmentStatus", "lit"),
                     "remind_before_days": ("remindBeforeDays", "lit"),
                     "commitment_note": ("commitmentNote", "lit")},
+    # 从手机通讯录导入的联系人（全部字段，但一律 restricted，不参与对外授权）。
+    "contact-records": {"display_name_zh": ("displayNameZh", "lit"),
+                        "display_name_en": ("displayNameEn", "lit"),
+                        "contact_org": ("contactOrg", "lit"),
+                        "contact_title": ("contactTitle", "lit"),
+                        "contact_phones": ("contactPhones", "json"),
+                        "contact_emails": ("contactEmails", "json"),
+                        "contact_addresses": ("contactAddresses", "json"),
+                        "contact_note": ("contactNote", "lit"),
+                        "contact_group_ids": ("contactGroupIds", "json"),
+                        "contact_source": ("contactSource", "lit"),
+                        "contact_sensitivity": ("contactSensitivity", "lit")},
     # 圈的变更记录：加人/移人都写一条，带 displayName 以满足全局形状要求。
     "circle-changes": {"display_name_zh": ("displayNameZh", "lit"),
                        "display_name_en": ("displayNameEn", "lit"),
@@ -194,7 +207,7 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
 }
 
 ID_FIELDS = {"authorizations": "authorizationId", "decisions": "decisionId", "executions": "executionId", "contacts": "contactId", "triggers": "triggerId", "notifications": "notificationId", "evidence": "evidenceId", "taxonomies": "taxonomyId", "taxonomy-items": "itemId", "resource-types": "typeName", "actions": "actionId", "matchers": "patternType", "notifiers": "channelId", "crypto-providers": "cryptoName", "principals": "principalId", "params": "paramId", "redlines": "redlineId", "decision-results": "resultId", "contexts": "contextId", "interactions": "interactionId", "scenario-slices": "scenarioId", "domain-packs": "packId", "scenario-definitions": "scenarioDefinitionId", "knowledge-entries": "entryId", "profiles": "profileId", "asset-transactions": "transactionId",
-    "circles": "circleId", "circle-changes": "changeId", "circle-members": "memberId",
+    "circles": "circleId", "circle-changes": "changeId", "contact-records": "contactRecordId", "circle-members": "memberId",
     "devices": "deviceId", "profile-items": "itemId", "places": "placeId", "commitments": "commitmentId", "assets": "assetId", "profile-reveals": "revealId"}
 INPUT_ID_FIELDS = {"authorizations":"authorization_id", "decisions":"decision_id", "executions":"execution_id", "contacts":"contact_id", "triggers":"trigger_id", "notifications":"notification_id", "evidence":"evidence_id", "taxonomies":"taxonomy_id", "taxonomy-items":"item_id", "resource-types":"type_name", "actions":"action_id", "matchers":"pattern_type", "notifiers":"channel_id", "crypto-providers":"name", "principals":"principal_id", "params":"param_id", "redlines":"redline_id", "decision-results":"result_id", "contexts":"context_id", "interactions":"interaction_id", "constraints":"constraint_id", "scenario-slices":"scenario_id", "domain-packs":"pack_id", "scenario-definitions":"scenario_definition_id", "knowledge-entries":"entry_id", "profiles":"profile_id"}
 
