@@ -375,6 +375,40 @@ class RDFStore:
                 raise
             return graph_to_record(self._require_unlocked(), collection, item_id)
 
+    def put_many(self, collection: str, items: list[tuple[str, dict[str, Any]]], *, batch_size: int = 200) -> int:
+        """批量写入：每 batch_size 条只做【一次】SHACL 校验、一次容器落盘。
+
+        单个 put 的代价是"整图序列化 + 全量校验 + 整库重加密"，逐条写 n 条就是 O(n²)；
+        批量写把 n 次压缩成 n/batch_size 次。导入几百上千条时必须走这里。
+        """
+        self._check_collection(collection)
+        if not items:
+            return 0
+        written = 0
+        with self._mutex:
+            current = self._require_unlocked()
+            for start in range(0, len(items), max(1, batch_size)):
+                chunk = items[start:start + max(1, batch_size)]
+                candidate = Graph()
+                for triple in current:
+                    candidate.add(triple)
+                for item_id, record in chunk:
+                    subject = node_uri(collection, item_id)
+                    for triple in list(candidate.triples((subject, None, None))):
+                        candidate.remove(triple)
+                    object_to_graph(candidate, collection, item_id, dict(record))
+                self._validate(candidate, collection, chunk[0][0])
+                old = self.graph
+                self.graph = candidate
+                try:
+                    self._persist()
+                except Exception:
+                    self.graph = old
+                    raise
+                current = candidate
+                written += len(chunk)
+        return written
+
     def delete(self, collection: str, item_id: str) -> bool:
         self._check_collection(collection)
         with self._mutex:

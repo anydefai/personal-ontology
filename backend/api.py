@@ -1541,7 +1541,11 @@ async def import_contacts_file() -> Any:
     records = doc.get("records") if isinstance(doc, dict) else None
     if not isinstance(records, list):
         raise HTTPException(status_code=422, detail={"error": "contacts_file_invalid", "message": "文件格式不对"})
+    if len(records) > 3000:
+        raise HTTPException(status_code=422, detail={"error": "contacts_too_many",
+            "message": f"一次最多导入 3000 条，当前 {len(records)} 条，请分批。"})
     created, skipped = 0, 0
+    pending: list[tuple[str, dict[str, Any]]] = []
     existing = {str(x.get("display_name_zh") or "") + "|" + str(x.get("contact_org") or "")
                 for x in store.list("contact-records")}
     for item in records:
@@ -1566,9 +1570,10 @@ async def import_contacts_file() -> Any:
                   "contact_group_ids": item.get("group_ids") or [],
                   "contact_source": str(doc.get("source") or "contacts-import"),
                   "contact_sensitivity": "restricted"}
-        store.put("contact-records", rid, record, create_only=True)
+        pending.append((rid, record))
         existing.add(key)
-        created += 1
+    if pending:
+        created = store.put_many("contact-records", pending, batch_size=200)
     return {"created": created, "skipped": skipped, "total": created + skipped,
             "note": "全部标为 restricted：不参与对外授权、不进契约、导出默认排除"}
 
