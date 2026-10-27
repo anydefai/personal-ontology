@@ -2056,6 +2056,7 @@ async def create_circle_member(circle_id: str, body: dict[str, Any]) -> Any:
               "member_role": str(body.get("member_role") or ""),
               "strength": strength,
               "last_interaction_at": str(body.get("last_interaction_at") or ""),
+              "member_kind": str(body.get("member_kind") or ("agent" if str(body.get("principal_id") or "").startswith(("agent","svc")) else "person")),
               "member_source": str(body.get("source") or "manual"),
               "member_added_at": stamp}
     store.put("circle-members", mid, record, create_only=True)

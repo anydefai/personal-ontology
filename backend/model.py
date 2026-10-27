@@ -157,6 +157,7 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                        "member_role": ("memberRole", "lit"),
                        "strength": ("memberStrength", "lit"),
                        "last_interaction_at": ("lastInteractionAt", "lit"),
+                       "member_kind": ("memberKind", "lit"),
                        "member_source": ("memberSource", "lit"),
                        "member_added_at": ("memberAddedAt", "lit")},
     # 流水：放独立的 ledger 段（体积大、敏感），不进主图。
