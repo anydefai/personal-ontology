@@ -38,7 +38,7 @@ CLASSES = {
 }
 
 FIELDS: dict[str, dict[str, tuple[str, str]]] = {
-    "principals": {"principal_type": ("principalType", "lit"), "display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"), "parent_id": ("hasParent", "principals")},
+    "principals": {"principal_type": ("principalType", "lit"), "display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"), "parent_id": ("hasParent", "principals"), "acts_for": ("actsFor", "lit")},
     "resource-types": {"type_name": ("typeName", "lit"), "display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"), "matcher_id": ("usesMatcher", "matchers"), "pattern_examples": ("patternExamples", "lit"), "actions": ("supportsAction", "actions"), "params": ("hasParam", "params"), "default_priority": ("defaultPriority", "lit"), "icon": ("icon", "lit"), "description_zh": ("descriptionZh", "lit"), "description_en": ("descriptionEn", "lit"), "is_builtin": ("isBuiltin", "lit")},
     "params": {"param_name": ("paramName", "lit"), "param_type": ("paramType", "lit"), "display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"), "required": ("paramRequired", "lit")},
     "actions": {"action_id": ("actionId", "lit"), "display_name_zh": ("displayNameZh", "lit"), "display_name_en": ("displayNameEn", "lit"), "applies_to": ("actionResourceType", "resource-types"), "risk_level": ("riskLevel", "lit"), "description_zh": ("descriptionZh", "lit"), "description_en": ("descriptionEn", "lit")},

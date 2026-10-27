@@ -507,6 +507,28 @@ class RDFStore:
             if parent_id in ancestry: break
             ancestry.add(parent_id)
             cursor = self.get("principals", parent_id) or {}
+        # 代理：智能体声明"我代表某人办事"时，把被代表者的上级与所属圈也算进来。
+        try:
+            _acting = str((principal or {}).get("acts_for") or "")
+            if _acting:
+                ancestry.add(_acting)
+                _cursor = self.get("principals", _acting) or {}
+                for _ in range(32):
+                    _p = _cursor.get("parent_id")
+                    if not _p:
+                        break
+                    _p = str(_p)
+                    if _p in ancestry:
+                        break
+                    ancestry.add(_p)
+                    _cursor = self.get("principals", _p) or {}
+                for _m in self.list("circle-members"):
+                    if str(_m.get("principal_id") or "") == _acting:
+                        _cid = str(_m.get("circle_id") or "")
+                        if _cid:
+                            ancestry.add(_cid)
+        except Exception:                                   # noqa: BLE001 - 代理读不到不影响其它规则
+            pass
         # 圈：把"我所属的圈"也并入 ancestry，于是 grantee_id 写成圈 ID 的规则会自动命中圈内成员。
         # 规则格式不变、旧数据不变；只有新写的圈规则会走到这里。
         try:
@@ -519,11 +541,21 @@ class RDFStore:
         except Exception:                                   # noqa: BLE001 - 圈读不到不影响其它规则
             pass
         matched = []
+        _match_via = None        # 记录"凭什么命中"：本人 / 上级 / 圈 / 代理
         used_context_keys = {"source_trust"}   # 风险门槛总会读取它
         for rule in candidates:
             # Legacy rules without policyStatus remain active; scene-generated rules are drafts.
             if rule.get("policy_status", "active") != "active": continue
             if rule.get("revoked") is True or rule.get("grantee_id") not in ancestry: continue
+            _grantee = str(rule.get("grantee_id") or "")
+            if _grantee == str(request["principal_id"]):
+                _via = "self"
+            elif _grantee == str((principal or {}).get("acts_for") or ""):
+                _via = "acting_for"
+            elif any(str(m.get("circle_id") or "") == _grantee for m in self.list("circle-members")):
+                _via = "circle"
+            else:
+                _via = "ancestor"
             if str(rule.get("resource_type_id")) != str(request["resource_type_id"]): continue
             # A single-valued relation comes back from the graph as a bare scalar.
             # Normalise before use: iterating the string "file.read" would compare
@@ -543,6 +575,7 @@ class RDFStore:
                 decoded = decode_constraint_value(item.get("constraint_value"))
                 if isinstance(decoded, dict) and decoded.get("key"): used_context_keys.add(str(decoded["key"]))
             matched.append(rule)
+            _match_via = _via
         matched.sort(key=lambda r: int(r.get("priority", 0)), reverse=True)
         effects = {str(r.get("effect", "deny")).lower() for r in matched}
         risk = str(action.get("risk_level", "critical"))
@@ -556,8 +589,16 @@ class RDFStore:
         elif "allow" in effects: result, reason = "allow", "decision.explicit_allow"
         else: result, reason = "deny", "decision.default_deny"
         result_record = self.get("decision-results", result) or {}
+        params = {}
+        if matched and _match_via:
+            params["matched_via"] = _match_via
+            params["matched_rule"] = str(matched[0].get("id") or "")
+            if _match_via == "circle":
+                params["via_circle"] = str(matched[0].get("grantee_id") or "")
+            if _match_via == "acting_for":
+                params["acting_for"] = str((principal or {}).get("acts_for") or "")
         return {"result_id":result, "next_action":result_record.get("next_action", "refuse"), "reason_key":reason,
-                "reason_params":{}, "cited_assertions":[r["id"] for r in matched], "context_keys_used":sorted(used_context_keys),
+                "reason_params":params, "cited_assertions":[r["id"] for r in matched], "context_keys_used":sorted(used_context_keys),
                 "phase":request.get("phase", "pre_planning")}
 
     @staticmethod

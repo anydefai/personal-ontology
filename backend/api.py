@@ -1520,6 +1520,26 @@ async def delete_asset_transaction(transaction_id: str) -> Any:
     return {"deleted": transaction_id}
 
 
+# ── 代理关系：某个智能体代表某个主体办事 ──
+@app.post("/v1/principals/{principal_id}/acts-for", dependencies=[Depends(require_session)])
+async def set_acts_for(principal_id: str, body: dict[str, Any]) -> Any:
+    cur = store.get("principals", principal_id)
+    if not cur:
+        raise HTTPException(status_code=404, detail=messages.detail("invalid_input_data"))
+    target = str(body.get("represents") or "").strip()
+    if target:
+        who = store.get("principals", target)
+        if not who:
+            raise HTTPException(status_code=422, detail=messages.detail("invalid_input_data"))
+        if str(who.get("principal_type")) not in {"person", "role"}:
+            raise HTTPException(status_code=422, detail={"error": "acts_for_target_invalid",
+                "message": "代理只能指向一个人（或角色），不能指另一个智能体。"})
+    updated = dict(cur)
+    updated["acts_for"] = target
+    store.put("principals", principal_id, {k: v for k, v in updated.items() if k not in {"id", "principal_id"}})
+    return {"principal_id": principal_id, "acts_for": target}
+
+
 # ── 通讯录导入：从 DATA_DIR/contacts-import.json 读入（本机文件，不经网络上传）──
 @app.get("/v1/contact-records", dependencies=[Depends(require_session)])
 async def list_contact_records() -> Any:
