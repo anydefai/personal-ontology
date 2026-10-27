@@ -105,7 +105,12 @@ FIELDS: dict[str, dict[str, tuple[str, str]]] = {
                         "contact_note": ("contactNote", "lit"),
                         "contact_group_ids": ("contactGroupIds", "json"),
                         "contact_source": ("contactSource", "lit"),
-                        "contact_sensitivity": ("contactSensitivity", "lit")},
+                        "contact_sensitivity": ("contactSensitivity", "lit"),
+                        "source_contact_id": ("contactStableId", "lit"),
+                        "source_device": ("contactDevice", "lit"),
+                        "source_account": ("contactAccount", "lit"),
+                        "contact_tags": ("contactTags", "json"),
+                        "from_phone_deleted": ("contactDeletedOnPhone", "lit")},
     # 圈的变更记录：加人/移人都写一条，带 displayName 以满足全局形状要求。
     "circle-changes": {"display_name_zh": ("displayNameZh", "lit"),
                        "display_name_en": ("displayNameEn", "lit"),

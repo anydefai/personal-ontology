@@ -1556,6 +1556,21 @@ async def set_acts_for(principal_id: str, body: dict[str, Any]) -> Any:
     return {"principal_id": principal_id, "acts_for": target}
 
 
+@app.post("/v1/contacts/sync", dependencies=[Depends(require_session)])
+async def sync_contacts_from_phone(body: dict[str, Any]) -> Any:
+    """界面上点一下就把手机通讯录同步进本体：后端自己调 adb，按 contact_id 就地更新。"""
+    from . import contacts_sync
+    try:
+        records, accounts, device = await asyncio.to_thread(contacts_sync.pull_from_phone)
+    except Exception as exc:                            # noqa: BLE001
+        raise HTTPException(status_code=422, detail={"error": "phone_sync_failed",
+            "message": f"从手机读取失败：{exc}。请确认数据线已连接、手机上已允许 USB 调试。"})
+    stats = contacts_sync.upsert(store, records, accounts,
+                                device, mark_missing=bool((body or {}).get("mark_missing", True)))
+    return {"device": device, "pulled": len(records), **stats,
+            "note": "按手机上的 stable contact id 就地更新，不会产生重复；手机上删掉的已标记，可自行清理"}
+
+
 # ── 通讯录导入：从 DATA_DIR/contacts-import.json 读入（本机文件，不经网络上传）──
 @app.get("/v1/contact-records", dependencies=[Depends(require_session)])
 async def list_contact_records() -> Any:
