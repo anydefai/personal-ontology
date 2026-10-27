@@ -1480,7 +1480,14 @@ function circleDetailHtml(c, memberCount){
         </div>`).join("") : `<div class="empty-state">这一圈还没有人。加第一个。</div>`}
     </div>
     <div class="form-grid" style="margin-top:14px">
+      <label class="field field-full"><span class="field-label">从已有主体里选（人 / 智能体 / 服务，可选）</span>
+        <select class="select" id="member-principal">
+          <option value="">（不选，直接手填姓名）</option>
+          ${(cache.principals||[]).map(p=>`<option value="${esc(p.id)}" data-ptype="${esc(p.principal_type||"")}">${esc(displayName("principals",p))} · ${esc({person:"人",agent:"智能体",service:"服务",group:"集体",org:"组织",role:"角色"}[p.principal_type]||p.principal_type||"主体")}</option>`).join("")}
+        </select></label>
       <label class="field"><span class="field-label">姓名</span><input class="input" id="member-name" placeholder="例如 张三"></label>
+      <label class="field"><span class="field-label">类型</span>
+        <select class="select" id="member-kind"><option value="person">人</option><option value="agent">智能体</option><option value="service">服务</option></select></label>
       <label class="field"><span class="field-label">他在这一圈的身份</span><input class="input" id="member-role" placeholder="例如 同事 / 客户 / 儿子"></label>
       <label class="field"><span class="field-label">亲近程度</span>
         <select class="select" id="member-strength"><option value="close">亲近</option><option value="normal" selected>一般</option><option value="distant">疏远</option></select></label>
@@ -1522,10 +1529,21 @@ function bindCircleDetail(view, c){
         }
       }});
   };
+  const _sel = $("#member-principal");
+  if(_sel) _sel.onchange=()=>{
+    const opt = _sel.selectedOptions[0];
+    if(!_sel.value){ return; }
+    const nameEl = $("#member-name"), kindEl = $("#member-kind");
+    if(nameEl && !nameEl.value.trim()) nameEl.value = (opt.textContent||"").split(" · ")[0].trim();
+    const pt = opt.dataset.ptype || "";
+    if(kindEl){ kindEl.value = pt === "agent" ? "agent" : (pt === "service" ? "service" : "person"); }
+  };
   $("#member-add").onclick=async()=>{
     const body={display_name_zh:String($("#member-name").value||"").trim(),
                 member_role:String($("#member-role").value||"").trim(),
                 strength:$("#member-strength").value,
+                member_kind:$("#member-kind")?$("#member-kind").value:"person",
+                principal_id:$("#member-principal")?$("#member-principal").value:"",
                 last_interaction_at:String($("#member-last").value||"").trim()};
     if(!body.display_name_zh){ toast("请填姓名",true); return; }
     try{ await api(`/v1/circles/${encodeURIComponent(c.id)}/members`,{method:"POST",body:JSON.stringify(body)});
@@ -1552,6 +1570,7 @@ async function renderCircles(view){
     const cur=rows.find(x=>String(x.id)===String(activeCircleId));
     if(cur){
       try{ circleMembers=((await api(`/v1/circles/${encodeURIComponent(cur.id)}/members`))||{}).items||[] }catch(e){ circleMembers=[] }
+      try{ await load("principals") }catch(e){}
       view.innerHTML=circleDetailHtml(cur,counts[cur.id]);
       bindCircleDetail(view,cur);
       await loadContactsOnce();
