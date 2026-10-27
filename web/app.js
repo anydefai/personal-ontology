@@ -1100,7 +1100,7 @@ async function renderDelivery(view){
 }
 
 // -- Decision records (a top-level menu page): one row per formal delivery --
-async function renderDecisions(view){
+async function _renderDecisionsBase(view){
   if(!professionalMode){
     view.innerHTML=`${proModeButtons()}${titleBlock("DECISION RECORDS","判定记录","这一页属于专业判断侧：每条记录是一次正式交付（预演不写记录）")}
      <section class="panel empty-state"><div class="empty-icon">◇</div>先在上方切到「专业技能场景」</section>`;
@@ -2278,4 +2278,40 @@ async function renderDevices(view){
         }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
       }});
   };
+}
+
+
+// 判定记录：在正式交付表之后追加「授权判定」表（数据在 decisions 里，reason_key 以 decision. 开头）
+async function renderDecisions(view){
+  await _renderDecisionsBase(view);
+  if(!professionalMode) return;
+  const decs = (cache.decisions || []);
+  const viaText = {self:"本人", ancestor:"上级主体", circle:"所属圈", acting_for:"代理"};
+  const resultText = {allow:"允许", deny:"拒绝", ask:"暂停并询问", pause:"暂停"};
+  const authz = decs.filter(function(d){ return String(d.reason_key||"").indexOf("decision.") === 0; })
+    .sort(function(x,y){ return String(y.timestamp||"").localeCompare(String(x.timestamp||"")); })
+    .slice(0, 50);
+  const rows = authz.map(function(d){
+    const p = d.reason_params || {}, inp = d.input_params || {};
+    const via = viaText[String(p.matched_via||"")] || "—";
+    let why = via;
+    if(p.via_circle) why = via + " · " + esc(p.via_circle);
+    else if(p.acting_for) why = via + " · 代表 " + esc(p.acting_for);
+    return '<tr><td>' + esc(String(d.timestamp||"").slice(0,19).replace("T"," ")) + '</td>'
+      + '<td>' + esc(inp.principal_id||"—") + '</td>'
+      + '<td>' + esc(inp.action_id||"—") + '</td>'
+      + '<td>' + esc(inp.resource_id||"—") + '</td>'
+      + '<td>' + esc(resultText[String(d.result_id||"")]||d.result_id||"—") + '</td>'
+      + '<td>' + why + '</td>'
+      + '<td class="mono">' + esc(String(p.matched_rule||"—").slice(0,18)) + '</td></tr>';
+  }).join("");
+  const sec = document.createElement("section");
+  sec.className = "panel collection-panel";
+  sec.style.marginTop = "16px";
+  sec.innerHTML = '<div class="collection-toolbar"><span class="record-count"><span>授权判定</span> '
+    + authz.length + ' <span>条（最近 50）</span></span></div>'
+    + '<div class="table-wrap"><table><thead><tr><th>时间</th><th>谁</th><th>动作</th><th>资源</th><th>结果</th><th>凭什么</th><th>规则</th></tr></thead><tbody>'
+    + rows + '</tbody></table></div>'
+    + '<div class="empty-state"' + (authz.length ? ' hidden' : '') + '><div class="empty-icon">◇</div>还没有授权判定。到场景实例点一次「预演」，或让智能体调用一次，就会出现在这里。</div>';
+  view.appendChild(sec);
 }
