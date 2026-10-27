@@ -2224,6 +2224,7 @@ async function renderDevices(view){
     + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
     + (contactCount ? '<button class="button danger" id="cr-purge">清除导入的数据</button>' : '')
     + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
+    + '<select class="select" id="cr-device" style="max-width:230px"><option value="">（检测中…）</option></select>'
     + '<button class="button primary" id="cr-sync">从手机同步</button>'
     + '</span></div>'
     + '<div class="panel-caption" id="cr-sync-msg" style="margin:8px 0 0"></div>';
@@ -2280,13 +2281,26 @@ async function renderDevices(view){
       }catch(e){ if(!(e instanceof AuthRequired)) toast(e.message,true); }
     };
   });
+  const devSel = sec.querySelector("#cr-device");
+  try{
+    const dv = await api("/v1/contacts/devices");
+    const list = (dv && dv.items) || [];
+    if(devSel) devSel.innerHTML = list.length
+      ? list.map(function(x){
+          const nm = x.alias || x.label || x.serial;
+          return '<option value="' + esc(x.serial) + '">' + esc(nm) + '</option>';
+        }).join("")
+      : '<option value="">（未检测到设备）</option>';
+  }catch(e){
+    if(devSel) devSel.innerHTML = '<option value="">（未检测到设备）</option>';
+  }
   const syncBtn = sec.querySelector("#cr-sync");
   if(syncBtn) syncBtn.onclick = async function(){
     const msg = sec.querySelector("#cr-sync-msg");
     syncBtn.disabled = true; syncBtn.textContent = "正在读取手机…";
     if(msg) msg.textContent = "正在通过数据线读取通讯录（十几秒），请不要拔线。";
     try{
-      const r = await api("/v1/contacts/sync", {method:"POST", body:JSON.stringify({mark_missing:true})});
+      const r = await api("/v1/contacts/sync", {method:"POST", body:JSON.stringify({mark_missing:true, device: devSel ? devSel.value : ""})});
       const line = "设备 " + (r.device||"手机") + " ｜ 读取 " + (r.pulled||0) + " 位 ｜ 新增 " + (r.created||0)
         + " ｜ 更新 " + (r.updated||0) + " ｜ 未变 " + (r.unchanged||0)
         + " ｜ 手机上已删 " + (r.deleted_on_phone||0);
