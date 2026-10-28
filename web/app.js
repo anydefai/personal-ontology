@@ -2218,17 +2218,18 @@ async function renderDevices(view){
   const srcText = Array.from(sources).map(function(x){ return esc(x); }).join("、");
   let html = '<div class="panel-title">数据来源 · 通讯录</div>'
     + '<p class="panel-caption">从手机导入的联系人。全部 restricted：不参与对外授权、不进契约、导出默认排除。</p>'
-    + '<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + '<span class="badge ' + (contactCount ? "active" : "neutral") + '">' + (contactCount ? contactCount + " 位已导入" : "还没导入") + '</span>'
     + (sources.size ? '<span class="panel-caption" style="margin:0">来源：' + srcText + '</span>' : '')
-    + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
-    + (contactCount ? '<button class="button danger" id="cr-purge">清除导入的数据</button>' : '')
-    + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'
-    + '<select class="select" id="cr-device" style="max-width:230px"><option value="">（检测中…）</option></select>'
-    + '<input class="input" id="cr-alias" placeholder="设备别名（如 主力机）" style="max-width:150px">'
-    + '<button class="button" id="cr-alias-save">存别名</button>'
-    + '<button class="button primary" id="cr-sync">从手机同步</button>'
-    + '</span></div>'
+    + (contactCount ? '<button class="button danger" id="cr-purge" style="margin-left:auto;font-size:12px;padding:3px 10px;line-height:1.4">清除导入的数据</button>' : '')
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px">'
+    + '<span class="panel-caption" style="margin:0;font-size:12px">设备</span>'
+    + '<select class="select" id="cr-device" style="font-size:12px;height:28px;padding:2px 6px;max-width:200px"><option value="">（检测中…）</option></select>'
+    + '<input class="input" id="cr-alias" placeholder="别名，如 主力机" style="font-size:12px;height:28px;padding:2px 8px;max-width:130px">'
+    + '<button class="button" id="cr-alias-save" style="font-size:12px;height:28px;padding:0 10px">存别名</button>'
+    + '<button class="button primary" id="cr-sync" style="font-size:12px;height:28px;padding:0 12px">从手机同步</button>'
+    + '</div>'
     + '<div class="panel-caption" id="cr-sync-msg" style="margin:8px 0 0"></div>';
   sec.innerHTML = html;
   view.appendChild(sec);
